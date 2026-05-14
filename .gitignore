@@ -1,0 +1,169 @@
+# ============================================================
+# CREDENTIALS - NEVER COMMIT THESE
+# ============================================================
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!app.json
+!firebase.json
+!firestore.indexes.json
+!eas.json
+!.eslintrc.json
+!.prettierrc.json
+
+backend/credentials/
+**/credentials/
+**/serviceAccountKey*
+**/firebase-admin-key*
+**/*-firebase-adminsdk-*
+firebase-config.js
+firebase-config.ts
+
+# ============================================================
+# ENVIRONMENT FILES
+# ============================================================
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.*.local
+!.env.example
+
+# ============================================================
+# PYTHON / BACKEND
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+dist/
+build/
+*.egg
+
+# ============================================================
+# NODE / FRONTEND
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json.bak
+
+# ============================================================
+# EXPO / REACT NATIVE
+# ============================================================
+.expo/
+.expo-shared/
+dist/
+web-build/
+ios/
+android/build/
+android/app/build/
+android/.gradle/
+*.apk
+*.aab
+*.ipa
+*.keystore
+!debug.keystore
+
+# ============================================================
+# REACT / WEB BUILD ARTIFACTS
+# ============================================================
+build/
+.next/
+out/
+.turbo/
+.vercel/
+
+# ============================================================
+# IDE / EDITOR
+# ============================================================
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ============================================================
+# LOGS
+# ============================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ============================================================
+# FIREBASE
+# ============================================================
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc.local
+
+# ============================================================
+# DOCKER
+# ============================================================
+.dockerignore.local
+
+# ============================================================
+# TEMPORARY / SCRATCH
+# ============================================================
+tmp/
+temp/
+.tmp/
+scratch/
+*.tmp
+*.bak
+*.backup
+*.orig
+
+# ============================================================
+# TEST OUTPUTS
+# ============================================================
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# ============================================================
+# MISC
+# ============================================================
+.cache/
+*.tsbuildinfo
+.eslintcache
+.parcel-cache/
