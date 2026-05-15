@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from core import API_VERSION, firebase  # noqa: F401  — firebase import triggers Admin SDK init
 from core.config import get_settings
 from moderation.keyword_filter import keyword_filter
+from routes import admin as admin_routes
 from routes import auth as auth_routes
 from routes import health
 
@@ -161,6 +162,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix=API_V1_PREFIX)
     app.include_router(auth_routes.router, prefix=API_V1_PREFIX)
+    app.include_router(admin_routes.router, prefix=API_V1_PREFIX)
 
     return app
 

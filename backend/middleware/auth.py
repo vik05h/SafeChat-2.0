@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from fastapi import HTTPException, Security
+from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.firebase import auth
@@ -56,3 +56,20 @@ async def get_current_user_claims(
         raise _unauthenticated("Invalid ID token.") from exc
 
     return decoded
+
+
+async def require_admin(
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> dict[str, Any]:
+    """FastAPI dependency that requires the `admin` custom claim.
+
+    Builds on top of `get_current_user_claims` so token verification happens
+    exactly once per request. Raises 403 FORBIDDEN if the verified user is
+    authenticated but not an admin.
+    """
+    if not claims.get("admin"):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "FORBIDDEN", "message": "Admin access required."},
+        )
+    return claims

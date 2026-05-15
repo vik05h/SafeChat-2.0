@@ -531,27 +531,45 @@ Add a new keyword.
 
 ### DELETE `/api/v1/admin/moderation/keywords/{keywordId}`
 
-### GET `/api/v1/admin/moderation/test`
+### POST `/api/v1/admin/moderation/test`
 
-Test the moderation cascade with arbitrary input.
+Run arbitrary text through the full moderation cascade. Useful for testing
+keyword changes, tuning thresholds, and debugging false positives. Requires
+`admin: true` custom claim.
 
 **Request:**
 ```json
 { "text": "test phrase here" }
 ```
 
-**Response:**
+Maximum length: 10,000 characters.
+
+**Response (200):**
 ```json
 {
   "data": {
-    "verdict": "blocked" | "approved",
-    "layer_triggered": "keyword" | "openai" | "gemini",
-    "category": "...",
-    "scores": { ... },
-    "latency_ms": 142
-  }
+    "result": {
+      "blocked": true,
+      "layer": "keyword",
+      "category": "english_slurs",
+      "reason": "keyword match: idiot",
+      "latency_ms": 12.5,
+      "layer_latencies": { "keyword": 0.4, "openai": 12.1 },
+      "content_hash": "<sha256 hex of input>"
+    }
+  },
+  "meta": { "request_id": "...", "timestamp": "..." }
 }
 ```
+
+Fields `layer`, `category`, and `reason` are `null` when `blocked` is `false`.
+`layer_latencies` only contains entries for layers that actually ran (the
+cascade short-circuits on first block).
+
+**Errors:**
+- `401 UNAUTHENTICATED` — missing or invalid token
+- `403 FORBIDDEN` — caller is authenticated but not an admin
+- `400 INVALID_INPUT` — request body validation failed (e.g. text > 10,000 chars)
 
 ---
 
