@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from core import API_VERSION, firebase  # noqa: F401  — firebase import triggers Admin SDK init
 from core.config import get_settings
+from moderation.keyword_filter import keyword_filter
 from routes import auth as auth_routes
 from routes import health
 
@@ -74,8 +75,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.environment,
         settings.gcp_project_id,
     )
-    yield
-    logger.info("SafeChat API shutting down")
+
+    # Prime the keyword cache before serving requests, then poll in the
+    # background. Failures inside refresh() are logged, not raised — the
+    # cascade has other layers, so we fail open on this one.
+    await keyword_filter.refresh()
+    await keyword_filter.start_background_refresh()
+
+    try:
+        yield
+    finally:
+        await keyword_filter.stop_background_refresh()
+        logger.info("SafeChat API shutting down")
 
 
 async def _http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:

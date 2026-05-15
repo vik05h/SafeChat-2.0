@@ -29,12 +29,17 @@ firestore/
 │
 ├── reports/{reportId}                 — User reports
 │
-├── moderation/
-│   ├── keywords/{keywordId}           — Dynamic keyword filter entries
-│   └── logs/{logId}                   — Moderation decision logs
+├── moderation_keywords/{keywordId}    — Dynamic keyword filter entries
+├── moderation_logs/{logId}            — Moderation decision logs
 │
 └── fcm_tokens/{tokenId}               — Push notification tokens
 ```
+
+**Note on collection naming.** Firestore paths must alternate
+collection / document segments, so `moderation/keywords/{id}` is not a valid
+document path (it would be 3 segments: collection → doc → collection). The
+moderation data therefore lives in two flat top-level collections:
+`moderation_keywords` and `moderation_logs`.
 
 ---
 
@@ -291,7 +296,7 @@ Chat list UI shows preview of latest message per chat. Querying messages for eac
 }
 ```
 
-### `moderation/keywords/{keywordId}`
+### `moderation_keywords/{keywordId}`
 
 ```typescript
 {
@@ -308,7 +313,7 @@ Chat list UI shows preview of latest message per chat. Querying messages for eac
 }
 ```
 
-### `moderation/logs/{logId}`
+### `moderation_logs/{logId}`
 
 Privacy-preserving log of moderation decisions. Raw content is never stored.
 
@@ -560,12 +565,12 @@ service cloud.firestore {
     
     
     // MODERATION — admin only
-    match /moderation/keywords/{keywordId} {
+    match /moderation_keywords/{keywordId} {
       allow read: if isAdmin();
       allow write: if false;  // Backend with admin verification
     }
     
-    match /moderation/logs/{logId} {
+    match /moderation_logs/{logId} {
       allow read: if isAdmin();
       allow write: if false;  // Backend only
     }
