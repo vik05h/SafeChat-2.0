@@ -14,6 +14,17 @@ class KeywordVerdict(BaseModel):
     matched_word: str | None = None
 
 
+class OpenAIVerdict(BaseModel):
+    """Result of running text through the OpenAI Moderation API."""
+
+    blocked: bool
+    category: str | None = None
+    score: float | None = None
+    skipped: bool = False              # API key not configured
+    error: bool = False                # HTTP/timeout/parse failure
+    all_scores: dict[str, float] | None = None
+
+
 class ModerationResult(BaseModel):
     """Unified moderation result across all cascade layers."""
 
