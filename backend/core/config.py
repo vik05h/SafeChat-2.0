@@ -68,14 +68,32 @@ class Settings(BaseSettings):
     @field_validator("firebase_admin_key_path")
     @classmethod
     def _resolve_and_check_key_path(cls, value: Path) -> Path:
-        # Relative paths are resolved against the repo root, not CWD,
-        # so the app behaves the same whether run from / or from /backend.
-        resolved = value if value.is_absolute() else (_REPO_ROOT / value).resolve()
-        if not resolved.is_file():
-            raise ValueError(
-                f"FIREBASE_ADMIN_KEY_PATH does not point to a file: {resolved}"
-            )
-        return resolved
+        # Absolute path: use as-is. This is the expected form in containers
+        # (where the credentials folder is mounted at a known mount point).
+        if value.is_absolute():
+            if not value.is_file():
+                raise ValueError(
+                    f"FIREBASE_ADMIN_KEY_PATH does not point to a file: {value}"
+                )
+            return value
+
+        # Relative path: try CWD, then backend/, then repo root.
+        # Lets the same .env work from local dev (any CWD), pytest, or
+        # explicit `uvicorn main:app` runs from inside backend/.
+        candidates = [
+            (Path.cwd() / value).resolve(),
+            (_BACKEND_DIR / value).resolve(),
+            (_REPO_ROOT / value).resolve(),
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+
+        attempted = "\n  ".join(str(c) for c in candidates)
+        raise ValueError(
+            "FIREBASE_ADMIN_KEY_PATH does not point to a file. Tried:\n  "
+            + attempted
+        )
 
     @field_validator("backend_cors_origins", mode="before")
     @classmethod

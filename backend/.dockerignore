@@ -1,0 +1,27 @@
+# Python build / cache
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment / secrets — never bake into the image
+.env
+.env.local
+credentials/
+
+# Tests — not needed in production image
+tests/
+
+# Version control
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Tooling
+.python-version
