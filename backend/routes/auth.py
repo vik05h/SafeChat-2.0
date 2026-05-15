@@ -1,0 +1,107 @@
+# backend/routes/auth.py
+"""Authentication routes."""
+
+from __future__ import annotations
+
+import asyncio
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
+
+from core.firebase import db
+from middleware.auth import get_current_user_claims
+from models.auth import CurrentUser
+from models.user import OnboardRequest
+from services import users as users_service
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _meta() -> dict[str, str]:
+    return {
+        "request_id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/me")
+async def get_me(
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Return the authenticated user, plus their Firestore profile if it exists.
+
+    If no /users/{uid} document exists yet, `needs_onboarding` is true and the
+    client should run the onboarding flow (username selection, profile setup).
+    """
+    user = CurrentUser.from_decoded_token(claims)
+
+    snapshot = await asyncio.to_thread(
+        lambda: db.collection("users").document(user.uid).get()
+    )
+
+    if snapshot.exists:
+        data = {
+            "user": user.model_dump(),
+            "profile": snapshot.to_dict(),
+            "needs_onboarding": False,
+        }
+    else:
+        data = {
+            "user": user.model_dump(),
+            "profile": None,
+            "needs_onboarding": True,
+        }
+
+    return JSONResponse(content={"data": data, "meta": _meta()})
+
+
+@router.post("/onboard", status_code=201)
+async def onboard(
+    payload: OnboardRequest,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Create the authenticated user's profile and reserve their username.
+
+    The username and user-profile docs are created in a single Firestore
+    transaction. Validation here is structural only; content moderation of
+    `username`, `display_name`, and `bio` is added in Phase 2.
+    """
+    uid = claims["uid"]
+    email = claims.get("email")
+
+    try:
+        profile = await users_service.reserve_username(
+            uid=uid,
+            email=email,
+            username=payload.username,
+            display_name=payload.display_name,
+            bio=payload.bio,
+        )
+    except users_service.UsernameTaken as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "USERNAME_TAKEN",
+                "message": f"Username '{payload.username}' is already taken.",
+                "field": "username",
+            },
+        ) from exc
+    except users_service.AlreadyOnboarded as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "CONFLICT",
+                "message": "User has already completed onboarding.",
+            },
+        ) from exc
+
+    return JSONResponse(
+        status_code=201,
+        content={
+            "data": {"profile": profile.model_dump(mode="json")},
+            "meta": _meta(),
+        },
+    )

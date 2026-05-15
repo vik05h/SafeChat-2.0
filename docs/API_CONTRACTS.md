@@ -54,6 +54,7 @@ Accept: application/json
 | 403 | `FORBIDDEN` | Authenticated but not authorized |
 | 404 | `NOT_FOUND` | Resource doesn't exist |
 | 409 | `CONFLICT` | Resource state conflict |
+| 409 | `USERNAME_TAKEN` | Username already taken |
 | 422 | `MODERATION_BLOCKED` | Content blocked by moderation |
 | 429 | `RATE_LIMITED` | Too many requests |
 | 500 | `INTERNAL_ERROR` | Server error |
