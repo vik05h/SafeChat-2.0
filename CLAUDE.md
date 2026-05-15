@@ -227,6 +227,14 @@ When you write code that affects moderation, you must also write or update tests
 
 ---
 
+## Git Conventions
+
+- Never add "Co-Authored-By: Claude" or any AI attribution in commit messages
+- Never add "Generated with Claude Code" footers
+- Commits should appear authored solely by the project maintainer
+
+---
+
 ## Tone
 
 Be direct, practical, and concise in responses. The maintainer (Adnan) prefers honest pushback over agreement when something is wrong. Skip preamble, get to the point.
