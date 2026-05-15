@@ -32,3 +32,7 @@ class ModerationResult(BaseModel):
     layer: str | None = None      # "keyword" | "openai" | "gemini" | "vision"
     category: str | None = None   # e.g. "english_slurs", "harassment"
     reason: str | None = None     # human-readable description for logs
+
+    latency_ms: float | None = None
+    layer_latencies: dict[str, float] | None = None
+    content_hash: str | None = None  # SHA-256 hex digest of the original text
