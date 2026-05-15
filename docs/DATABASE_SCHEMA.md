@@ -322,8 +322,8 @@ Privacy-preserving log of moderation decisions. Raw content is never stored.
   id: string,
   
   content_hash: string,         // SHA-256 of content
-  content_type: "message" | "post" | "comment" | "story" | "profile",
-  content_id: string,
+  content_type: "message" | "post" | "comment" | "story" | "profile" | "test",
+  content_id: string | null,    // null for admin-test calls
   author_uid: string,
   
   verdict: "approved" | "blocked",
@@ -332,6 +332,7 @@ Privacy-preserving log of moderation decisions. Raw content is never stored.
   confidence: number | null,
   
   api_latencies: {
+    keyword_ms: number | null,   // in-process layer, tracked for parity
     openai_ms: number | null,
     gemini_ms: number | null,
     vision_ms: number | null,

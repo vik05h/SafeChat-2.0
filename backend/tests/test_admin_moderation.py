@@ -28,6 +28,16 @@ def _reset_dependency_overrides() -> Iterator[None]:
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def _noop_log(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default to a no-op log call. Override in tests that verify logging."""
+
+    async def fake_log(**kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(admin_routes, "log_moderation_decision", fake_log)
+
+
 def _override_claims(claims: dict[str, Any]) -> None:
     async def fake_claims() -> dict[str, Any]:
         return claims
@@ -158,3 +168,38 @@ def test_clean_text_returns_blocked_false(
 
     assert response.status_code == 200
     assert response.json()["data"]["result"]["blocked"] is False
+
+
+def test_logging_called_with_correct_args(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _override_claims({"uid": "admin-uid", "admin": True})
+
+    captured: dict[str, Any] = {}
+
+    async def fake_log(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(admin_routes, "log_moderation_decision", fake_log)
+
+    async def fake_moderate(text: str) -> ModerationResult:
+        return ModerationResult(
+            blocked=False,
+            latency_ms=1.0,
+            layer_latencies={"keyword": 0.1, "openai": 0.9},
+            content_hash="hash-xyz",
+        )
+
+    monkeypatch.setattr(admin_routes, "moderate_text", fake_moderate)
+
+    response = client.post(
+        "/api/v1/admin/moderation/test",
+        json={"text": "hello"},
+    )
+
+    assert response.status_code == 200
+    assert captured["content_type"] == "test"
+    assert captured["content_id"] is None
+    assert captured["author_uid"] == "admin-uid"
+    assert captured["result"].content_hash == "hash-xyz"
+    assert captured["result"].blocked is False
