@@ -1,0 +1,29 @@
+@"
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.local
+credentials/
+
+# Tests
+tests/
+
+# VCS
+.git/
+.gitignore
+
+# Docs
+*.md
+
+# Tooling
+.python-version
+"@ | Out-File -FilePath "E:\projects\SafeChat-2.0\backend\.gcloudignore" -Encoding ASCII
