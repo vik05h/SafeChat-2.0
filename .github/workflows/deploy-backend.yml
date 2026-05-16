@@ -14,28 +14,30 @@ jobs:
   test-and-deploy:
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout code
+      - name: 🛒 Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: pip install -r backend/requirements.txt
 
-      - name: Run tests
+      - name: 🧪 Run tests
         working-directory: backend
         env:
           GCP_PROJECT_ID: safechat-prod
           FIREBASE_ADMIN_KEY_PATH: ${{ github.workspace }}/ci-firebase-key.json
           FIREBASE_ADMIN_SDK_KEY: ${{ secrets.FIREBASE_ADMIN_SDK_KEY }}
         run: |
+          set -euo pipefail
           # Importing the app initialises the Firebase Admin SDK at module
           # load time, so tests need a structurally-valid SA key on disk.
           # initialize_app() makes no network call; Firestore is mocked in
@@ -43,31 +45,38 @@ jobs:
           printf '%s' "$FIREBASE_ADMIN_SDK_KEY" > "$FIREBASE_ADMIN_KEY_PATH"
           pytest
 
-      - name: Authenticate to GCP
+      - name: 🔑 Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Set up gcloud
+      - name: ☁️ Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Build and push image (Cloud Build)
+      - name: 🏗️ Build and push image (Cloud Build)
         run: |
+          set -euo pipefail
           gcloud builds submit ./backend \
             --tag us-central1-docker.pkg.dev/safechat-prod/safechat/backend:${{ github.sha }} \
+            --gcs-log-dir=gs://safechat-prod_cloudbuild/logs \
             --quiet
 
-      - name: Tag image as latest
+      - name: 🏷️ Tag image as latest
         run: |
+          set -euo pipefail
+          # Non-fatal: a failure here doesn't affect the SHA-tagged image
+          # that the deploy step below actually uses.
           gcloud artifacts docker tags add \
             us-central1-docker.pkg.dev/safechat-prod/safechat/backend:${{ github.sha }} \
             us-central1-docker.pkg.dev/safechat-prod/safechat/backend:latest \
-            --quiet
+            --quiet || echo "::warning::Failed to update :latest tag (non-fatal)"
 
-      - name: Deploy to Cloud Run
+      - name: 🚀 Deploy to Cloud Run
+        id: deploy
         run: |
+          set -euo pipefail
           gcloud run deploy safechat-backend \
             --image us-central1-docker.pkg.dev/safechat-prod/safechat/backend:${{ github.sha }} \
             --region us-central1 \
@@ -81,3 +90,57 @@ jobs:
             --set-env-vars GCP_PROJECT_ID=safechat-prod,ENVIRONMENT=production,LOG_LEVEL=INFO,FIREBASE_ADMIN_KEY_PATH=/secrets/firebase-admin-key.json \
             --set-secrets /secrets/firebase-admin-key.json=firebase-admin-key:latest,OPENAI_API_KEY=openai-api-key:latest \
             --quiet
+          URL=$(gcloud run services describe safechat-backend \
+            --region us-central1 \
+            --format='value(status.url)')
+          echo "service_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Service URL: $URL"
+
+      - name: 🔍 Smoke test (health endpoint)
+        id: smoke
+        run: |
+          set -uo pipefail
+          URL="${{ steps.deploy.outputs.service_url }}"
+          HEALTH_URL="$URL/api/v1/health"
+          ATTEMPTS=5
+          HTTP_CODE="000"
+          for i in $(seq 1 "$ATTEMPTS"); do
+            echo "Attempt $i/$ATTEMPTS: GET $HEALTH_URL"
+            HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+              --max-time 20 "$HEALTH_URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+            echo "Got HTTP $HTTP_CODE — retrying in 10s..."
+            sleep 10
+          done
+          echo "--- Health response ---"
+          cat response.json || true
+          echo ""
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "status=failed (HTTP $HTTP_CODE)" >> "$GITHUB_OUTPUT"
+            echo "::error::Health check failed after $ATTEMPTS attempts (last HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          ENV=$(jq -r '.data.environment' response.json)
+          if [ "$ENV" != "production" ]; then
+            echo "status=failed (environment=$ENV)" >> "$GITHUB_OUTPUT"
+            echo "::error::Expected environment 'production', got '$ENV'"
+            exit 1
+          fi
+          echo "✅ Health check passed (HTTP 200, environment=production)"
+          echo "status=passed" >> "$GITHUB_OUTPUT"
+
+      - name: 📋 Deployment summary
+        if: always()
+        run: |
+          {
+            echo "## 🚀 Backend Deployment Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Image tag | \`${{ github.sha }}\` |"
+            echo "| Service URL | ${{ steps.deploy.outputs.service_url || 'not deployed' }} |"
+            echo "| Health check | ${{ steps.smoke.outputs.status || 'not run' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -14,27 +14,60 @@ jobs:
   deploy-firestore:
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout code
+      - name: 🛒 Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
+      - name: 🔑 Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Set up Node.js
+      - name: ☁️ Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: 🟢 Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Firebase CLI
+      - name: 🔥 Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Deploy Firestore rules and indexes
+      - name: 🚀 Deploy Firestore rules and indexes
         run: |
+          set -euo pipefail
+          # Note: `firebase deploy` for rules/indexes does not invoke Cloud
+          # Build, so no --gcs-log-dir is needed here.
           firebase deploy \
             --only firestore:rules,firestore:indexes \
             --project safechat-prod \
             --non-interactive
+
+      - name: 🔍 Smoke test (deployed rules match local)
+        run: |
+          set -uo pipefail
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+          RELEASE=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://firebaserules.googleapis.com/v1/projects/safechat-prod/releases/cloud.firestore")
+          RULESET_NAME=$(echo "$RELEASE" | jq -r '.rulesetName')
+          if [ -z "$RULESET_NAME" ] || [ "$RULESET_NAME" = "null" ]; then
+            echo "::error::Could not determine the active Firestore ruleset"
+            echo "$RELEASE"
+            exit 1
+          fi
+          echo "Active ruleset: $RULESET_NAME"
+          RULESET=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://firebaserules.googleapis.com/v1/$RULESET_NAME")
+          DEPLOYED=$(echo "$RULESET" | jq -r '.source.files[0].content')
+          if [ "$DEPLOYED" = "$(cat firestore.rules)" ]; then
+            echo "✅ Deployed Firestore rules match local firestore.rules"
+          else
+            echo "::error::Deployed rules do NOT match local firestore.rules"
+            diff <(echo "$DEPLOYED") firestore.rules || true
+            exit 1
+          fi
