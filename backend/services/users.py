@@ -9,12 +9,14 @@ documents can never get out of sync.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
+from google.api_core.exceptions import NotFound
 from google.cloud import firestore
-from google.cloud.firestore import DocumentReference, Transaction
+from google.cloud.firestore import DocumentReference, FieldFilter, Transaction
 
 from core.firebase import db
-from models.user import UserProfile
+from models.user import UserProfile, UserSearchResult
 
 
 class UsernameTaken(Exception):
@@ -23,6 +25,10 @@ class UsernameTaken(Exception):
 
 class AlreadyOnboarded(Exception):
     """Raised when /users/{uid} already exists."""
+
+
+class ProfileNotFound(Exception):
+    """Raised when an update targets a /users/{uid} doc that doesn't exist."""
 
 
 def _username_ref(username: str) -> DocumentReference:
@@ -111,3 +117,76 @@ async def get_user_profile(uid: str) -> UserProfile | None:
     if not snapshot.exists:
         return None
     return UserProfile.model_validate(snapshot.to_dict())
+
+
+async def get_profile_by_username(username: str) -> UserProfile | None:
+    """Resolve username -> uid via /usernames/{username}, then fetch the profile.
+
+    Returns None if the username is unreserved or the user doc is missing.
+    """
+    normalised = username.strip().lower()
+    if not normalised:
+        return None
+
+    username_snap = await asyncio.to_thread(_username_ref(normalised).get)
+    if not username_snap.exists:
+        return None
+
+    uid = (username_snap.to_dict() or {}).get("uid")
+    if not uid:
+        return None
+
+    return await get_user_profile(str(uid))
+
+
+async def update_profile(uid: str, fields: dict[str, Any]) -> UserProfile:
+    """Apply a partial update to /users/{uid} and return the refreshed profile.
+
+    `updated_at` is always bumped to the server timestamp. Raises
+    ProfileNotFound if the user has no profile document.
+    """
+    user_ref = _user_ref(uid)
+    payload: dict[str, Any] = {**fields, "updated_at": firestore.SERVER_TIMESTAMP}
+
+    try:
+        await asyncio.to_thread(lambda: user_ref.update(payload))
+    except NotFound as exc:
+        raise ProfileNotFound(uid) from exc
+
+    snapshot = await asyncio.to_thread(user_ref.get)
+    return UserProfile.model_validate(snapshot.to_dict())
+
+
+async def search_users(query: str, limit: int) -> list[dict[str, Any]]:
+    """Prefix-search users by username (case-insensitive).
+
+    Usernames are stored lowercase, so the standard Firestore range trick
+    (`>= q` and `< q + '\\uf8ff'`) gives a case-insensitive prefix match.
+    An empty query returns an empty list without touching Firestore.
+    """
+    normalised = query.strip().lower()
+    if not normalised:
+        return []
+
+    def _run_search() -> list[dict[str, Any]]:
+        end = normalised + ""
+        firestore_query = (
+            db.collection("users")
+            .where(filter=FieldFilter("username", ">=", normalised))
+            .where(filter=FieldFilter("username", "<", end))
+            .limit(limit)
+        )
+        results: list[dict[str, Any]] = []
+        for snapshot in firestore_query.stream():
+            data = snapshot.to_dict() or {}
+            results.append(
+                UserSearchResult(
+                    uid=str(data.get("uid", "")),
+                    username=str(data.get("username", "")),
+                    display_name=str(data.get("display_name", "")),
+                    photo_url=data.get("photo_url"),
+                ).model_dump()
+            )
+        return results
+
+    return await asyncio.to_thread(_run_search)

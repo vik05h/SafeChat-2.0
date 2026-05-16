@@ -31,6 +31,16 @@ class OnboardRequest(BaseModel):
         return normalised
 
 
+class UpdateProfileRequest(BaseModel):
+    """Partial update for PATCH /users/me. All fields optional."""
+
+    display_name: str | None = Field(default=None, min_length=1, max_length=50)
+    bio: str | None = Field(default=None, max_length=200)
+    photo_url: str | None = None
+    private_account: bool | None = None
+    allow_messages_from: Literal["everyone", "followers", "none"] | None = None
+
+
 class UserProfile(BaseModel):
     """Full /users/{uid} document shape — matches docs/DATABASE_SCHEMA.md."""
 
@@ -56,3 +66,12 @@ class UserProfile(BaseModel):
     allow_messages_from: Literal["everyone", "followers", "none"]
 
     schema_version: int
+
+
+class UserSearchResult(BaseModel):
+    """Lightweight user record returned by GET /users/search."""
+
+    uid: str
+    username: str
+    display_name: str
+    photo_url: str | None = None
