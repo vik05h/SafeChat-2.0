@@ -15,6 +15,7 @@ from main import app
 from middleware.auth import get_current_user_claims
 from models.moderation import ModerationResult
 from models.post import Post
+from services import likes as likes_service
 from services import posts as posts_service
 
 
@@ -211,6 +212,16 @@ def client() -> TestClient:
 def _reset_overrides() -> Iterator[None]:
     yield
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _default_is_liked_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default: viewer has not liked any post. Like tests live in test_likes.py."""
+
+    async def fake_is_liked(user_uid: str, post_id: str) -> bool:
+        return False
+
+    monkeypatch.setattr(likes_service, "is_liked", fake_is_liked)
 
 
 def _override_claims(claims: dict[str, Any]) -> None:

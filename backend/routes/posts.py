@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from middleware.auth import get_current_user_claims
 from models.post import CreatePostRequest
+from services import likes as likes_service
 from services import posts as posts_service
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -25,6 +26,13 @@ def _meta() -> dict[str, str]:
         "request_id": str(uuid.uuid4()),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _post_not_found(post_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail={"code": "NOT_FOUND", "message": f"Post '{post_id}' not found."},
+    )
 
 
 # NOTE: /feed is declared before /{post_id} so the literal path wins.
@@ -77,20 +85,50 @@ async def create_post(
     )
 
 
+# NOTE: /{post_id}/like is declared before /{post_id} so the two-segment
+# path is matched before the single-segment catch-all.
+@router.post("/{post_id}/like", status_code=204)
+async def like_post(
+    post_id: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Like a post. Idempotent."""
+    if await posts_service.get_post(post_id) is None:
+        raise _post_not_found(post_id)
+    await likes_service.like_post(claims["uid"], post_id)
+    return Response(status_code=204)
+
+
+@router.delete("/{post_id}/like", status_code=204)
+async def unlike_post(
+    post_id: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Unlike a post. Idempotent."""
+    if await posts_service.get_post(post_id) is None:
+        raise _post_not_found(post_id)
+    await likes_service.unlike_post(claims["uid"], post_id)
+    return Response(status_code=204)
+
+
 @router.get("/{post_id}")
 async def get_post(
     post_id: str,
-    _claims: dict[str, Any] = Depends(get_current_user_claims),
+    claims: dict[str, Any] = Depends(get_current_user_claims),
 ) -> JSONResponse:
-    """Fetch a single post by ID."""
+    """Fetch a single post by ID. Includes is_liked for the requesting user."""
     post = await posts_service.get_post(post_id)
     if post is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"code": "NOT_FOUND", "message": f"Post '{post_id}' not found."},
-        )
+        raise _post_not_found(post_id)
+
+    viewer_uid = claims["uid"]
+    liked = await likes_service.is_liked(viewer_uid, post_id)
+
     return JSONResponse(
-        content={"data": {"post": post.model_dump(mode="json")}, "meta": _meta()}
+        content={
+            "data": {"post": {**post.model_dump(mode="json"), "is_liked": liked}},
+            "meta": _meta(),
+        }
     )
 
 
