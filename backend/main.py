@@ -21,6 +21,7 @@ from moderation.keyword_filter import keyword_filter
 from routes import admin as admin_routes
 from routes import auth as auth_routes
 from routes import health
+from routes import posts as posts_routes
 from routes import users as users_routes
 
 logger = logging.getLogger(__name__)
@@ -165,6 +166,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_routes.router, prefix=API_V1_PREFIX)
     app.include_router(admin_routes.router, prefix=API_V1_PREFIX)
     app.include_router(users_routes.router, prefix=API_V1_PREFIX)
+    app.include_router(posts_routes.router, prefix=API_V1_PREFIX)
 
     return app
 
