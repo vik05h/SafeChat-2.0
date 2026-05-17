@@ -16,6 +16,7 @@ from models.moderation import ModerationResult
 from models.user import UserProfile
 from routes import users as users_routes
 from services import blocks as blocks_service
+from services import follows as follows_service
 from services import users as users_service
 
 
@@ -48,6 +49,16 @@ def _default_not_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
         return False
 
     monkeypatch.setattr(blocks_service, "is_blocked", fake_is_blocked)
+
+
+@pytest.fixture(autouse=True)
+def _default_not_following(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default: viewer follows nobody. Follow tests live in test_follows.py."""
+
+    async def fake_is_following(follower_uid: str, followee_uid: str) -> bool:
+        return False
+
+    monkeypatch.setattr(follows_service, "is_following", fake_is_following)
 
 
 def _override_claims(claims: dict[str, Any]) -> None:

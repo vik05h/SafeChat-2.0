@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -14,6 +15,7 @@ from middleware.auth import get_current_user_claims
 from models.user import UpdateProfileRequest
 from moderation.engine import moderate_text
 from services import blocks as blocks_service
+from services import follows as follows_service
 from services import users as users_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -36,10 +38,10 @@ def _user_not_found(identifier: str) -> HTTPException:
     )
 
 
-def _self_block_error() -> HTTPException:
+def _self_action_error(action: str) -> HTTPException:
     return HTTPException(
         status_code=400,
-        detail={"code": "INVALID_INPUT", "message": "You cannot block yourself."},
+        detail={"code": "INVALID_INPUT", "message": f"You cannot {action} yourself."},
     )
 
 
@@ -113,9 +115,8 @@ async def block_user(
 ) -> Response:
     """Block another user. Idempotent."""
     blocker_uid = claims["uid"]
-    # Self-check first — avoids a needless profile read for an invalid request.
     if blocker_uid == uid:
-        raise _self_block_error()
+        raise _self_action_error("block")
 
     if await users_service.get_user_profile(uid) is None:
         raise _user_not_found(uid)
@@ -132,7 +133,7 @@ async def unblock_user(
     """Unblock a user. Idempotent."""
     blocker_uid = claims["uid"]
     if blocker_uid == uid:
-        raise _self_block_error()
+        raise _self_action_error("unblock")
 
     if await users_service.get_user_profile(uid) is None:
         raise _user_not_found(uid)
@@ -141,29 +142,87 @@ async def unblock_user(
     return Response(status_code=204)
 
 
+@router.post("/{uid}/follow", status_code=204)
+async def follow_user(
+    uid: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Follow another user. Idempotent."""
+    follower_uid = claims["uid"]
+    if follower_uid == uid:
+        raise _self_action_error("follow")
+
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+
+    await follows_service.follow_user(follower_uid, uid)
+    return Response(status_code=204)
+
+
+@router.delete("/{uid}/follow", status_code=204)
+async def unfollow_user(
+    uid: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Unfollow a user. Idempotent."""
+    follower_uid = claims["uid"]
+    if follower_uid == uid:
+        raise _self_action_error("unfollow")
+
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+
+    await follows_service.unfollow_user(follower_uid, uid)
+    return Response(status_code=204)
+
+
+@router.get("/{uid}/followers")
+async def list_followers(
+    uid: str,
+    _claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Return the list of uids that follow the given user."""
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+
+    followers = await follows_service.get_followers(uid)
+    return JSONResponse(content={"data": {"followers": followers}, "meta": _meta()})
+
+
+@router.get("/{uid}/following")
+async def list_following(
+    uid: str,
+    _claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Return the list of uids that the given user follows."""
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+
+    following = await follows_service.get_following(uid)
+    return JSONResponse(content={"data": {"following": following}, "meta": _meta()})
+
+
 @router.get("/{username}")
 async def get_user(
     username: str,
     claims: dict[str, Any] = Depends(get_current_user_claims),
 ) -> JSONResponse:
-    """Fetch a public profile by username.
-
-    `is_following` / `is_followed_by` are placeholders (false) until the follow
-    system lands in Step 3. `is_blocked` reflects whether the viewer has blocked
-    this user.
-    """
+    """Fetch a public profile by username."""
     profile = await users_service.get_profile_by_username(username)
     if profile is None:
         raise _user_not_found(username)
 
     viewer_uid = claims["uid"]
-    blocked = await blocks_service.is_blocked(viewer_uid, profile.uid)
+    blocked, is_following, is_followed_by = await asyncio.gather(
+        blocks_service.is_blocked(viewer_uid, profile.uid),
+        follows_service.is_following(viewer_uid, profile.uid),
+        follows_service.is_following(profile.uid, viewer_uid),
+    )
 
     data = {
         **profile.model_dump(mode="json"),
-        # Placeholders — wired up in Step 3.
-        "is_following": False,
-        "is_followed_by": False,
+        "is_following": is_following,
+        "is_followed_by": is_followed_by,
         "is_blocked": blocked,
     }
     return JSONResponse(content={"data": data, "meta": _meta()})
