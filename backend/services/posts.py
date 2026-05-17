@@ -8,6 +8,7 @@ is incremented/decremented atomically via Firestore batch writes.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime
 from typing import Any
@@ -17,8 +18,10 @@ from google.cloud.firestore import DocumentReference, FieldFilter
 
 from core.firebase import db
 from models.post import Post
-from moderation.engine import moderate_text
+from moderation.engine import moderate_image, moderate_text
 from services import follows as follows_service
+
+logger = logging.getLogger(__name__)
 
 POSTS_COLLECTION = "posts"
 
@@ -40,6 +43,30 @@ class PostNotFound(Exception):
 
 class NotAuthorized(Exception):
     """Raised when the requesting user may not perform the action."""
+
+
+async def _moderate_post_image(post_id: str, image_url: str) -> None:
+    """Background task: run Vision SafeSearch on post image_url.
+
+    If the image is blocked the post status is updated to "rejected".
+    Errors are logged and swallowed so the task never crashes the event loop.
+    """
+    try:
+        result = await moderate_image(image_url)
+        if result.blocked:
+            await asyncio.to_thread(
+                _post_ref(post_id).update,
+                {"status": "rejected", "updated_at": firestore.SERVER_TIMESTAMP},
+            )
+            logger.info(
+                "Post %s rejected by image moderation (category=%s)",
+                post_id,
+                result.category,
+            )
+    except Exception as exc:
+        logger.warning(
+            "Image moderation background task failed for post %s: %s", post_id, exc
+        )
 
 
 def _post_ref(post_id: str) -> DocumentReference:
@@ -89,7 +116,15 @@ async def create_post(
 
     # Refetch so the returned model carries resolved server timestamps.
     snap = await asyncio.to_thread(_post_ref(post_id).get)
-    return Post.model_validate(snap.to_dict())
+    post = Post.model_validate(snap.to_dict())
+
+    # Fire-and-forget image moderation. Runs after the post is already stored
+    # so the author sees their post immediately; it is quietly rejected if the
+    # Vision check fails.
+    if image_url:
+        asyncio.create_task(_moderate_post_image(post.id, image_url))
+
+    return post
 
 
 async def get_post(post_id: str) -> Post | None:

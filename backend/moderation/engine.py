@@ -19,6 +19,7 @@ import time
 from models.moderation import ModerationResult
 from moderation.keyword_filter import keyword_filter
 from moderation.openai_moderation import check_with_openai
+from moderation.vision import check_image_with_vision
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,43 @@ async def moderate_text(text: str) -> ModerationResult:
             layer="openai",
             category=openai_verdict.category,
             reason=f"openai score {score:.2f}",
+            latency_ms=_now_ms() - start,
+            layer_latencies=layer_latencies,
+            content_hash=content_hash,
+        )
+
+    return ModerationResult(
+        blocked=False,
+        latency_ms=_now_ms() - start,
+        layer_latencies=layer_latencies,
+        content_hash=content_hash,
+    )
+
+
+async def moderate_image(image_url: str) -> ModerationResult:
+    """Run an image URL through the Vision SafeSearch layer.
+
+    Returns a ``ModerationResult`` with ``layer="vision"`` when blocked.
+    Errors from the Vision API are fail-open: ``blocked=False`` is returned so
+    a transient failure never prevents content from being stored.
+
+    Args:
+        image_url: Publicly reachable URL of the image to screen.
+    """
+    start = _now_ms()
+    content_hash = hash_content(image_url)
+    layer_latencies: dict[str, float] = {}
+
+    layer_start = _now_ms()
+    vision_verdict = await check_image_with_vision(image_url)
+    layer_latencies["vision"] = _now_ms() - layer_start
+
+    if vision_verdict.blocked:
+        return ModerationResult(
+            blocked=True,
+            layer="vision",
+            category=vision_verdict.category,
+            reason=f"vision safeSearch: {vision_verdict.category}",
             latency_ms=_now_ms() - start,
             layer_latencies=layer_latencies,
             content_hash=content_hash,

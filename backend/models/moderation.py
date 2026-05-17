@@ -25,6 +25,15 @@ class OpenAIVerdict(BaseModel):
     all_scores: dict[str, float] | None = None
 
 
+class VisionVerdict(BaseModel):
+    """Result of running an image through Google Cloud Vision SafeSearch."""
+
+    blocked: bool
+    category: str | None = None  # "adult" | "violence" | "racy"
+    skipped: bool = False         # Vision not configured / disabled
+    error: bool = False           # API call failed (fail-open)
+
+
 class ModerationResult(BaseModel):
     """Unified moderation result across all cascade layers."""
 
