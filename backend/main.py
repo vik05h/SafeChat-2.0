@@ -22,6 +22,7 @@ from routes import admin as admin_routes
 from routes import auth as auth_routes
 from routes import health
 from routes import posts as posts_routes
+from routes import reports as reports_routes
 from routes import stories as stories_routes
 from routes import uploads as uploads_routes
 from routes import users as users_routes
@@ -171,6 +172,7 @@ def create_app() -> FastAPI:
     app.include_router(posts_routes.router, prefix=API_V1_PREFIX)
     app.include_router(stories_routes.router, prefix=API_V1_PREFIX)
     app.include_router(uploads_routes.router, prefix=API_V1_PREFIX)
+    app.include_router(reports_routes.router, prefix=API_V1_PREFIX)
 
     return app
 
