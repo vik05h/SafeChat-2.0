@@ -15,6 +15,7 @@ from middleware.auth import get_current_user_claims
 from models.moderation import ModerationResult
 from models.user import UserProfile
 from routes import users as users_routes
+from services import blocks as blocks_service
 from services import users as users_service
 
 
@@ -37,6 +38,16 @@ def _default_moderation_clean(monkeypatch: pytest.MonkeyPatch) -> None:
         return ModerationResult(blocked=False, content_hash="h")
 
     monkeypatch.setattr(users_routes, "moderate_text", fake_moderate)
+
+
+@pytest.fixture(autouse=True)
+def _default_not_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default: viewer hasn't blocked anyone. Block tests live in test_blocks.py."""
+
+    async def fake_is_blocked(blocker_uid: str, blocked_uid: str) -> bool:
+        return False
+
+    monkeypatch.setattr(blocks_service, "is_blocked", fake_is_blocked)
 
 
 def _override_claims(claims: dict[str, Any]) -> None:

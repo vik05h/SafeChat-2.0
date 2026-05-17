@@ -7,12 +7,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 
 from middleware.auth import get_current_user_claims
 from models.user import UpdateProfileRequest
 from moderation.engine import moderate_text
+from services import blocks as blocks_service
 from services import users as users_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -26,6 +27,20 @@ def _meta() -> dict[str, str]:
         "request_id": str(uuid.uuid4()),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _user_not_found(identifier: str) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail={"code": "NOT_FOUND", "message": f"User '{identifier}' not found."},
+    )
+
+
+def _self_block_error() -> HTTPException:
+    return HTTPException(
+        status_code=400,
+        detail={"code": "INVALID_INPUT", "message": "You cannot block yourself."},
+    )
 
 
 # NOTE: /search is declared before /{username} so the literal path wins over
@@ -91,6 +106,41 @@ async def update_me(
     )
 
 
+@router.post("/{uid}/block", status_code=204)
+async def block_user(
+    uid: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Block another user. Idempotent."""
+    blocker_uid = claims["uid"]
+    # Self-check first — avoids a needless profile read for an invalid request.
+    if blocker_uid == uid:
+        raise _self_block_error()
+
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+
+    await blocks_service.block_user(blocker_uid, uid)
+    return Response(status_code=204)
+
+
+@router.delete("/{uid}/block", status_code=204)
+async def unblock_user(
+    uid: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Unblock a user. Idempotent."""
+    blocker_uid = claims["uid"]
+    if blocker_uid == uid:
+        raise _self_block_error()
+
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+
+    await blocks_service.unblock_user(blocker_uid, uid)
+    return Response(status_code=204)
+
+
 @router.get("/{username}")
 async def get_user(
     username: str,
@@ -98,25 +148,22 @@ async def get_user(
 ) -> JSONResponse:
     """Fetch a public profile by username.
 
-    `is_following` / `is_followed_by` / `is_blocked` are included for a stable
-    response shape but are always false until the follow system (Step 3) and
-    block system (Step 2) land.
+    `is_following` / `is_followed_by` are placeholders (false) until the follow
+    system lands in Step 3. `is_blocked` reflects whether the viewer has blocked
+    this user.
     """
     profile = await users_service.get_profile_by_username(username)
     if profile is None:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "code": "NOT_FOUND",
-                "message": f"User '{username}' not found.",
-            },
-        )
+        raise _user_not_found(username)
+
+    viewer_uid = claims["uid"]
+    blocked = await blocks_service.is_blocked(viewer_uid, profile.uid)
 
     data = {
         **profile.model_dump(mode="json"),
-        # Placeholders — wired up in Steps 2 and 3.
+        # Placeholders — wired up in Step 3.
         "is_following": False,
         "is_followed_by": False,
-        "is_blocked": False,
+        "is_blocked": blocked,
     }
     return JSONResponse(content={"data": data, "meta": _meta()})
