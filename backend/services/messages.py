@@ -12,6 +12,7 @@ which side initiates.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime
 from typing import Any
@@ -22,9 +23,13 @@ from google.cloud.firestore import DocumentReference, FieldFilter
 from core.firebase import db
 from models.message import Chat, Message
 from moderation.engine import moderate_text
+from services.notifications import send_message_notification
+
+logger = logging.getLogger(__name__)
 
 CHATS_COLLECTION = "chats"
 MESSAGES_SUBCOLLECTION = "messages"
+USERS_COLLECTION = "users"
 
 
 class CannotMessageSelf(Exception):
@@ -111,6 +116,10 @@ async def send_message(
 ) -> Message:
     """Moderate then persist a message; atomically updates chat metadata.
 
+    After the message is stored a fire-and-forget push notification is sent
+    to the other participant via FCM. Notification failures are silently
+    swallowed and never affect the returned Message.
+
     Args:
         chat_id: The chat document ID.
         sender_uid: UID of the sender — must be a participant.
@@ -165,7 +174,25 @@ async def send_message(
 
     # Refetch to resolve SERVER_TIMESTAMP.
     snap = await asyncio.to_thread(_message_ref(chat_id, message_id).get)
-    return Message.model_validate(snap.to_dict())
+    message = Message.model_validate(snap.to_dict())
+
+    # Fire-and-forget push notification to the other participant.
+    # Runs after the message is already stored so delivery is never blocked
+    # by a missing token or a transient FCM error.
+    participants = chat_data.get("participants", [])
+    recipient_uid = next((uid for uid in participants if uid != sender_uid), None)
+    if recipient_uid:
+        sender_snap = await asyncio.to_thread(
+            db.collection(USERS_COLLECTION).document(sender_uid).get
+        )
+        display_name: str = (
+            (sender_snap.to_dict() or {}).get("display_name") or "Someone"
+        )
+        asyncio.create_task(
+            send_message_notification(recipient_uid, display_name, text, chat_id)
+        )
+
+    return message
 
 
 async def get_messages(
