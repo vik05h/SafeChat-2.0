@@ -1,0 +1,183 @@
+# backend/routes/messages.py
+"""Direct-message routes."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import JSONResponse
+
+from middleware.auth import get_current_user_claims
+from models.message import SendMessageRequest
+from services import messages as messages_service
+
+router = APIRouter(prefix="/chats", tags=["messages"])
+
+_MESSAGES_LIMIT_DEFAULT = 50
+_MESSAGES_LIMIT_MAX = 50
+
+
+def _meta() -> dict[str, str]:
+    return {
+        "request_id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _chat_not_found(chat_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail={"code": "NOT_FOUND", "message": f"Chat '{chat_id}' not found."},
+    )
+
+
+def _message_not_found(message_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail={"code": "NOT_FOUND", "message": f"Message '{message_id}' not found."},
+    )
+
+
+def _forbidden() -> HTTPException:
+    return HTTPException(
+        status_code=403,
+        detail={
+            "code": "FORBIDDEN",
+            "message": "You are not a participant in this chat.",
+        },
+    )
+
+
+# NOTE: paths are declared longest-first within each HTTP method so FastAPI
+# matches more-specific routes before the single-segment catch-all /{uid}.
+
+@router.patch("/{chat_id}/messages/{message_id}/read", status_code=204)
+async def mark_message_read(
+    chat_id: str,
+    message_id: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Mark a specific message as read by the requesting user."""
+    try:
+        await messages_service.mark_read(
+            chat_id=chat_id,
+            message_id=message_id,
+            reader_uid=claims["uid"],
+        )
+    except messages_service.ChatNotFound as exc:
+        raise _chat_not_found(chat_id) from exc
+    except messages_service.MessageNotFound as exc:
+        raise _message_not_found(message_id) from exc
+    except messages_service.NotAuthorized as exc:
+        raise _forbidden() from exc
+
+    return Response(status_code=204)
+
+
+@router.post("/{chat_id}/messages", status_code=201)
+async def send_message(
+    chat_id: str,
+    payload: SendMessageRequest,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Send a message to a chat. Text is run through content moderation."""
+    try:
+        message = await messages_service.send_message(
+            chat_id=chat_id,
+            sender_uid=claims["uid"],
+            text=payload.text,
+            image_url=payload.image_url,
+        )
+    except messages_service.ChatNotFound as exc:
+        raise _chat_not_found(chat_id) from exc
+    except messages_service.NotAuthorized as exc:
+        raise _forbidden() from exc
+    except messages_service.MessageBlocked as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "MODERATION_BLOCKED",
+                "message": "Message was blocked by content moderation.",
+                "field": "text",
+            },
+        ) from exc
+
+    return JSONResponse(
+        status_code=201,
+        content={
+            "data": {"message": message.model_dump(mode="json")},
+            "meta": _meta(),
+        },
+    )
+
+
+@router.get("/{chat_id}/messages")
+async def get_messages(
+    chat_id: str,
+    limit: int = _MESSAGES_LIMIT_DEFAULT,
+    before: str | None = None,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Fetch messages in a chat, newest first."""
+    cap = max(1, min(limit, _MESSAGES_LIMIT_MAX))
+    try:
+        messages = await messages_service.get_messages(
+            chat_id=chat_id,
+            requesting_uid=claims["uid"],
+            limit=cap,
+            before_created_at=before,
+        )
+    except messages_service.ChatNotFound as exc:
+        raise _chat_not_found(chat_id) from exc
+    except messages_service.NotAuthorized as exc:
+        raise _forbidden() from exc
+
+    return JSONResponse(
+        content={
+            "data": {"messages": [m.model_dump(mode="json") for m in messages]},
+            "meta": _meta(),
+        }
+    )
+
+
+@router.get("")
+async def list_chats(
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Return all chats the authenticated user participates in."""
+    chats = await messages_service.get_chats(uid=claims["uid"])
+    return JSONResponse(
+        content={
+            "data": {"chats": [c.model_dump(mode="json") for c in chats]},
+            "meta": _meta(),
+        }
+    )
+
+
+@router.post("/{uid}", status_code=201)
+async def get_or_create_chat(
+    uid: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Start a direct-message chat with user {uid}, or return the existing one."""
+    try:
+        chat = await messages_service.get_or_create_chat(
+            uid_a=claims["uid"],
+            uid_b=uid,
+        )
+    except messages_service.CannotMessageSelf as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_INPUT",
+                "message": "You cannot start a chat with yourself.",
+            },
+        ) from exc
+
+    return JSONResponse(
+        status_code=201,
+        content={"data": {"chat": chat.model_dump(mode="json")}, "meta": _meta()},
+    )
