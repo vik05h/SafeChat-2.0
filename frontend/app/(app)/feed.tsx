@@ -1,27 +1,15 @@
 // frontend/app/(app)/feed.tsx
-import { View, Text, FlatList, RefreshControl, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useGet } from "@/hooks/useApi";
-import { COLORS, BORDER_RADIUS } from "@/constants/theme";
+import { FlatList, RefreshControl, SafeAreaView, Text, StyleSheet } from "react-native";
+import { useFeed } from "@/hooks/useFeed";
+import { useCurrentUser } from "@/hooks/useAuth";
+import { PostCard } from "@/components/post/PostCard";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-
-interface Post {
-  id: string;
-  author_uid: string;
-  text: string;
-  image_url: string | null;
-  likes_count: number;
-  created_at: string;
-}
-
-interface PostsResponse {
-  posts: Post[];
-  next_cursor: string | null;
-}
+import { COLORS } from "@/constants/theme";
 
 export default function FeedScreen() {
-  const { data, isLoading, isError, refetch, isRefetching } =
-    useGet<PostsResponse>(["feed"], "/posts/feed?limit=20");
+  const user = useCurrentUser();
+  const { posts, isLoading, isError, refetch, isRefetching, toggleLike } =
+    useFeed();
 
   if (isLoading) {
     return (
@@ -44,7 +32,7 @@ export default function FeedScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={data?.posts ?? []}
+        data={posts}
         keyExtractor={(item) => item.id}
         refreshControl={
           <RefreshControl
@@ -60,16 +48,11 @@ export default function FeedScreen() {
           <Text style={styles.empty}>Nothing to show yet.</Text>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.cardDate}>{item.created_at}</Text>
-            <Text style={styles.cardText}>{item.text}</Text>
-            {item.likes_count > 0 && (
-              <Text style={styles.cardMeta}>
-                {item.likes_count}{" "}
-                {item.likes_count === 1 ? "like" : "likes"}
-              </Text>
-            )}
-          </View>
+          <PostCard
+            post={item}
+            onLike={toggleLike}
+            currentUserUid={user?.uid ?? ""}
+          />
         )}
         contentContainerStyle={{ paddingBottom: 32 }}
       />
@@ -106,27 +89,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: "center",
     marginTop: 80,
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 16,
-  },
-  cardDate: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  cardText: {
-    color: COLORS.textPrimary,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  cardMeta: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 12,
   },
 });

@@ -3,8 +3,7 @@
  * Axios instance pre-configured for the SafeChat backend.
  *
  * Request interceptor: attaches a fresh Firebase ID token as Bearer on every
- * call so the token is never stale (Firebase refreshes it automatically when
- * it's within the expiry window).
+ * call so the token is never stale.
  *
  * Response interceptor: normalises the error shape — callers always receive
  * an Error whose message is the detail string from the backend JSON body.
@@ -48,3 +47,50 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// ── Shared types ───────────────────────────────────────────────────────────
+
+export interface Post {
+  id: string;
+  author_uid: string;
+  text: string;
+  image_url: string | null;
+  likes_count: number;
+  created_at: string;
+  status: string;
+  /** Injected locally by the optimistic-update layer; not returned by /feed. */
+  is_liked?: boolean;
+}
+
+export interface PostsResponse {
+  data: { posts: Post[] };
+  meta: Record<string, unknown>;
+}
+
+export interface PostResponse {
+  data: { post: Post };
+  meta: Record<string, unknown>;
+}
+
+// ── Typed API helpers ──────────────────────────────────────────────────────
+
+export async function getFeed(limit = 20): Promise<PostsResponse> {
+  const res = await api.get<PostsResponse>(`/posts/feed?limit=${limit}`);
+  return res.data;
+}
+
+export async function likePost(postId: string): Promise<void> {
+  await api.post(`/posts/${postId}/like`);
+}
+
+export async function unlikePost(postId: string): Promise<void> {
+  await api.delete(`/posts/${postId}/like`);
+}
+
+export async function createPost(data: {
+  text: string;
+  image_url?: string;
+}): Promise<PostResponse> {
+  const res = await api.post<PostResponse>("/posts", data);
+  return res.data;
+}
