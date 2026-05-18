@@ -13,6 +13,7 @@
 
 import axios, { type AxiosResponse } from "axios";
 import { auth } from "./firebase";
+import type { UserProfile } from "./store";
 
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -45,7 +46,6 @@ api.interceptors.response.use(
     if (typeof detail === "string") {
       message = detail;
     } else if (detail !== null && typeof detail === "object") {
-      // Structured error — e.g. { code: "MODERATION_BLOCKED", message: "...", field: "text" }
       const d = detail as { code?: string; message?: string };
       message = d.code ?? d.message ?? JSON.stringify(detail);
     } else {
@@ -81,7 +81,27 @@ export interface PostResponse {
   meta: Record<string, unknown>;
 }
 
+export interface MeData {
+  user: { uid: string; email: string };
+  profile: UserProfile | null;
+  needs_onboarding: boolean;
+}
+
 // ── Typed API helpers ──────────────────────────────────────────────────────
+
+/**
+ * Fetch the current user's profile from the backend.
+ * Returns null on any error (network failure, unauthenticated, etc.).
+ * The caller is responsible for deciding how to handle null.
+ */
+export async function getMe(): Promise<MeData | null> {
+  try {
+    const res = await api.get<{ data: MeData }>("/auth/me");
+    return res.data.data;
+  } catch {
+    return null;
+  }
+}
 
 export async function getFeed(limit = 20): Promise<PostsResponse> {
   const res = await api.get<PostsResponse>(`/posts/feed?limit=${limit}`);

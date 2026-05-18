@@ -23,7 +23,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createPost } from "@/lib/api";
 import { FEED_QUERY_KEY } from "@/hooks/useFeed";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { COLORS, BORDER_RADIUS } from "@/constants/theme";
 
 const MAX_CHARS = 500;
@@ -33,7 +32,6 @@ export default function CreatePostScreen() {
   const queryClient = useQueryClient();
 
   const [text, setText] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
   const remaining = MAX_CHARS - text.length;
@@ -43,10 +41,7 @@ export default function CreatePostScreen() {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      await createPost({
-        text: text.trim(),
-        image_url: imageUrl.trim() || undefined,
-      });
+      await createPost({ text: text.trim() });
       // Invalidate feed so the new post appears immediately on return.
       await queryClient.invalidateQueries({ queryKey: FEED_QUERY_KEY });
       router.navigate("/(app)/feed");
@@ -83,7 +78,6 @@ export default function CreatePostScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Main text input */}
           <TextInput
             style={styles.textInput}
             placeholder="What's on your mind?"
@@ -96,7 +90,6 @@ export default function CreatePostScreen() {
             textAlignVertical="top"
           />
 
-          {/* Character counter */}
           <Text
             style={[
               styles.counter,
@@ -106,18 +99,6 @@ export default function CreatePostScreen() {
           >
             {remaining}/{MAX_CHARS}
           </Text>
-
-          {/* Optional image URL */}
-          <Input
-            label="Image URL (optional)"
-            placeholder="https://example.com/image.jpg"
-            value={imageUrl}
-            onChangeText={setImageUrl}
-            keyboardType="url"
-            autoCapitalize="none"
-            autoCorrect={false}
-            containerStyle={styles.imageInput}
-          />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -173,16 +154,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "right",
     marginTop: 6,
-    marginBottom: 24,
   },
   counterWarning: {
     color: COLORS.warning,
   },
   counterError: {
     color: COLORS.error,
-  },
-  imageInput: {
-    marginBottom: 8,
   },
   footer: {
     paddingHorizontal: 24,
