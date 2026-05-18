@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -57,9 +57,7 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", description="Python logging level.")
     port: int = Field(default=8080, ge=1, le=65535)
-    backend_cors_origins: list[str] = Field(
-        default_factory=lambda: list(_DEFAULT_CORS_ORIGINS)
-    )
+    backend_cors_origins: str = ""
     firebase_storage_bucket: str | None = Field(
         default=None,
         description="Storage bucket. Defaults to {gcp_project_id}.firebasestorage.app.",
@@ -95,12 +93,11 @@ class Settings(BaseSettings):
             + attempted
         )
 
-    @field_validator("backend_cors_origins", mode="before")
-    @classmethod
-    def _split_cors(cls, value: str | list[str]) -> list[str]:
-        if isinstance(value, str):
-            return [o.strip() for o in value.split(",") if o.strip()]
-        return value
+    @property
+    def cors_origins(self) -> list[str]:
+        if not self.backend_cors_origins.strip():
+            return list(_DEFAULT_CORS_ORIGINS)
+        return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
 
     @property
     def storage_bucket_name(self) -> str:
