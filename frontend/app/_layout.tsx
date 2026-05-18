@@ -45,7 +45,7 @@ function RootLayoutInner() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user && !inAuthGroup) {
-      router.replace("/(auth)/login");
+      router.navigate("/(auth)/login");
     } else if (user && inAuthGroup) {
       router.replace("/(app)/feed");
     }

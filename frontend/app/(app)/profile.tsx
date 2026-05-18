@@ -1,5 +1,5 @@
 // frontend/app/(app)/profile.tsx
-import { View, Text, Alert, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -14,18 +14,9 @@ export default function ProfileScreen() {
   const profile = useProfileStore((s) => s.profile);
   const clearProfile = useProfileStore((s) => s.clearProfile);
 
-  function handleSignOut() {
-    Alert.alert("Sign out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign out",
-        style: "destructive",
-        onPress: async () => {
-          clearProfile();
-          await signOut(auth);
-        },
-      },
-    ]);
+  async function handleSignOut() {
+    clearProfile();
+    await signOut(auth);
   }
 
   return (
