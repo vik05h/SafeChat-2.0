@@ -7,6 +7,8 @@
  *
  * Response interceptor: normalises the error shape — callers always receive
  * an Error whose message is the detail string from the backend JSON body.
+ * When detail is an object (e.g. moderation 422), the object's `code` field
+ * is surfaced as the message so callers can branch on it.
  */
 
 import axios, { type AxiosResponse } from "axios";
@@ -35,13 +37,20 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: unknown) => {
     const axiosError = error as {
-      response?: { data?: { detail?: string } };
+      response?: { data?: { detail?: unknown } };
       message?: string;
     };
-    const message =
-      axiosError.response?.data?.detail ??
-      axiosError.message ??
-      "An unknown error occurred.";
+    const detail = axiosError.response?.data?.detail;
+    let message: string;
+    if (typeof detail === "string") {
+      message = detail;
+    } else if (detail !== null && typeof detail === "object") {
+      // Structured error — e.g. { code: "MODERATION_BLOCKED", message: "...", field: "text" }
+      const d = detail as { code?: string; message?: string };
+      message = d.code ?? d.message ?? JSON.stringify(detail);
+    } else {
+      message = axiosError.message ?? "An unknown error occurred.";
+    }
     return Promise.reject(new Error(message));
   }
 );
