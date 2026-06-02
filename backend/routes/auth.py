@@ -27,6 +27,22 @@ def _meta() -> dict[str, str]:
     }
 
 
+def _sanitize(obj: Any) -> Any:
+    """Recursively convert datetime/Firestore timestamp objects to ISO strings.
+
+    Firestore returns DatetimeWithNanoseconds (a datetime subclass) for
+    timestamp fields. JSONResponse cannot serialize these, so we walk the
+    structure and convert any datetime instance to an ISO 8601 string.
+    """
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(item) for item in obj]
+    return obj
+
+
 @router.get("/me")
 async def get_me(
     claims: dict[str, Any] = Depends(get_current_user_claims),
@@ -45,7 +61,7 @@ async def get_me(
     if snapshot.exists:
         data = {
             "user": user.model_dump(),
-            "profile": snapshot.to_dict(),
+            "profile": _sanitize(snapshot.to_dict()),
             "needs_onboarding": False,
         }
     else:

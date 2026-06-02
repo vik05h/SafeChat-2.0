@@ -16,12 +16,12 @@ class AppConfig {
     switch (envString) {
       case 'prod':
         return AppConfig(
-          baseUrl: 'https://api.safechat.app/api/v1',
+          baseUrl: 'https://safechat-backend-275978897008.us-central1.run.app/api/v1',
           environment: Environment.prod,
         );
       case 'staging':
         return AppConfig(
-          baseUrl: 'https://staging.api.safechat.app/api/v1',
+          baseUrl: 'https://safechat-backend-275978897008.us-central1.run.app/api/v1',
           environment: Environment.staging,
         );
       case 'dev':
