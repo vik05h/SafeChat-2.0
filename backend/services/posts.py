@@ -216,3 +216,31 @@ async def get_feed(
         return all_posts[:cap]
 
     return await asyncio.to_thread(_query)
+
+
+async def get_posts_by_author(
+    author_uid: str,
+    limit: int = 20,
+) -> list[Post]:
+    """Fetch posts by a specific user, newest first.
+    
+    Capped at 50 to prevent unbounded queries.
+    """
+    cap = min(limit, 50)
+    
+    def _query() -> list[Post]:
+        q = (
+            db.collection(POSTS_COLLECTION)
+            .where(filter=FieldFilter("author_uid", "==", author_uid))
+            .where(filter=FieldFilter("status", "==", "approved"))
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .limit(cap)
+        )
+        
+        results: list[Post] = []
+        for snap in q.stream():
+            d = snap.to_dict() or {}
+            results.append(Post.model_validate(d))
+        return results
+        
+    return await asyncio.to_thread(_query)

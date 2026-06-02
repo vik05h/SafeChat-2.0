@@ -1,0 +1,61 @@
+name: safechat
+description: SafeChat - AI-powered social media platform.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  
+  # Navigation
+  go_router: ^14.0.0
+  
+  # Networking
+  dio: ^5.4.3
+  
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.19.0
+  cloud_firestore: ^4.17.0
+  firebase_storage: ^11.7.0
+  firebase_crashlytics: ^3.4.19
+  firebase_messaging: ^14.7.15
+  firebase_analytics: ^10.10.0
+  flutter_local_notifications: ^17.1.2
+  connectivity_plus: ^5.0.2
+  
+  # UI & Media
+  flutter_animate: ^4.5.0
+  cached_network_image: ^3.3.1
+  google_fonts: ^6.2.1
+  image_picker: ^1.1.1
+  fl_chart: ^0.66.0
+  
+  # Storage
+  shared_preferences: ^2.2.3
+  flutter_secure_storage: ^9.2.1
+  
+  # Utilities
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.9.0
+  intl: ^0.19.0
+  timeago: ^3.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  
+  # Code Generation
+  build_runner: ^2.4.9
+  freezed: ^2.5.2
+  json_serializable: ^8.0.0
+
+flutter:
+  uses-material-design: true

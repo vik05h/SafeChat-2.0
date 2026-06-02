@@ -75,3 +75,9 @@ class UserSearchResult(BaseModel):
     username: str
     display_name: str
     photo_url: str | None = None
+
+
+class DeviceTokenRequest(BaseModel):
+    """Input for POST /users/device-token."""
+
+    token: str = Field(min_length=1)

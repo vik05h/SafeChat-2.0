@@ -190,3 +190,75 @@ async def search_users(query: str, limit: int) -> list[dict[str, Any]]:
         return results
 
     return await asyncio.to_thread(_run_search)
+
+
+async def register_device_token(uid: str, token: str) -> None:
+    """Store an FCM device token on the user doc."""
+    user_ref = _user_ref(uid)
+    payload = {"fcm_tokens": firestore.ArrayUnion([token])}
+    
+    def _update() -> None:
+        try:
+            user_ref.update(payload)
+        except NotFound:
+            # If they don't exist yet, we can't store the token
+            pass
+
+    await asyncio.to_thread(_update)
+
+
+async def get_blocked_users_profiles(uid: str) -> list[dict[str, Any]]:
+    """Return UserSearchResult dicts for blocked users."""
+    from services import blocks as blocks_service
+    blocked_uids = await blocks_service.get_blocked_users(uid)
+    if not blocked_uids:
+        return []
+        
+    def _query() -> list[dict[str, Any]]:
+        results = []
+        for b_uid in blocked_uids:
+            snap = _user_ref(b_uid).get()
+            if snap.exists:
+                data = snap.to_dict() or {}
+                results.append(
+                    UserSearchResult(
+                        uid=str(data.get("uid", "")),
+                        username=str(data.get("username", "")),
+                        display_name=str(data.get("display_name", "")),
+                        photo_url=data.get("photo_url"),
+                    ).model_dump()
+                )
+        return results
+    return await asyncio.to_thread(_query)
+
+
+async def get_suggested_users(uid: str, limit: int = 10) -> list[dict[str, Any]]:
+    """Return suggested UserProfile dicts.
+    
+    Ranking ideally incorporates Trust Level, Reputation Score, and Activity.
+    For Phase B Beta, we pull recent active users not followed or blocked.
+    """
+    from services import blocks as blocks_service
+    from services import follows as follows_service
+    
+    blocked_uids = await blocks_service.get_blocked_users(uid)
+    following_uids = await follows_service.get_following(uid)
+    exclude_uids = set(blocked_uids) | set(following_uids) | {uid}
+    
+    def _query() -> list[dict[str, Any]]:
+        q = (
+            db.collection("users")
+            .order_by("last_active_at", direction=firestore.Query.DESCENDING)
+            .limit(50)
+        )
+        results = []
+        for snap in q.stream():
+            data = snap.to_dict() or {}
+            c_uid = str(data.get("uid", ""))
+            if c_uid not in exclude_uids:
+                results.append(UserProfile.model_validate(data).model_dump(mode="json"))
+            if len(results) >= limit:
+                break
+        return results
+        
+    return await asyncio.to_thread(_query)

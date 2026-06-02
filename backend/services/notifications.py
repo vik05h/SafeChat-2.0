@@ -12,7 +12,11 @@ import logging
 
 from firebase_admin import messaging
 
+from google.cloud import firestore
+from google.cloud.firestore import FieldFilter
+
 from core.firebase import db
+from models.notification import NotificationResponse
 
 logger = logging.getLogger(__name__)
 
@@ -88,3 +92,62 @@ async def send_message_notification(
         logger.warning(
             "FCM send failed for uid=%s chat=%s: %s", recipient_uid, chat_id, exc
         )
+
+
+def _user_notifications_ref(uid: str) -> firestore.CollectionReference:
+    return db.collection("users").document(uid).collection("notifications")
+
+
+async def get_notifications(uid: str, limit: int = 20) -> list[NotificationResponse]:
+    """Fetch notifications for a user, newest first."""
+    cap = min(max(1, limit), 50)
+    
+    def _query() -> list[NotificationResponse]:
+        q = (
+            _user_notifications_ref(uid)
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .limit(cap)
+        )
+        
+        results: list[NotificationResponse] = []
+        for snap in q.stream():
+            d = snap.to_dict() or {}
+            d["id"] = snap.id
+            results.append(NotificationResponse.model_validate(d))
+        return results
+        
+    return await asyncio.to_thread(_query)
+
+
+async def mark_as_read(uid: str, notification_id: str) -> None:
+    """Mark a single notification as read."""
+    def _update() -> None:
+        _user_notifications_ref(uid).document(notification_id).update({
+            "is_read": True
+        })
+        
+    await asyncio.to_thread(_update)
+
+
+async def mark_all_as_read(uid: str) -> None:
+    """Mark all unread notifications for a user as read."""
+    def _update() -> None:
+        q = (
+            _user_notifications_ref(uid)
+            .where(filter=FieldFilter("is_read", "==", False))
+        )
+        
+        batch = db.batch()
+        count = 0
+        for snap in q.stream():
+            batch.update(snap.reference, {"is_read": True})
+            count += 1
+            if count == 400: # Firestore batch limit safety
+                batch.commit()
+                batch = db.batch()
+                count = 0
+                
+        if count > 0:
+            batch.commit()
+            
+    await asyncio.to_thread(_update)

@@ -12,10 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 
 from middleware.auth import get_current_user_claims
-from models.user import UpdateProfileRequest
+from models.user import DeviceTokenRequest, UpdateProfileRequest
 from moderation.engine import moderate_text
 from services import blocks as blocks_service
 from services import follows as follows_service
+from services import posts as posts_service
 from services import users as users_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -57,6 +58,25 @@ async def search_users(
     capped_limit = max(1, min(limit, _SEARCH_LIMIT_MAX))
     results = await users_service.search_users(q, capped_limit)
     return JSONResponse(content={"data": {"results": results}, "meta": _meta()})
+
+
+@router.get("/suggested")
+async def get_suggested_users(
+    limit: int = 10,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Return a list of suggested users to follow."""
+    results = await users_service.get_suggested_users(claims["uid"], limit)
+    return JSONResponse(content={"data": results, "meta": _meta()})
+
+
+@router.get("/me/blocked")
+async def get_blocked_users(
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Return a list of blocked users."""
+    results = await users_service.get_blocked_users_profiles(claims["uid"])
+    return JSONResponse(content={"data": results, "meta": _meta()})
 
 
 @router.patch("/me")
@@ -225,4 +245,31 @@ async def get_user(
         "is_followed_by": is_followed_by,
         "is_blocked": blocked,
     }
+    return JSONResponse(content={"data": data, "meta": _meta()})
+
+
+@router.post("/device-token", status_code=204)
+async def register_device_token(
+    payload: DeviceTokenRequest,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Register an FCM device token for push notifications."""
+    await users_service.register_device_token(claims["uid"], payload.token)
+    return Response(status_code=204)
+
+
+@router.get("/{uid}/posts")
+async def list_user_posts(
+    uid: str,
+    limit: int = 20,
+    _claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> JSONResponse:
+    """Fetch recent posts by a specific user."""
+    # Ensure user exists
+    if await users_service.get_user_profile(uid) is None:
+        raise _user_not_found(uid)
+        
+    posts = await posts_service.get_posts_by_author(uid, limit)
+    data = [post.model_dump(mode="json") for post in posts]
+    
     return JSONResponse(content={"data": data, "meta": _meta()})
