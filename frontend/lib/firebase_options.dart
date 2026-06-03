@@ -34,35 +34,36 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'placeholder-api-key',
-    appId: '1:placeholder:web:placeholder',
-    messagingSenderId: 'placeholder',
+    apiKey: 'AIzaSyARXJaQGd41yC5utfxquVToGDImhbQDIQc',
+    appId: '1:275978897008:web:8cad296ff30778d2b056b5',
+    messagingSenderId: '275978897008',
     projectId: 'safechat-prod',
     authDomain: 'safechat-prod.firebaseapp.com',
     storageBucket: 'safechat-prod.firebasestorage.app',
+    measurementId: 'G-7M175NYLQX',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'placeholder-api-key',
-    appId: '1:placeholder:android:placeholder',
-    messagingSenderId: 'placeholder',
+    apiKey: 'AIzaSyARXJaQGd41yC5utfxquVToGDImhbQDIQc',
+    appId: '1:275978897008:web:8cad296ff30778d2b056b5',
+    messagingSenderId: '275978897008',
     projectId: 'safechat-prod',
     storageBucket: 'safechat-prod.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'placeholder-api-key',
-    appId: '1:placeholder:ios:placeholder',
-    messagingSenderId: 'placeholder',
+    apiKey: 'AIzaSyARXJaQGd41yC5utfxquVToGDImhbQDIQc',
+    appId: '1:275978897008:web:8cad296ff30778d2b056b5',
+    messagingSenderId: '275978897008',
     projectId: 'safechat-prod',
     storageBucket: 'safechat-prod.firebasestorage.app',
     iosBundleId: 'com.safechat.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'placeholder-api-key',
-    appId: '1:placeholder:ios:placeholder',
-    messagingSenderId: 'placeholder',
+    apiKey: 'AIzaSyARXJaQGd41yC5utfxquVToGDImhbQDIQc',
+    appId: '1:275978897008:web:8cad296ff30778d2b056b5',
+    messagingSenderId: '275978897008',
     projectId: 'safechat-prod',
     storageBucket: 'safechat-prod.firebasestorage.app',
     iosBundleId: 'com.safechat.app',

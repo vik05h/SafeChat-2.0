@@ -19,7 +19,7 @@ class NotificationTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: notification.isRead ? Colors.transparent : AppColors.primaryOrange.withOpacity(0.1),
+        color: notification.isRead ? Colors.transparent : AppColors.primaryOrange.withValues(alpha: 0.1),
         padding: const EdgeInsets.all(16.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,7 +27,7 @@ class NotificationTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: iconData.color.withOpacity(0.1),
+                color: iconData.color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(iconData.icon, color: iconData.color),
@@ -88,7 +88,6 @@ class NotificationTile extends StatelessWidget {
       case NotificationType.trustLevelUpdate:
         return _NotificationIconData(Icons.shield_rounded, AppColors.success);
       case NotificationType.unknown:
-      default:
         return _NotificationIconData(Icons.notifications, AppColors.textSecondary);
     }
   }

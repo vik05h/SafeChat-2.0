@@ -13,6 +13,7 @@ class NoConnectionBanner extends ConsumerWidget {
     final connectionState = ref.watch(connectivityProvider);
 
     return Stack(
+      textDirection: TextDirection.ltr,
       children: [
         child,
         if (connectionState != ConnectionStateStatus.connected)

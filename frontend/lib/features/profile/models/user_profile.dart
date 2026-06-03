@@ -25,6 +25,10 @@ class UserProfile with _$UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) => _$UserProfileFromJson(json);
 }
 
+extension UserProfileX on UserProfile {
+  String get uid => id;
+}
+
 extension UserProfileTrust on UserProfile {
   TrustLevel get trustLevel {
     switch (trustLevelStr.toLowerCase()) {

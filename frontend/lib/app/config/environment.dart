@@ -27,8 +27,7 @@ class AppConfig {
       case 'dev':
       default:
         return AppConfig(
-          // Use 10.0.2.2 for Android emulator pointing to localhost
-          baseUrl: 'http://10.0.2.2:8000/api/v1',
+          baseUrl: 'https://safechat-backend-275978897008.us-central1.run.app/api/v1',
           environment: Environment.dev,
         );
     }

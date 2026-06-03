@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
@@ -20,12 +20,37 @@ import '../../features/settings/screens/blocked_users_screen.dart';
 import '../../features/profile/screens/follow_list_screen.dart';
 import '../../features/messages/screens/new_conversation_screen.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import '../../features/auth/providers/auth_provider.dart';
+
+// ChangeNotifier that refreshes the router whenever auth state changes.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(Ref ref) {
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+  }
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
   final analytics = FirebaseAnalytics.instance;
+  final refreshNotifier = _RouterRefreshNotifier(ref);
 
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: refreshNotifier,
+    redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
+      // While loading, don't redirect.
+      if (authState.isLoading) return null;
+
+      final isLoggedIn = authState.valueOrNull != null;
+      final loc = state.matchedLocation;
+      final isOnAuthPage = loc == '/login' || loc == '/signup';
+
+      // Not logged in and trying to access a protected page → login.
+      if (!isLoggedIn && !isOnAuthPage) return '/login';
+      // Logged in but on auth page → home feed.
+      if (isLoggedIn && isOnAuthPage) return '/';
+      return null;
+    },
     observers: [
       FirebaseAnalyticsObserver(analytics: analytics),
     ],

@@ -53,13 +53,12 @@ class AppealsScreen extends ConsumerWidget {
         statusIcon = Icons.cancel;
         statusText = 'Rejected';
         break;
-      case AppealStatus.under_review:
+      case AppealStatus.underReview:
         statusColor = AppColors.warning;
         statusIcon = Icons.hourglass_top;
         statusText = 'Under Review';
         break;
       case AppealStatus.submitted:
-      default:
         statusColor = Colors.blue;
         statusIcon = Icons.send;
         statusText = 'Submitted';

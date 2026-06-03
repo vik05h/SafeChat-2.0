@@ -47,7 +47,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<Post>>> {
       }
     } catch (e, st) {
       FirebaseCrashlytics.instance.recordError(e, st, reason: 'Failed to load more posts for feed');
-      state = AsyncValue.error(e, st).copyWithPrevious(state);
+      state = AsyncValue<List<Post>>.error(e, st).copyWithPrevious(state);
     } finally {
       _isLoadingMore = false;
     }

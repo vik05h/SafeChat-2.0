@@ -63,47 +63,54 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         _showWarningModal(result, text);
       } else if (result.status == ModerationStatus.blocked) {
         _textController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Message blocked: ${result.category}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Message blocked: ${result.category}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() => _isSending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
   void _showWarningModal(ModerationResult result, String text) {
+    final screenContext = context; // capture outer context before dialog opens
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: screenContext,
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('Content Warning', style: TextStyle(color: AppColors.warning)),
         content: Text('Your message was flagged for ${result.category}. Send anyway?'),
         actions: [
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Edit'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
             onPressed: () async {
-              context.pop();
+              Navigator.of(dialogContext).pop();
               setState(() => _isSending = true);
               try {
                 await ref.read(chatServiceProvider).sendMessage(widget.conversationId, text, isWarningBypass: true);
                 _textController.clear();
               } catch (e) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                   SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
-                 );
+                if (screenContext.mounted) {
+                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+                  );
+                }
               }
-              setState(() => _isSending = false);
+              if (mounted) setState(() => _isSending = false);
             },
             child: const Text('Send Anyway'),
           ),
@@ -117,7 +124,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     final messagesAsync = ref.watch(messagesProvider(widget.conversationId));
     final currentUserId = ref.watch(chatServiceProvider).currentUserId;
     // We would determine otherUserId properly, mocked for now
-    final otherUserId = 'OTHER_USER_ID'; 
+    const otherUserId = 'OTHER_USER_ID';
     final isTypingAsync = ref.watch(typingStatusProvider({'conversationId': widget.conversationId, 'userId': otherUserId}));
 
     return Scaffold(
@@ -143,16 +150,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
               } else if (value == 'mute') {
                 try {
                   await ref.read(settingsServiceProvider).muteUser(otherUserId);
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User muted.')));
-                } catch (e) {}
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User muted.')));
+                } catch (e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
               } else if (value == 'block') {
                 try {
                   await ref.read(settingsServiceProvider).blockUser(otherUserId);
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User blocked.')));
                     context.pop();
                   }
-                } catch (e) {}
+                } catch (e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
               }
             },
             itemBuilder: (context) => [

@@ -58,7 +58,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Username',
                       prefixIcon: Icon(Icons.person_outline),
+                      helperText: '3–30 chars: lowercase letters, numbers, underscores',
                     ),
+                    autocorrect: false,
+                    validator: (value) {
+                      final v = value?.trim() ?? '';
+                      if (v.isEmpty) return 'Username is required.';
+                      if (v.length < 3) return 'Username must be at least 3 characters.';
+                      if (v.length > 30) return 'Username must be 30 characters or fewer.';
+                      if (!RegExp(r'^[a-z0-9_]+$').hasMatch(v.toLowerCase())) {
+                        return 'Only lowercase letters, numbers, and underscores.';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

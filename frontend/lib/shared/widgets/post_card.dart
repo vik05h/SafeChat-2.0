@@ -7,7 +7,6 @@ import '../../features/moderation/models/moderation_result.dart';
 import '../../features/reports/widgets/report_bottom_sheet.dart';
 import '../../features/reports/models/report.dart';
 import '../../features/settings/services/settings_service.dart';
-import '../../core/network/dio_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_colors.dart';
 

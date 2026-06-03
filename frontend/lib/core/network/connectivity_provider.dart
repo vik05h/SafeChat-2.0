@@ -15,8 +15,8 @@ class ConnectivityNotifier extends StateNotifier<ConnectionStateStatus> {
   }
 
   void _init() {
-    _connectivity.onConnectivityChanged.listen((List<ConnectivityResult> results) {
-      if (results.contains(ConnectivityResult.none)) {
+    _connectivity.onConnectivityChanged.listen((ConnectivityResult result) {
+      if (result == ConnectivityResult.none) {
         state = ConnectionStateStatus.disconnected;
       } else {
         if (state == ConnectionStateStatus.disconnected) {

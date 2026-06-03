@@ -216,7 +216,7 @@ class ProfileScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppColors.elevatedSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -239,7 +239,6 @@ class ProfileScreen extends ConsumerWidget {
       case TrustLevel.silver:
         return const Color(0xFFC0C0C0); // Silver
       case TrustLevel.bronze:
-      default:
         return const Color(0xFFCD7F32); // Bronze
     }
   }

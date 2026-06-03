@@ -7,7 +7,6 @@ import 'app/router/router.dart';
 import 'app/theme/app_theme.dart';
 import 'features/notifications/services/fcm_service.dart';
 import 'shared/widgets/no_connection_banner.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,21 +47,17 @@ class _SafeChatAppState extends ConsumerState<SafeChatApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    final analytics = FirebaseAnalytics.instance;
 
-    return NoConnectionBanner(
-      child: MaterialApp.router(
-        title: 'SafeChat',
-        theme: AppTheme.darkTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.dark, // Enforce dark mode as per spec
-        routerConfig: router,
-        debugShowCheckedModeBanner: false,
-        builder: (context, child) {
-          // Additional global wrappers can go here
-          return child!;
-        },
-      ),
+    return MaterialApp.router(
+      title: 'SafeChat',
+      theme: AppTheme.darkTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark, // Enforce dark mode as per spec
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return NoConnectionBanner(child: child!);
+      },
     );
   }
 }

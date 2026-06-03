@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'dart:io';
 
@@ -64,35 +65,42 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           imageFile: _selectedImage,
         );
         FirebaseAnalytics.instance.logEvent(name: 'post_created');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post published successfully!', style: TextStyle(color: AppColors.background)), backgroundColor: AppColors.success),
-        );
-        context.pop();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Post published successfully!', style: TextStyle(color: AppColors.background)), backgroundColor: AppColors.success),
+          );
+          context.pop();
+        }
       } else if (result.status == ModerationStatus.warning) {
         // Show Warning Modal
-        _showWarningModal(result);
+        if (mounted) _showWarningModal(result);
       } else if (result.status == ModerationStatus.blocked) {
         // Prevent Submission
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Post blocked: ${result.category ?? "Violates community guidelines"}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Post blocked: ${result.category ?? "Violates community guidelines"}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     } catch (e, st) {
       setState(() { _isAnalyzing = false; });
       FirebaseCrashlytics.instance.recordError(e, st, reason: 'Failed to publish post');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error publishing post: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error publishing post: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
   void _showWarningModal(ModerationResult result) {
+    final screenContext = context; // capture outer context before dialog opens
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: screenContext,
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Row(
           children: [
@@ -107,12 +115,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Edit Post'),
           ),
           ElevatedButton(
             onPressed: () async {
-              context.pop();
+              Navigator.of(dialogContext).pop();
               try {
                 setState(() => _isAnalyzing = true);
                 await ref.read(postServiceProvider).createPost(
@@ -120,16 +128,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   imageFile: _selectedImage,
                   submitForReview: true,
                 );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Post submitted for review.'), backgroundColor: AppColors.warning),
-                );
-                context.pop(); // pop the CreatePostScreen
+                if (screenContext.mounted) {
+                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                    const SnackBar(content: Text('Post submitted for review.'), backgroundColor: AppColors.warning),
+                  );
+                  screenContext.pop(); // pop the CreatePostScreen
+                }
               } catch (e, st) {
-                setState(() => _isAnalyzing = false);
                 FirebaseCrashlytics.instance.recordError(e, st, reason: 'Failed to submit post for review');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error submitting post: $e'), backgroundColor: AppColors.error),
-                );
+                if (screenContext.mounted) {
+                  setState(() => _isAnalyzing = false);
+                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                    SnackBar(content: Text('Error submitting post: $e'), backgroundColor: AppColors.error),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
@@ -206,7 +218,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.error),
                 ),

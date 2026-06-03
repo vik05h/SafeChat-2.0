@@ -7,11 +7,11 @@ enum ReportTargetType { user, post, comment, message }
 
 enum ReportReason {
   harassment,
-  hate_speech,
+  hateSpeech,
   spam,
   nudity,
   violence,
-  self_harm,
+  selfHarm,
   other
 }
 
@@ -49,6 +49,12 @@ extension ReportEnumHelper on String {
 
 extension ReportReasonFormatting on ReportReason {
   String get displayName {
-    return name.split('_').map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+    // Convert camelCase enum name to Title Case words (e.g. hateSpeech → Hate Speech).
+    return name
+        .replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(1)!}')
+        .trim()
+        .split(' ')
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 }

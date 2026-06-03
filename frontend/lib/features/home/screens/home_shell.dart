@@ -48,18 +48,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTap,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.search_outlined),
             activeIcon: Icon(Icons.search),
             label: 'Search',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.mail_outline),
             activeIcon: Icon(Icons.mail),
             label: 'Messages',
@@ -77,7 +77,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ),
             label: 'Notifications',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Profile',

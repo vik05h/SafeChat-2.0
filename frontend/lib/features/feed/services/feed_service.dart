@@ -14,7 +14,7 @@ class FeedService {
 
   Future<List<Post>> getFeed({String? cursor, int limit = 20}) async {
     try {
-      final queryParams = {'limit': limit};
+      final Map<String, dynamic> queryParams = {'limit': limit};
       if (cursor != null) queryParams['cursor'] = cursor;
 
       final response = await _dio.get('/posts/feed', queryParameters: queryParams);

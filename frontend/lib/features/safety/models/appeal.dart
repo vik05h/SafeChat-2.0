@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'appeal.freezed.dart';
 part 'appeal.g.dart';
 
-enum AppealStatus { submitted, under_review, approved, rejected }
+enum AppealStatus { submitted, underReview, approved, rejected }
 
 @freezed
 class Appeal with _$Appeal {
@@ -25,7 +25,7 @@ extension AppealStatusHelper on Appeal {
   AppealStatus get appealStatus {
     switch (status.toLowerCase()) {
       case 'under_review':
-        return AppealStatus.under_review;
+        return AppealStatus.underReview;
       case 'approved':
         return AppealStatus.approved;
       case 'rejected':

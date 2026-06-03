@@ -40,7 +40,7 @@ class CommunityGuidelinesScreen extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: AppColors.primaryOrange.withOpacity(0.2),
+            backgroundColor: AppColors.primaryOrange.withValues(alpha: 0.2),
             child: Text(number.toString(), style: const TextStyle(fontSize: 12, color: AppColors.primaryOrange, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 12),

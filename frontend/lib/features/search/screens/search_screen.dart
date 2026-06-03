@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../providers/search_provider.dart';
-import '../models/search_result.dart';
 import '../../profile/models/user_profile.dart';
 import '../../../shared/widgets/post_card.dart';
 
@@ -193,7 +192,7 @@ class SearchScreen extends ConsumerWidget {
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.2),
+                      color: AppColors.success.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text('Safe: ${user.safetyScore}%', style: const TextStyle(color: AppColors.success, fontSize: 12)),

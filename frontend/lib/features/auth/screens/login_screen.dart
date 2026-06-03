@@ -81,8 +81,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return;
                         }
                         ref.read(authServiceProvider).sendPasswordResetEmail(_emailController.text.trim())
-                          .then((_) => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent.'))))
-                          .catchError((e) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'))));
+                          .then((_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent.'))); })
+                          .catchError((Object e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'))); });
                       },
                       child: const Text('Forgot Password?'),
                     ),

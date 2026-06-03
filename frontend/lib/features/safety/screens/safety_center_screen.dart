@@ -68,7 +68,7 @@ class SafetyCenterScreen extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primaryOrange.withOpacity(0.1),
+              color: AppColors.primaryOrange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.primaryOrange),
             ),
@@ -87,7 +87,7 @@ class SafetyCenterScreen extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.1),
+              color: AppColors.success.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.success),
             ),
@@ -151,7 +151,7 @@ class SafetyCenterScreen extends ConsumerWidget {
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.primaryOrange.withOpacity(0.2),
+                color: AppColors.primaryOrange.withValues(alpha: 0.2),
               ),
             ),
           ],

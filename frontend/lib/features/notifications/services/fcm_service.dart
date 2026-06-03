@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,7 @@ import '../../../core/network/dio_client.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `Firebase.initializeApp()` before using other Firebase services.
-  print("Handling a background message: ${message.messageId}");
+  debugPrint("Handling a background message: ${message.messageId}");
 }
 
 final fcmServiceProvider = Provider<FCMService>((ref) {
@@ -34,7 +35,7 @@ class FCMService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('User granted permission');
+      debugPrint('User granted permission');
       await _registerToken();
     }
 
@@ -88,7 +89,7 @@ class FCMService {
         await _sendTokenToServer(token);
       }
     } catch (e) {
-      print('Failed to get FCM token: $e');
+      debugPrint('Failed to get FCM token: $e');
     }
   }
 
@@ -96,7 +97,7 @@ class FCMService {
     try {
       await _dio.post('/users/device-token', data: {'token': token});
     } catch (e) {
-      print('Failed to send FCM token to server: $e');
+      debugPrint('Failed to send FCM token to server: $e');
     }
   }
 

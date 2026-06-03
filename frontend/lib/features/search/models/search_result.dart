@@ -3,7 +3,6 @@ import '../../profile/models/user_profile.dart';
 import '../../../shared/models/post.dart';
 
 part 'search_result.freezed.dart';
-part 'search_result.g.dart';
 
 @freezed
 class SearchResult with _$SearchResult {

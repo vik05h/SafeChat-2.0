@@ -161,6 +161,8 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        # Allow any localhost port for Flutter web dev server (random ports).
+        allow_origin_regex=r"http://localhost(:\d+)?",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

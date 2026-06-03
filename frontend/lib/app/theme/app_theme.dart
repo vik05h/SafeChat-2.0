@@ -13,12 +13,10 @@ class AppTheme {
         primary: AppColors.primaryOrange,
         secondary: AppColors.primaryLight,
         surface: AppColors.surface,
-        background: AppColors.background,
         error: AppColors.error,
         onPrimary: AppColors.textPrimary,
         onSecondary: AppColors.textPrimary,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
         onError: AppColors.textPrimary,
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
@@ -95,7 +93,7 @@ class AppTheme {
         ),
         hintStyle: GoogleFonts.inter(color: AppColors.textTertiary),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(

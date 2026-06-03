@@ -134,7 +134,7 @@ class _ReportBottomSheetState extends ConsumerState<ReportBottomSheet> {
               return ChoiceChip(
                 label: Text(reason.displayName),
                 selected: isSelected,
-                selectedColor: AppColors.primaryOrange.withOpacity(0.2),
+                selectedColor: AppColors.primaryOrange.withValues(alpha: 0.2),
                 backgroundColor: AppColors.surface,
                 onSelected: (selected) {
                   if (selected) {
