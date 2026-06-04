@@ -134,6 +134,8 @@ lerna-debug.log*
 firebase-debug.log
 firebase-debug.*.log
 .firebaserc.local
+# Flutter firebase config — contains API keys, never commit
+frontend/lib/firebase_options.dart
 
 # ============================================================
 # DOCKER
