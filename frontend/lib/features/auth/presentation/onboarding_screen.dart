@@ -269,14 +269,37 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: 40),
           TextFormField(
             controller: _dobController,
+            readOnly: true,
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now().subtract(const Duration(days: 365 * 13)), // Default to 13 years old
+                firstDate: DateTime(1900),
+                lastDate: DateTime.now(),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: Theme.of(context).colorScheme.copyWith(
+                        primary: AppColors.m3SeedColor,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (date != null) {
+                _dobController.text = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+              }
+            },
             decoration: const InputDecoration(
               labelText: 'Date of Birth',
-              hintText: 'YYYY-MM-DD',
+              hintText: 'Select your birth date',
+              suffixIcon: Icon(Icons.calendar_today),
             ),
             validator: (v) {
               if (v == null || v.isEmpty) return 'DOB is required';
               if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(v)) {
-                return 'Format must be YYYY-MM-DD';
+                return 'Please select a valid date';
               }
               return null;
             },
