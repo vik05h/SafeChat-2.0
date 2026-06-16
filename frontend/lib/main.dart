@@ -2,12 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app.dart';
+import 'firebase_options.dart';
 
-void main() {
-  runZonedGuarded(() {
+void main() async {
+  runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    
+    // Attempt to load .env, but don't crash if it's missing.
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint('No .env file found. Using default values or dart-defines.');
+    }
+
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     
     runApp(
       const ProviderScope(

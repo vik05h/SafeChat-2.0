@@ -8,12 +8,21 @@ enum AppThemeMode {
 }
 
 class AppTheme {
-  static ThemeData getTheme(AppThemeMode mode) {
+  static ThemeData getLightTheme(AppThemeMode mode) {
     switch (mode) {
       case AppThemeMode.material3:
-        return Material3Theme.theme;
+        return Material3Theme.lightTheme;
       case AppThemeMode.neobrutalism:
-        return NeobrutalismTheme.theme;
+        return NeobrutalismTheme.lightTheme;
+    }
+  }
+
+  static ThemeData getDarkTheme(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.material3:
+        return Material3Theme.darkTheme;
+      case AppThemeMode.neobrutalism:
+        return NeobrutalismTheme.darkTheme;
     }
   }
 }

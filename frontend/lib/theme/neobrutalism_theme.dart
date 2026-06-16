@@ -3,66 +3,112 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class NeobrutalismTheme {
-  static ThemeData get theme {
+  static ThemeData get lightTheme {
+    return _buildTheme(
+      brightness: Brightness.light,
+      background: AppColors.neoBackgroundLight,
+      primary: AppColors.neoPrimaryLight,
+      secondary: AppColors.neoSecondaryLight,
+      surface: AppColors.neoSurfaceLight,
+      border: AppColors.neoBorderLight,
+      textPrimary: AppColors.textPrimaryLight,
+      textSecondary: AppColors.textSecondaryLight,
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return _buildTheme(
+      brightness: Brightness.dark,
+      background: AppColors.neoBackgroundDark,
+      primary: AppColors.neoPrimaryDark,
+      secondary: AppColors.neoSecondaryDark,
+      surface: AppColors.neoSurfaceDark,
+      border: AppColors.neoBorderDark,
+      textPrimary: AppColors.textPrimaryDark,
+      textSecondary: AppColors.textSecondaryDark,
+    );
+  }
+
+  static ThemeData _buildTheme({
+    required Brightness brightness,
+    required Color background,
+    required Color primary,
+    required Color secondary,
+    required Color surface,
+    required Color border,
+    required Color textPrimary,
+    required Color textSecondary,
+  }) {
     return ThemeData(
       useMaterial3: true,
-      scaffoldBackgroundColor: AppColors.neoBackground,
-      colorScheme: const ColorScheme.light(
-        primary: AppColors.neoPrimary,
-        secondary: AppColors.neoSecondary,
-        surface: AppColors.neoSurface,
+      brightness: brightness,
+      scaffoldBackgroundColor: background,
+      colorScheme: ColorScheme(
+        brightness: brightness,
+        primary: primary,
+        onPrimary: textPrimary,
+        secondary: secondary,
+        onSecondary: textPrimary,
+        surface: surface,
+        onSurface: textPrimary,
         error: AppColors.neoError,
-        onPrimary: AppColors.textPrimary,
-        onSecondary: AppColors.textPrimary,
-        onSurface: AppColors.textPrimary,
-        onError: AppColors.textPrimary,
+        onError: textPrimary,
       ),
       textTheme: GoogleFonts.outfitTextTheme().apply(
-        bodyColor: AppColors.textPrimary,
-        displayColor: AppColors.textPrimary,
+        bodyColor: textPrimary,
+        displayColor: textPrimary,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.neoBackground,
-        foregroundColor: AppColors.textPrimary,
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: true,
         scrolledUnderElevation: 0,
         shape: Border(
           bottom: BorderSide(
-            color: AppColors.neoBorder,
+            color: border,
             width: AppColors.neoBorderWidth,
           ),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.neoPrimary,
-          foregroundColor: AppColors.textPrimary,
+          backgroundColor: primary,
+          foregroundColor: textPrimary,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(
-              color: AppColors.neoBorder,
+            side: BorderSide(
+              color: border,
               width: AppColors.neoBorderWidth,
             ),
           ),
         ).copyWith(
-          elevation: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.pressed)) {
-              return 0; // Flat when pressed
-            }
-            return 0; // We handle the shadow in a custom wrapper usually, but for standard buttons:
-          }),
+          elevation: WidgetStateProperty.resolveWith((states) => 0),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          backgroundColor: surface,
+          foregroundColor: textPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: border,
+              width: AppColors.neoBorderWidth,
+            ),
+          ),
         ),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.neoSurface,
+        color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(
-            color: AppColors.neoBorder,
+          side: BorderSide(
+            color: border,
             width: AppColors.neoBorderWidth,
           ),
         ),
@@ -70,32 +116,34 @@ class NeobrutalismTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.neoSurface,
+        fillColor: surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: AppColors.neoBorder,
+          borderSide: BorderSide(
+            color: border,
             width: AppColors.neoBorderWidth,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: AppColors.neoBorder,
+          borderSide: BorderSide(
+            color: border,
             width: AppColors.neoBorderWidth,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: AppColors.neoBorder,
+          borderSide: BorderSide(
+            color: border,
             width: AppColors.neoBorderWidth + 1,
           ),
         ),
-        labelStyle: const TextStyle(
-          color: AppColors.textSecondary,
+        labelStyle: TextStyle(
+          color: textSecondary,
           fontWeight: FontWeight.w600,
         ),
+        prefixIconColor: textPrimary,
+        suffixIconColor: textPrimary,
       ),
     );
   }
