@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # build-essential covers the rare case where a wheel isn't available for a
 # given platform; pip prefers prebuilt wheels when present.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python -m venv /opt/venv
@@ -38,7 +38,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Non-root user. uid/gid 1000 is a conventional value for app accounts.
 RUN groupadd --system --gid 1000 appgroup && \
     useradd --system --uid 1000 --gid appgroup \
-        --home-dir /app --shell /sbin/nologin appuser
+    --home-dir /app --shell /sbin/nologin appuser
 
 # Bring in the virtualenv from the builder stage.
 COPY --from=builder /opt/venv /opt/venv
