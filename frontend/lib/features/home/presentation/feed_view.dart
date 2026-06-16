@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
 
 class FeedView extends StatelessWidget {
   const FeedView({super.key});

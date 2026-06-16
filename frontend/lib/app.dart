@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'theme/theme_provider.dart';
 import 'theme/app_theme.dart';
-import 'theme/material3_theme.dart';
-import 'theme/neobrutalism_theme.dart';
 import 'router/app_router.dart';
 
 class SafeChatApp extends ConsumerWidget {
@@ -16,16 +14,17 @@ class SafeChatApp extends ConsumerWidget {
     final themeMode = ref.watch(brightnessProvider);
     final router = ref.watch(appRouterProvider);
 
+    // Dark Holo is always dark — force ThemeMode.dark
+    final effectiveBrightness = themeStyle == AppThemeMode.darkHolo
+        ? ThemeMode.dark
+        : themeMode;
+
     return MaterialApp.router(
       title: 'SafeChat',
       debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: themeStyle == AppThemeMode.material3 
-          ? Material3Theme.lightTheme 
-          : NeobrutalismTheme.lightTheme,
-      darkTheme: themeStyle == AppThemeMode.material3
-          ? Material3Theme.darkTheme
-          : NeobrutalismTheme.darkTheme,
+      themeMode: effectiveBrightness,
+      theme: AppTheme.getLightTheme(themeStyle),
+      darkTheme: AppTheme.getDarkTheme(themeStyle),
       routerConfig: router,
     );
   }

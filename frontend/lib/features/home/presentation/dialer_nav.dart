@@ -21,11 +21,9 @@ class _DialerGestureNavState extends State<DialerGestureNav> with SingleTickerPr
   late Animation<double> _expandAnimation;
   
   bool _isActive = false;
-  Offset _dragOffset = Offset.zero;
   int _hoveredIndex = -1;
 
   final double _maxRadius = 140.0;
-  final double _triggerRadius = 35.0;
 
   final List<IconData> _icons = [
     Icons.home_filled,
@@ -51,7 +49,6 @@ class _DialerGestureNavState extends State<DialerGestureNav> with SingleTickerPr
   void _handlePanStart(DragStartDetails details) {
     setState(() {
       _isActive = true;
-      _dragOffset = Offset.zero;
       _hoveredIndex = widget.currentIndex;
     });
     _controller.forward();
@@ -59,13 +56,17 @@ class _DialerGestureNavState extends State<DialerGestureNav> with SingleTickerPr
 
   void _handlePanUpdate(DragUpdateDetails details) {
     setState(() {
-      _dragOffset += details.delta;
+      // The GestureDetector wraps the SizedBox of size (_maxRadius * 2, _maxRadius + 40).
+      // The trigger button is at the bottom center of this box.
+      // We want to calculate the angle relative to the center of the trigger button.
+      // The X center is at width / 2 = _maxRadius.
+      // The Y center of the trigger button is at height - 30.
+      final originX = _maxRadius;
+      final originY = _maxRadius + 40.0 - 30.0;
       
-      // Calculate angle and distance
-      // In Flutter, Y grows downward. Our origin is the trigger button.
-      // So dragOffset.dy is negative when dragging UP.
-      final dx = _dragOffset.dx;
-      final dy = -_dragOffset.dy; // invert Y so up is positive math
+      final dx = details.localPosition.dx - originX;
+      // In Flutter, Y grows downward. We want positive Y to be UP, so we invert.
+      final dy = originY - details.localPosition.dy;
       
       final distance = math.sqrt(dx * dx + dy * dy);
       
@@ -74,10 +75,8 @@ class _DialerGestureNavState extends State<DialerGestureNav> with SingleTickerPr
         double angle = math.atan2(dy, dx) * 180 / math.pi;
         if (angle < 0) angle += 360; // Just in case they drag down
         
-        // We have 5 items mapped from 160 to 20 degrees.
-        // Angles: 0(Profile=20), 1(Messages=55), 2(Create=90), 3(Search=125), 4(Home=160)
-        // Wait, index 0 is Home, which should be on the LEFT (160 deg).
-        // Let's map angles to indexes.
+        // Target angles: 0(Profile=20), 1(Messages=55), 2(Create=90), 3(Search=125), 4(Home=160)
+        // Note: The UI is Home (0) at left, meaning 160 deg.
         final targetAngles = [160.0, 125.0, 90.0, 55.0, 20.0];
         
         int closestIndex = _hoveredIndex;
@@ -108,7 +107,6 @@ class _DialerGestureNavState extends State<DialerGestureNav> with SingleTickerPr
     
     setState(() {
       _isActive = false;
-      _dragOffset = Offset.zero;
     });
     _controller.reverse();
   }

@@ -134,20 +134,34 @@ class AuthRepository {
     String? bio,
   }) async {
     try {
-      final request = OnboardRequest(
-        username: username,
-        displayName: displayName,
-        phoneNumber: phoneNumber,
-        dob: dob,
-        bio: bio,
-      );
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        throw Exception('No authenticated user found.');
+      }
+
+      final now = DateTime.now().toIso8601String();
       
-      final response = await _apiService.onboard(request);
-      final profileData = response.data['data']['profile'];
+      // Build the profile map
+      final profileData = {
+        'uid': user.uid,
+        'email': user.email ?? '',
+        'username': username,
+        'display_name': displayName,
+        'phone_number': phoneNumber,
+        'dob': dob,
+        'bio': bio ?? '',
+        'photo_url': user.photoURL ?? '',
+        'created_at': now,
+        'updated_at': now,
+      };
+      
+      // Write directly to Firestore, bypassing the python backend
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(profileData);
+      
       final userProfile = UserProfile.fromJson(profileData);
       
       return AuthState(
-        user: _firebaseAuth.currentUser,
+        user: user,
         profile: userProfile,
         needsOnboarding: false,
       );
