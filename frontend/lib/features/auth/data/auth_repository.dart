@@ -50,12 +50,17 @@ class AuthRepository {
       // The Dio interceptor will automatically attach the Firebase token
       try {
         final response = await _apiService.getMe();
-        final authMe = response.data; // It's already parsed as AuthMeResponse
+        final data = response.data['data'];
+        
+        UserProfile? userProfile;
+        if (data['profile'] != null) {
+          userProfile = UserProfile.fromJson(data['profile']);
+        }
 
         return AuthState(
           user: user,
-          profile: authMe.profile,
-          needsOnboarding: authMe.needsOnboarding,
+          profile: userProfile,
+          needsOnboarding: data['needs_onboarding'] ?? true,
         );
       } catch (e) {
         // If the backend call fails, we still have the firebase user, but we might want to error out

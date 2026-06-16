@@ -10,7 +10,7 @@ abstract class AuthApiService {
   factory AuthApiService(Dio dio, {String baseUrl}) = _AuthApiService;
 
   @GET("/api/v1/auth/me")
-  Future<HttpResponse<AuthMeResponse>> getMe();
+  Future<HttpResponse<dynamic>> getMe();
 
   @POST("/api/v1/auth/onboard")
   Future<HttpResponse<dynamic>> onboard(@Body() OnboardRequest request);
