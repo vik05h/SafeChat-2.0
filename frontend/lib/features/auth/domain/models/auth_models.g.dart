@@ -10,6 +10,8 @@ UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => UserProfile(
   uid: json['uid'] as String,
   username: json['username'] as String,
   displayName: json['display_name'] as String,
+  phoneNumber: json['phone_number'] as String,
+  dob: json['dob'] as String,
   bio: json['bio'] as String?,
   avatarUrl: json['avatar_url'] as String?,
   createdAt: json['created_at'] as String,
@@ -21,6 +23,8 @@ Map<String, dynamic> _$UserProfileToJson(UserProfile instance) =>
       'uid': instance.uid,
       'username': instance.username,
       'display_name': instance.displayName,
+      'phone_number': instance.phoneNumber,
+      'dob': instance.dob,
       'bio': instance.bio,
       'avatar_url': instance.avatarUrl,
       'created_at': instance.createdAt,
@@ -31,6 +35,8 @@ OnboardRequest _$OnboardRequestFromJson(Map<String, dynamic> json) =>
     OnboardRequest(
       username: json['username'] as String,
       displayName: json['display_name'] as String,
+      phoneNumber: json['phone_number'] as String,
+      dob: json['dob'] as String,
       bio: json['bio'] as String?,
     );
 
@@ -38,6 +44,8 @@ Map<String, dynamic> _$OnboardRequestToJson(OnboardRequest instance) =>
     <String, dynamic>{
       'username': instance.username,
       'display_name': instance.displayName,
+      'phone_number': instance.phoneNumber,
+      'dob': instance.dob,
       'bio': instance.bio,
     };
 

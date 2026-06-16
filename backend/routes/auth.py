@@ -87,14 +87,18 @@ async def onboard(
     """
     uid = claims["uid"]
     email = claims.get("email")
+    photo_url = claims.get("picture") # Extracted from Google Auth
 
     try:
         profile = await users_service.reserve_username(
             uid=uid,
             email=email,
+            phone_number=payload.phone_number,
             username=payload.username,
             display_name=payload.display_name,
+            dob=payload.dob,
             bio=payload.bio,
+            photo_url=photo_url,
         )
     except users_service.UsernameTaken as exc:
         raise HTTPException(
@@ -103,6 +107,15 @@ async def onboard(
                 "code": "USERNAME_TAKEN",
                 "message": f"Username '{payload.username}' is already taken.",
                 "field": "username",
+            },
+        ) from exc
+    except users_service.PhoneNumberTaken as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "PHONE_TAKEN",
+                "message": f"Phone number '{payload.phone_number}' is already registered.",
+                "field": "phone_number",
             },
         ) from exc
     except users_service.AlreadyOnboarded as exc:

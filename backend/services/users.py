@@ -23,6 +23,10 @@ class UsernameTaken(Exception):
     """Raised when the requested username is already owned by a different uid."""
 
 
+class PhoneNumberTaken(Exception):
+    """Raised when the requested phone number is already registered."""
+
+
 class AlreadyOnboarded(Exception):
     """Raised when /users/{uid} already exists."""
 
@@ -39,13 +43,20 @@ def _user_ref(uid: str) -> DocumentReference:
     return db.collection("users").document(uid)
 
 
+def _phone_ref(phone_number: str) -> DocumentReference:
+    return db.collection("phone_numbers").document(phone_number)
+
+
 async def reserve_username(
     *,
     uid: str,
     email: str | None,
+    phone_number: str,
     username: str,
     display_name: str,
+    dob: str,
     bio: str,
+    photo_url: str | None = None,
 ) -> UserProfile:
     """Atomically reserve a username and create the user profile.
 
@@ -59,18 +70,25 @@ async def reserve_username(
         AlreadyOnboarded: /users/{uid} already exists.
     """
     username_ref = _username_ref(username)
+    phone_ref = _phone_ref(phone_number)
     user_ref = _user_ref(uid)
 
     @firestore.transactional
     def _txn(transaction: Transaction) -> None:
         # All reads must happen before any writes within a Firestore txn.
         username_snap = username_ref.get(transaction=transaction)
+        phone_snap = phone_ref.get(transaction=transaction)
         user_snap = user_ref.get(transaction=transaction)
 
         if username_snap.exists:
             owner_uid = (username_snap.to_dict() or {}).get("uid")
             if owner_uid != uid:
                 raise UsernameTaken(username)
+                
+        if phone_snap.exists:
+            owner_uid = (phone_snap.to_dict() or {}).get("uid")
+            if owner_uid != uid:
+                raise PhoneNumberTaken(phone_number)
 
         if user_snap.exists:
             raise AlreadyOnboarded(uid)
@@ -81,14 +99,20 @@ async def reserve_username(
             {"username": username, "uid": uid, "reserved_at": now},
         )
         transaction.set(
+            phone_ref,
+            {"phone_number": phone_number, "uid": uid, "reserved_at": now},
+        )
+        transaction.set(
             user_ref,
             {
                 "uid": uid,
                 "email": email or "",
+                "phone_number": phone_number,
                 "username": username,
                 "display_name": display_name,
+                "dob": dob,
                 "bio": bio,
-                "photo_url": None,
+                "photo_url": photo_url,
                 "follower_count": 0,
                 "following_count": 0,
                 "post_count": 0,

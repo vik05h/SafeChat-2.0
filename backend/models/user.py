@@ -17,6 +17,8 @@ class OnboardRequest(BaseModel):
 
     username: str = Field(description="Lowercase letters, digits, and underscores. 3-30 chars.")
     display_name: str = Field(min_length=1, max_length=50)
+    phone_number: str = Field(description="E.164 formatted phone number", min_length=10, max_length=15)
+    dob: str = Field(description="Date of birth in YYYY-MM-DD format")
     bio: str = Field(default="", max_length=200)
 
     @field_validator("username")
@@ -46,8 +48,10 @@ class UserProfile(BaseModel):
 
     uid: str
     email: str
+    phone_number: str
     username: str
     display_name: str
+    dob: str
     bio: str
     photo_url: str | None = None
 

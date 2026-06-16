@@ -71,6 +71,40 @@ class AuthRepository {
     }
   }
 
+  Future<AuthState> onboard({
+    required String username,
+    required String displayName,
+    required String phoneNumber,
+    required String dob,
+    String? bio,
+  }) async {
+    try {
+      final request = OnboardRequest(
+        username: username,
+        displayName: displayName,
+        phoneNumber: phoneNumber,
+        dob: dob,
+        bio: bio,
+      );
+      
+      final response = await _apiService.onboard(request);
+      final profileData = response.data['data']['profile'];
+      final userProfile = UserProfile.fromJson(profileData);
+      
+      return AuthState(
+        user: _firebaseAuth.currentUser,
+        profile: userProfile,
+        needsOnboarding: false,
+      );
+    } catch (e) {
+      return AuthState(
+        user: _firebaseAuth.currentUser,
+        error: 'Onboarding failed: $e',
+        needsOnboarding: true,
+      );
+    }
+  }
+
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _firebaseAuth.signOut();

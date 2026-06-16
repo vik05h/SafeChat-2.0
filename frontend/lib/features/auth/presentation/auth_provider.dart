@@ -29,6 +29,27 @@ class AuthController extends Notifier<AuthState> {
     state = result.copyWith(isLoading: false);
   }
 
+  Future<void> onboard({
+    required String username,
+    required String displayName,
+    required String phoneNumber,
+    required String dob,
+    String? bio,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    
+    final repo = ref.read(authRepositoryProvider);
+    final result = await repo.onboard(
+      username: username,
+      displayName: displayName,
+      phoneNumber: phoneNumber,
+      dob: dob,
+      bio: bio,
+    );
+    
+    state = result.copyWith(isLoading: false);
+  }
+
   Future<void> signOut() async {
     final repo = ref.read(authRepositoryProvider);
     await repo.signOut();
