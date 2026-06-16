@@ -20,6 +20,13 @@ class AuthController extends Notifier<AuthState> {
     return AuthState();
   }
 
+  Future<void> checkAuthStatus() async {
+    state = state.copyWith(isLoading: true, error: null);
+    final repo = ref.read(authRepositoryProvider);
+    final result = await repo.checkAuthStatus();
+    state = result.copyWith(isLoading: false);
+  }
+
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     

@@ -20,6 +20,35 @@ class AuthRepository {
 
   firebase.User? get currentUser => _firebaseAuth.currentUser;
 
+  Future<AuthState> checkAuthStatus() async {
+    final user = currentUser;
+    if (user == null) {
+      return AuthState(user: null, needsOnboarding: true);
+    }
+
+    try {
+      final response = await _apiService.getMe();
+      final data = response.data['data'];
+      
+      UserProfile? userProfile;
+      if (data['profile'] != null) {
+        userProfile = UserProfile.fromJson(data['profile']);
+      }
+
+      return AuthState(
+        user: user,
+        profile: userProfile,
+        needsOnboarding: data['needs_onboarding'] ?? true,
+      );
+    } catch (e) {
+      return AuthState(
+        user: user,
+        error: 'Backend verification failed: $e',
+        needsOnboarding: true,
+      );
+    }
+  }
+
   Future<AuthState> signInWithGoogle() async {
     try {
       // 1. Trigger the Google Sign In flow
