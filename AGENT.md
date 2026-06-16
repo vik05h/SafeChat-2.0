@@ -65,7 +65,7 @@ Local:       Hive (for caching/complex objects) + flutter_secure_storage (for to
 - Parse the standard response envelope: `{ data: ..., meta: ..., error: ... }`
 
 ## Key Patterns
-- **Auth flow:** Sign in → get Firebase ID token → call `POST /auth/onboard` → store token in secure storage → attach to all requests.
+- **Auth flow:** Sign in → Check Firestore `/users/{uid}` directly for profile (Zero-latency boot). If missing, call `POST /auth/onboard` to create profile through backend moderation. Store Firebase token in secure storage → attach to all backend requests.
 - **Real-time chat:** Firestore listener on `/chats/{chatId}/messages` ordered by `created_at`. Security rules enforce participant access.
 - **Feed:** Firestore query `/posts` with `author_uid in [followedUsers]` + `status == approved`. Pagination with cursors.
 - **Image upload:** `POST /uploads/sign` → get signed URL → upload directly to Firebase Storage → pass `file_url` to post/story creation.
