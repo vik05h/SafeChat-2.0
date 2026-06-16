@@ -1,4 +1,4 @@
-package com.safechat.frontend
+package com.safechat
 
 import io.flutter.embedding.android.FlutterActivity
 
