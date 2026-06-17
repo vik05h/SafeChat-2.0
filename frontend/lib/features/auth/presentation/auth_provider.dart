@@ -1,3 +1,4 @@
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../data/auth_api_service.dart';
@@ -17,6 +18,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
+    final isCachedAuth = Hive.box('settings').get('isAuthenticated', defaultValue: false);
+    if (isCachedAuth) {
+      // Trigger background verification but start as loading to skip splash & redirect
+      Future.microtask(() => checkAuthStatus());
+      return AuthState(isLoading: true);
+    }
     return AuthState();
   }
 
@@ -24,6 +31,14 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.checkAuthStatus();
+    
+    // Cache auth state
+    if (result.isAuthenticated && !result.needsOnboarding) {
+      Hive.box('settings').put('isAuthenticated', true);
+    } else {
+      Hive.box('settings').put('isAuthenticated', false);
+    }
+    
     state = result.copyWith(isLoading: false);
   }
 
@@ -32,6 +47,10 @@ class AuthController extends Notifier<AuthState> {
     
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.signInWithGoogle();
+    
+    if (result.isAuthenticated && !result.needsOnboarding) {
+      Hive.box('settings').put('isAuthenticated', true);
+    }
     
     state = result.copyWith(isLoading: false);
   }
@@ -54,12 +73,17 @@ class AuthController extends Notifier<AuthState> {
       bio: bio,
     );
     
+    if (result.isAuthenticated && !result.needsOnboarding) {
+      Hive.box('settings').put('isAuthenticated', true);
+    }
+    
     state = result.copyWith(isLoading: false);
   }
 
   Future<void> signOut() async {
     final repo = ref.read(authRepositoryProvider);
     await repo.signOut();
+    Hive.box('settings').put('isAuthenticated', false);
     state = AuthState();
   }
 }

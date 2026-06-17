@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../features/auth/presentation/splash_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/onboarding_screen.dart';
@@ -23,9 +24,10 @@ class RouterNotifier extends ChangeNotifier {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
+  final isCachedAuth = Hive.box('settings').get('isAuthenticated', defaultValue: false);
 
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: isCachedAuth ? '/home' : '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);

@@ -80,7 +80,8 @@ def _user_ref(uid: str) -> DocumentReference:
 async def create_post(
     author_uid: str,
     text: str,
-    image_url: str | None = None,
+    media_urls: list[str] | None = None,
+    media_type: str = "text",
 ) -> Post:
     """Moderate then persist a new post. Atomically increments author.post_count.
 
@@ -97,7 +98,9 @@ async def create_post(
         "id": post_id,
         "author_uid": author_uid,
         "text": text,
-        "image_url": image_url,
+        "image_url": media_urls[0] if media_urls else None,
+        "media_urls": media_urls or [],
+        "media_type": media_type,
         "status": "approved",
         "like_count": 0,
         "comment_count": 0,
@@ -121,8 +124,9 @@ async def create_post(
     # Fire-and-forget image moderation. Runs after the post is already stored
     # so the author sees their post immediately; it is quietly rejected if the
     # Vision check fails.
-    if image_url:
-        asyncio.create_task(_moderate_post_image(post.id, image_url))
+    if media_urls and media_type == "image":
+        for url in media_urls:
+            asyncio.create_task(_moderate_post_image(post.id, url))
 
     return post
 

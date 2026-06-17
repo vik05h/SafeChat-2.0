@@ -28,6 +28,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   void _onTabSelected(int index) {
+    if (index == 2) {
+      // Trigger the Create Post Bottom Sheet
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => const CreatePostView(),
+      );
+      return;
+    }
+
     setState(() {
       _currentIndex = index;
     });

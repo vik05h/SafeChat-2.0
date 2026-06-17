@@ -24,14 +24,6 @@ class FeedView extends ConsumerWidget {
       body: layoutMode == FeedLayoutMode.grid
           ? _buildGridView(context)
           : _buildCardView(context),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CreatePostView()),
-          );
-        },
-        child: const Icon(Icons.edit),
-      ),
     );
   }
 

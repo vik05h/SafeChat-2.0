@@ -78,7 +78,8 @@ async def create_post(
         post = await posts_service.create_post(
             author_uid=claims["uid"],
             text=payload.text,
-            image_url=payload.image_url,
+            media_urls=payload.media_urls,
+            media_type=payload.media_type,
         )
     except posts_service.PostBlocked as exc:
         raise HTTPException(
