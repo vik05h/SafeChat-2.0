@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -24,40 +25,61 @@ class FeedView extends ConsumerWidget {
     final layoutMode = ref.watch(feedLayoutProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'SafeChat',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-        ),
-      ),
-      body: feedAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(
-          message: e.toString(),
-          onRetry: () => ref.invalidate(feedPostsProvider),
-        ),
-        data: (posts) {
-          if (posts.isEmpty) {
-            return _EmptyFeed(onRetry: () => ref.invalidate(feedPostsProvider));
-          }
-          return RefreshIndicator(
-            onRefresh: () => ref.read(feedPostsProvider.notifier).refresh(),
-            child: layoutMode == FeedLayoutMode.grid
-                ? _buildGridView(context, posts)
-                : _buildCardView(context, posts),
-          );
-        },
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+                ),
+              ),
+            ),
+            title: Text(
+              'SafeChat',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          feedAsync.when(
+            loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
+            error: (e, _) => SliverFillRemaining(
+              child: _ErrorView(
+                message: e.toString(),
+                onRetry: () => ref.invalidate(feedPostsProvider),
+              ),
+            ),
+            data: (posts) {
+              if (posts.isEmpty) {
+                return SliverFillRemaining(child: _EmptyFeed(onRetry: () => ref.invalidate(feedPostsProvider)));
+              }
+              return SliverPadding(
+                padding: const EdgeInsets.all(12),
+                sliver: layoutMode == FeedLayoutMode.grid
+                    ? _buildGridView(context, posts)
+                    : _buildCardView(context, posts),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildGridView(BuildContext context, List<FeedPost> posts) {
-    return MasonryGridView.count(
-      padding: const EdgeInsets.all(12),
+    return SliverMasonryGrid.count(
       crossAxisCount: 2,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      itemCount: posts.length,
+      childCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
         return _PostOpenContainer(
@@ -69,10 +91,9 @@ class FeedView extends ConsumerWidget {
   }
 
   Widget _buildCardView(BuildContext context, List<FeedPost> posts) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
+    return SliverList.separated(
       itemCount: posts.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 24),
+      separatorBuilder: (_, __) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         final post = posts[index];
         return _PostOpenContainer(
@@ -373,9 +394,7 @@ class _PostDetailScreen extends ConsumerStatefulWidget {
 class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
   int _currentPage = 0;
 
-  List<String> get _mediaUrls => widget.post.displayUrls.isNotEmpty
-      ? widget.post.displayUrls
-      : ['https://picsum.photos/seed/${widget.post.id}/300/400'];
+  List<String> get _mediaUrls => widget.post.displayUrls;
 
   @override
   Widget build(BuildContext context) {
@@ -395,64 +414,65 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
       ),
       body: Stack(
         children: [
-          // Dynamic ambient background synced to current page image.
-          AnimatedAmbientBackground(
-            key: ValueKey(_mediaUrls[_currentPage]),
-            imageUrl: _mediaUrls[_currentPage],
-            height: 800,
-          ),
+          if (_mediaUrls.isNotEmpty)
+            AnimatedAmbientBackground(
+              key: ValueKey(_mediaUrls[_currentPage]),
+              imageUrl: _mediaUrls[_currentPage],
+              height: 800,
+            ),
 
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Image carousel
-                SizedBox(
-                  height: 400,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: PageView.builder(
-                          itemCount: _mediaUrls.length,
-                          onPageChanged: (i) => setState(() => _currentPage = i),
-                          itemBuilder: (context, i) => CachedNetworkImage(
-                            imageUrl: _mediaUrls[i],
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => Container(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              child: const Center(child: CircularProgressIndicator()),
+                if (_mediaUrls.isNotEmpty)
+                  SizedBox(
+                    height: 400,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: PageView.builder(
+                            itemCount: _mediaUrls.length,
+                            onPageChanged: (i) => setState(() => _currentPage = i),
+                            itemBuilder: (context, i) => CachedNetworkImage(
+                              imageUrl: _mediaUrls[i],
+                              fit: BoxFit.cover,
+                              placeholder: (_, _) => Container(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: const Center(child: CircularProgressIndicator()),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      // Dot indicators.
-                      if (_mediaUrls.length > 1)
-                        Positioned(
-                          bottom: 16, left: 0, right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(_mediaUrls.length, (i) {
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                width: _currentPage == i ? 12 : 8,
-                                height: _currentPage == i ? 12 : 8,
-                                decoration: BoxDecoration(
-                                  color: _currentPage == i
-                                      ? Colors.white
-                                      : Colors.white.withValues(alpha: 0.5),
-                                  shape: BoxShape.circle,
-                                  boxShadow: const [
-                                    BoxShadow(color: Colors.black45, blurRadius: 4)
-                                  ],
-                                ),
-                              );
-                            }),
+                        // Dot indicators.
+                        if (_mediaUrls.length > 1)
+                          Positioned(
+                            bottom: 16, left: 0, right: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(_mediaUrls.length, (i) {
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  width: _currentPage == i ? 12 : 8,
+                                  height: _currentPage == i ? 12 : 8,
+                                  decoration: BoxDecoration(
+                                    color: _currentPage == i
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.5),
+                                    shape: BoxShape.circle,
+                                    boxShadow: const [
+                                      BoxShadow(color: Colors.black45, blurRadius: 4)
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 
                 // User Info Row
                 Padding(

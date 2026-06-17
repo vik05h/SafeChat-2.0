@@ -37,6 +37,7 @@ class UpdateProfileRequest(BaseModel):
     """Partial update for PATCH /users/me. All fields optional."""
 
     display_name: str | None = Field(default=None, min_length=1, max_length=50)
+    username: str | None = Field(default=None, min_length=3, max_length=30)
     bio: str | None = Field(default=None, max_length=200)
     photo_url: str | None = None
     private_account: bool | None = None
@@ -61,6 +62,9 @@ class UserProfile(BaseModel):
 
     is_verified: bool
     is_suspended: bool
+    
+    username_changed_at: datetime | None = None
+    username_change_count: int = 0
 
     created_at: datetime
     updated_at: datetime

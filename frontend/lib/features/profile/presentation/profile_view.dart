@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
+import 'edit_profile_view.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -51,16 +52,25 @@ class ProfileView extends ConsumerWidget {
                         fit: BoxFit.cover,
                       ),
                     ),
-                    // Settings Button in Safe Area
+                    // Action Buttons in Safe Area
                     Positioned(
                       top: 0,
                       right: 0,
                       child: SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: IconButton.filledTonal(
-                            icon: const Icon(Icons.settings),
-                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+                          child: Row(
+                            children: [
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.edit),
+                                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileView())),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.settings),
+                                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+                              ),
+                            ],
                           ),
                         ),
                       ),

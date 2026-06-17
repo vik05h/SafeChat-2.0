@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -77,37 +78,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildStandardNav({
     required NavigationDestinationLabelBehavior labelBehavior,
   }) {
-    return NavigationBar(
-      selectedIndex: _currentIndex,
-      onDestinationSelected: _onTabSelected,
-      labelBehavior: labelBehavior,
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded),
-          label: 'Home',
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: NavigationBar(
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainer.withOpacity(0.6),
+          elevation: 0,
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _onTabSelected,
+          labelBehavior: labelBehavior,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.search_outlined),
+              selectedIcon: Icon(Icons.search_rounded),
+              label: 'Search',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.add_circle_outline),
+              selectedIcon: Icon(Icons.add_circle_rounded),
+              label: 'Post',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon: Icon(Icons.chat_bubble_rounded),
+              label: 'Chat',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Profile',
+            ),
+          ],
         ),
-        NavigationDestination(
-          icon: Icon(Icons.search_outlined),
-          selectedIcon: Icon(Icons.search_rounded),
-          label: 'Search',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.add_circle_outline),
-          selectedIcon: Icon(Icons.add_circle_rounded),
-          label: 'Post',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.chat_bubble_outline),
-          selectedIcon: Icon(Icons.chat_bubble_rounded),
-          label: 'Chat',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profile',
-        ),
-      ],
+      ),
     );
   }
 

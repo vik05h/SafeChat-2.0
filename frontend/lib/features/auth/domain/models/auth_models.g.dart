@@ -13,7 +13,7 @@ UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => UserProfile(
   phoneNumber: json['phone_number'] as String,
   dob: json['dob'] as String,
   bio: json['bio'] as String?,
-  avatarUrl: json['avatar_url'] as String?,
+  photoUrl: json['photo_url'] as String?,
   createdAt: json['created_at'] as String,
   updatedAt: json['updated_at'] as String,
 );
@@ -26,7 +26,7 @@ Map<String, dynamic> _$UserProfileToJson(UserProfile instance) =>
       'phone_number': instance.phoneNumber,
       'dob': instance.dob,
       'bio': instance.bio,
-      'avatar_url': instance.avatarUrl,
+      'photo_url': instance.photoUrl,
       'created_at': instance.createdAt,
       'updated_at': instance.updatedAt,
     };
@@ -48,6 +48,22 @@ Map<String, dynamic> _$OnboardRequestToJson(OnboardRequest instance) =>
       'dob': instance.dob,
       'bio': instance.bio,
     };
+
+UpdateProfileRequest _$UpdateProfileRequestFromJson(
+  Map<String, dynamic> json,
+) => UpdateProfileRequest(
+  displayName: json['display_name'] as String?,
+  username: json['username'] as String?,
+  bio: json['bio'] as String?,
+);
+
+Map<String, dynamic> _$UpdateProfileRequestToJson(
+  UpdateProfileRequest instance,
+) => <String, dynamic>{
+  'display_name': instance.displayName,
+  'username': instance.username,
+  'bio': instance.bio,
+};
 
 AuthMeResponse _$AuthMeResponseFromJson(Map<String, dynamic> json) =>
     AuthMeResponse(

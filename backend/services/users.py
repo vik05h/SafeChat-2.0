@@ -170,6 +170,17 @@ async def update_profile(uid: str, fields: dict[str, Any]) -> UserProfile:
     ProfileNotFound if the user has no profile document.
     """
     user_ref = _user_ref(uid)
+    
+    # Check if we need to change username first
+    new_username = fields.pop("username", None)
+    if new_username:
+        await change_username(uid, new_username)
+        
+    if not fields:
+        # If only username was changed, or nothing changed
+        snapshot = await asyncio.to_thread(user_ref.get)
+        return UserProfile.model_validate(snapshot.to_dict())
+
     payload: dict[str, Any] = {**fields, "updated_at": firestore.SERVER_TIMESTAMP}
 
     try:
@@ -179,6 +190,60 @@ async def update_profile(uid: str, fields: dict[str, Any]) -> UserProfile:
 
     snapshot = await asyncio.to_thread(user_ref.get)
     return UserProfile.model_validate(snapshot.to_dict())
+
+async def change_username(uid: str, new_username: str) -> None:
+    """Safely change a user's username using a transaction."""
+    user_ref = _user_ref(uid)
+    new_username_ref = _username_ref(new_username)
+    
+    @firestore.transactional
+    def _txn(transaction: Transaction) -> None:
+        user_snap = user_ref.get(transaction=transaction)
+        if not user_snap.exists:
+            raise ProfileNotFound(uid)
+            
+        user_data = user_snap.to_dict() or {}
+        old_username = user_data.get("username")
+        
+        if old_username == new_username:
+            return
+            
+        # Enforce 30 day limit if username_changed_at exists
+        changed_at = user_data.get("username_changed_at")
+        if changed_at:
+            # Check if 30 days have passed
+            from datetime import datetime, timezone, timedelta
+            if isinstance(changed_at, datetime):
+                # Using UTC
+                if datetime.now(timezone.utc) - changed_at < timedelta(days=30):
+                    raise ValueError("Username can only be changed once every 30 days.")
+            else:
+                # Firestore Timestamp
+                if datetime.now(timezone.utc) - changed_at.replace(tzinfo=timezone.utc) < timedelta(days=30):
+                    raise ValueError("Username can only be changed once every 30 days.")
+                    
+        new_username_snap = new_username_ref.get(transaction=transaction)
+        if new_username_snap.exists:
+            owner_uid = (new_username_snap.to_dict() or {}).get("uid")
+            if owner_uid != uid:
+                raise UsernameTaken(new_username)
+                
+        # Perform the swap
+        now = firestore.SERVER_TIMESTAMP
+        transaction.set(new_username_ref, {"username": new_username, "uid": uid, "reserved_at": now})
+        if old_username:
+            transaction.delete(_username_ref(old_username))
+            
+        # Update user profile
+        change_count = user_data.get("username_change_count", 0) + 1
+        transaction.update(user_ref, {
+            "username": new_username,
+            "username_changed_at": now,
+            "username_change_count": change_count,
+            "updated_at": now
+        })
+        
+    await asyncio.to_thread(_txn, db.transaction())
 
 
 async def search_users(query: str, limit: int) -> list[dict[str, Any]]:

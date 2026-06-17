@@ -13,8 +13,8 @@ class UserProfile {
   final String phoneNumber;
   final String dob;
   final String? bio;
-  @JsonKey(name: 'avatar_url')
-  final String? avatarUrl;
+  @JsonKey(name: 'photo_url')
+  final String? photoUrl;
   @JsonKey(name: 'created_at')
   final String createdAt;
   @JsonKey(name: 'updated_at')
@@ -27,7 +27,7 @@ class UserProfile {
     required this.phoneNumber,
     required this.dob,
     this.bio,
-    this.avatarUrl,
+    this.photoUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -56,6 +56,23 @@ class OnboardRequest {
 
   factory OnboardRequest.fromJson(Map<String, dynamic> json) => _$OnboardRequestFromJson(json);
   Map<String, dynamic> toJson() => _$OnboardRequestToJson(this);
+}
+
+@JsonSerializable()
+class UpdateProfileRequest {
+  @JsonKey(name: 'display_name')
+  final String? displayName;
+  final String? username;
+  final String? bio;
+
+  UpdateProfileRequest({
+    this.displayName,
+    this.username,
+    this.bio,
+  });
+
+  factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) => _$UpdateProfileRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$UpdateProfileRequestToJson(this);
 }
 
 @JsonSerializable()

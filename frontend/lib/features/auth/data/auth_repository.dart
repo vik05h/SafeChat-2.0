@@ -138,24 +138,16 @@ class AuthRepository {
         throw Exception('No authenticated user found.');
       }
 
-      final now = DateTime.now().toIso8601String();
-      
-      // Build the profile map
-      final profileData = {
-        'uid': user.uid,
-        'email': user.email ?? '',
-        'username': username,
-        'display_name': displayName,
-        'phone_number': phoneNumber,
-        'dob': dob,
-        'bio': bio ?? '',
-        'photo_url': user.photoURL ?? '',
-        'created_at': now,
-        'updated_at': now,
-      };
-      
-      // Write directly to Firestore, bypassing the python backend
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(profileData);
+      final request = OnboardRequest(
+        username: username,
+        displayName: displayName,
+        phoneNumber: phoneNumber,
+        dob: dob,
+        bio: bio,
+      );
+
+      final response = await _apiService.onboard(request);
+      final profileData = response.data['data']['profile'];
       
       final userProfile = UserProfile.fromJson(profileData);
       
@@ -169,6 +161,40 @@ class AuthRepository {
         user: _firebaseAuth.currentUser,
         error: 'Onboarding failed: $e',
         needsOnboarding: true,
+      );
+    }
+  }
+
+  Future<AuthState> updateProfile({
+    String? displayName,
+    String? username,
+    String? bio,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('No authenticated user found.');
+
+      final request = UpdateProfileRequest(
+        displayName: displayName,
+        username: username,
+        bio: bio,
+      );
+
+      final response = await _apiService.updateProfile(request);
+      final profileData = response.data['data']['profile'];
+      
+      final userProfile = UserProfile.fromJson(profileData);
+      
+      return AuthState(
+        user: user,
+        profile: userProfile,
+        needsOnboarding: false,
+      );
+    } catch (e) {
+      return AuthState(
+        user: _firebaseAuth.currentUser,
+        error: 'Profile update failed: $e',
+        needsOnboarding: false,
       );
     }
   }
