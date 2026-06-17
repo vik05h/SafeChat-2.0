@@ -26,7 +26,7 @@ enum PostSubmitResult {
 class PostRepository {
   final PostApiService _apiService;
 
-  PostRepository({required PostApiService apiService}) : _apiService = apiService;
+  PostRepository({required this._apiService});
 
   /// Upload media files + create a post in the backend.
   /// Returns [PostSubmitResult] so the UI can show the right message.

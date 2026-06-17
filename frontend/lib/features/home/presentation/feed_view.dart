@@ -69,7 +69,7 @@ class FeedView extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: posts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 24),
+      separatorBuilder: (_, _) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         final post = posts[index];
         return _PostOpenContainer(
@@ -285,11 +285,11 @@ class _ListPostCard extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: thumb,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
+                placeholder: (_, _) => Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: const Center(child: CircularProgressIndicator()),
                 ),
-                errorWidget: (_, __, ___) => Container(
+                errorWidget: (_, _, _) => Container(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: const Center(child: Icon(Icons.broken_image_outlined)),
                 ),
@@ -402,7 +402,7 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
                           itemBuilder: (context, i) => CachedNetworkImage(
                             imageUrl: _mediaUrls[i],
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
+                            placeholder: (_, _) => Container(
                               color: Theme.of(context).colorScheme.surfaceContainerHighest,
                               child: const Center(child: CircularProgressIndicator()),
                             ),

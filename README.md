@@ -162,7 +162,7 @@ npx expo start --android
 FIREBASE_ADMIN_KEY_PATH=./credentials/firebase-admin-key.json
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=...
-GCP_PROJECT_ID=safechat-prod
+GCP_PROJECT_ID=safechat-prod-66143
 ENVIRONMENT=development
 ```
 
@@ -170,9 +170,9 @@ ENVIRONMENT=development
 ```
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 EXPO_PUBLIC_FIREBASE_API_KEY=...
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=safechat-prod.firebaseapp.com
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=safechat-prod
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=safechat-prod.firebasestorage.app
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=safechat-prod-66143.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=safechat-prod-66143
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=safechat-prod-66143.firebasestorage.app
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 EXPO_PUBLIC_FIREBASE_APP_ID=...
 ```

@@ -33,7 +33,7 @@ jobs:
       - name: 🧪 Run tests
         working-directory: backend
         env:
-          GCP_PROJECT_ID: safechat-prod
+          GCP_PROJECT_ID: safechat-prod-66143
           FIREBASE_ADMIN_KEY_PATH: ${{ github.workspace }}/ci-firebase-key.json
           FIREBASE_ADMIN_SDK_KEY: ${{ secrets.FIREBASE_ADMIN_SDK_KEY }}
         run: |
@@ -59,8 +59,8 @@ jobs:
         run: |
           set -euo pipefail
           gcloud builds submit ./backend \
-            --tag us-central1-docker.pkg.dev/safechat-prod/safechat/backend:${{ github.sha }} \
-            --gcs-log-dir=gs://safechat-prod_cloudbuild/logs \
+            --tag us-central1-docker.pkg.dev/safechat-prod-66143/safechat/backend:${{ github.sha }} \
+            --gcs-log-dir=gs://safechat-prod-66143_cloudbuild/logs \
             --quiet
 
       - name: 🏷️ Tag image as latest
@@ -69,8 +69,8 @@ jobs:
           # Non-fatal: a failure here doesn't affect the SHA-tagged image
           # that the deploy step below actually uses.
           gcloud artifacts docker tags add \
-            us-central1-docker.pkg.dev/safechat-prod/safechat/backend:${{ github.sha }} \
-            us-central1-docker.pkg.dev/safechat-prod/safechat/backend:latest \
+            us-central1-docker.pkg.dev/safechat-prod-66143/safechat/backend:${{ github.sha }} \
+            us-central1-docker.pkg.dev/safechat-prod-66143/safechat/backend:latest \
             --quiet || echo "::warning::Failed to update :latest tag (non-fatal)"
 
       - name: 🚀 Deploy to Cloud Run
@@ -78,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           gcloud run deploy safechat-backend \
-            --image us-central1-docker.pkg.dev/safechat-prod/safechat/backend:${{ github.sha }} \
+            --image us-central1-docker.pkg.dev/safechat-prod-66143/safechat/backend:${{ github.sha }} \
             --region us-central1 \
             --platform managed \
             --memory 512Mi \
@@ -87,7 +87,7 @@ jobs:
             --max-instances 10 \
             --concurrency 80 \
             --timeout 60 \
-            --set-env-vars GCP_PROJECT_ID=safechat-prod,ENVIRONMENT=production,LOG_LEVEL=INFO,FIREBASE_ADMIN_KEY_PATH=/secrets/firebase-admin-key.json,BACKEND_CORS_ORIGINS=http://localhost:8081 \
+            --set-env-vars GCP_PROJECT_ID=safechat-prod-66143,ENVIRONMENT=production,LOG_LEVEL=INFO,FIREBASE_ADMIN_KEY_PATH=/secrets/firebase-admin-key.json,BACKEND_CORS_ORIGINS=http://localhost:8081 \
             --set-secrets /secrets/firebase-admin-key.json=firebase-admin-key:latest,OPENAI_API_KEY=openai-api-key:latest \
             --quiet
           URL=$(gcloud run services describe safechat-backend \

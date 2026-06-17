@@ -12,10 +12,9 @@ class AuthRepository {
   AuthRepository({
     firebase.FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
-    required AuthApiService apiService,
+    required this._apiService,
   })  : _firebaseAuth = firebaseAuth ?? firebase.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn(),
-        _apiService = apiService;
+        _googleSignIn = googleSignIn ?? GoogleSignIn();
 
   Stream<firebase.User?> get authStateChanges => _firebaseAuth.authStateChanges();
 

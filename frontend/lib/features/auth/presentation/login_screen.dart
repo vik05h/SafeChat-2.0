@@ -82,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Login to continue to SafeChat',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                   ),
                   const SizedBox(height: 48),
@@ -151,18 +151,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2))),
+                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'OR',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2))),
+                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -210,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Text(
                         "Don't have an account?",
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                       TextButton(
