@@ -12,10 +12,11 @@ from fastapi.responses import JSONResponse
 
 from middleware.auth import get_current_user_claims
 from models.comment import CreateCommentRequest
-from models.post import CreatePostRequest
+from models.post import CreatePostRequest, Post
 from services import comments as comments_service
 from services import likes as likes_service
 from services import posts as posts_service
+from services import storage as storage_service
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -30,6 +31,20 @@ def _meta() -> dict[str, str]:
         "request_id": str(uuid.uuid4()),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _serialize_post(post: Post) -> dict[str, Any]:
+    """Serialize a post for the client, replacing private-bucket media URLs with
+    short-lived signed read URLs so clients can actually load the images.
+    """
+    data = post.model_dump(mode="json")
+    if data.get("image_url"):
+        data["image_url"] = storage_service.sign_media_url(data["image_url"])
+    if data.get("media_urls"):
+        data["media_urls"] = [
+            storage_service.sign_media_url(url) for url in data["media_urls"]
+        ]
+    return data
 
 
 def _post_not_found(post_id: str) -> HTTPException:
@@ -62,7 +77,7 @@ async def get_feed(
     )
     return JSONResponse(
         content={
-            "data": {"posts": [p.model_dump(mode="json") for p in posts]},
+            "data": {"posts": [_serialize_post(p) for p in posts]},
             "meta": _meta(),
         }
     )
@@ -73,27 +88,26 @@ async def create_post(
     payload: CreatePostRequest,
     claims: dict[str, Any] = Depends(get_current_user_claims),
 ) -> JSONResponse:
-    """Create a new post. Text is run through content moderation before saving."""
-    try:
-        post = await posts_service.create_post(
-            author_uid=claims["uid"],
-            text=payload.text,
-            media_urls=payload.media_urls,
-            media_type=payload.media_type,
-        )
-    except posts_service.PostBlocked as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "MODERATION_BLOCKED",
-                "message": "Post was blocked by content moderation.",
-                "field": "text",
-            },
-        ) from exc
+    """Create a new post.
 
+    Text + images run through the moderation cascade:
+    - Clean content  → 201 Created, status=approved, appears in feed immediately.
+    - Flagged content → 202 Accepted, status=pending_review, saved but hidden
+      from the public feed. Visible only under the author's own profile.
+      A human moderator later approves (post becomes public) or rejects
+      (post becomes a draft the author can edit).
+    """
+    post = await posts_service.create_post(
+        author_uid=claims["uid"],
+        text=payload.text,
+        media_urls=payload.media_urls,
+        media_type=payload.media_type,
+    )
+
+    status_code = 202 if post.status == "pending_review" else 201
     return JSONResponse(
-        status_code=201,
-        content={"data": {"post": post.model_dump(mode="json")}, "meta": _meta()},
+        status_code=status_code,
+        content={"data": {"post": _serialize_post(post)}, "meta": _meta()},
     )
 
 
@@ -220,7 +234,7 @@ async def get_post(
 
     return JSONResponse(
         content={
-            "data": {"post": {**post.model_dump(mode="json"), "is_liked": liked}},
+            "data": {"post": {**_serialize_post(post), "is_liked": liked}},
             "meta": _meta(),
         }
     )

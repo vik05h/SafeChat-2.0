@@ -10,10 +10,16 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from core.config import get_settings
 from core.storage import bucket
 from models.storage import UploadUrlResponse
 
 SIGNED_URL_TTL_MINUTES = 15
+# Read URLs live longer than upload URLs: a feed stays open and CachedNetworkImage
+# keeps the bytes after first load, so 12h avoids broken images mid-session.
+SIGNED_DOWNLOAD_TTL_HOURS = 12
+
+_PUBLIC_URL_PREFIX = "https://storage.googleapis.com/"
 
 _CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "image/jpeg": "jpg",
@@ -74,7 +80,49 @@ def get_public_url(object_path: str) -> str:
 
     Format: https://storage.googleapis.com/{bucket}/{object_path}
     """
-    from core.config import get_settings
-
     bucket_name = get_settings().storage_bucket_name
     return f"https://storage.googleapis.com/{bucket_name}/{object_path}"
+
+
+def object_path_from_url(url: str) -> str | None:
+    """Extract the GCS object path from a stored media URL.
+
+    Stored media URLs are public-style URLs
+    (https://storage.googleapis.com/{bucket}/{object_path}). Returns the
+    object path for our bucket, or None for anything that isn't a GCS URL
+    pointing at our bucket (e.g. external avatars, picsum fallbacks).
+    """
+    if not url.startswith(_PUBLIC_URL_PREFIX):
+        return None
+    remainder = url[len(_PUBLIC_URL_PREFIX) :]
+    bucket_name = get_settings().storage_bucket_name
+    prefix = f"{bucket_name}/"
+    if not remainder.startswith(prefix):
+        return None
+    object_path = remainder[len(prefix) :]
+    return object_path or None
+
+
+def generate_download_url(object_path: str) -> str:
+    """Generate a signed GCS read (GET) URL for a private object.
+
+    The bucket is private, so clients cannot fetch objects by their public URL.
+    This produces a short-lived signed URL valid for SIGNED_DOWNLOAD_TTL_HOURS.
+    """
+    blob = bucket.blob(object_path)
+    url: str = blob.generate_signed_url(
+        expiration=timedelta(hours=SIGNED_DOWNLOAD_TTL_HOURS),
+        method="GET",
+        version="v4",
+    )
+    return url
+
+
+def sign_media_url(url: str) -> str:
+    """Convert a stored media URL into a signed read URL when it points at our
+    private bucket; otherwise return it unchanged.
+    """
+    object_path = object_path_from_url(url)
+    if object_path is None:
+        return url
+    return generate_download_url(object_path)

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:dio/dio.dart';
 import 'create_post_provider.dart';
 
 class CreatePostView extends ConsumerStatefulWidget {
@@ -43,26 +42,40 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
 
   Future<void> _submit() async {
     ref.read(createPostProvider.notifier).setCaption(_captionController.text);
-    final success = await ref.read(createPostProvider.notifier).submitPost();
-    
-    if (mounted && success) {
+    final outcome = await ref.read(createPostProvider.notifier).submitPost();
+
+    if (!mounted) return;
+
+    if (outcome != null) {
+      // Success: reset state and close the sheet first.
       ref.read(createPostProvider.notifier).reset();
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎉 Post created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else if (mounted) {
-      final error = ref.read(createPostProvider).submissionState.error;
-      String message = 'Failed to create post. Please try again.';
-      
-      if (error is DioException && error.response?.statusCode == 422) {
-        final errorData = error.response?.data['error'];
-        message = 'Moderation Blocked: ${errorData?['message'] ?? 'Inappropriate content detected.'}';
+
+      if (outcome == SubmitOutcome.approved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Post live! Check your feed.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        // pendingReview
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📋 Post under review. It\'ll go live once approved!'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
       }
-      
+    } else {
+      // Failure
+      final error = ref.read(createPostProvider).submissionState.error;
+      final message = error != null
+          ? 'Error: ${error.toString().split('\n').first}'
+          : 'Failed to create post. Please try again.';
+
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(

@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/post_repository.dart';
+import 'feed_provider.dart';
+
+/// The result of submitting a post — passed back to the UI.
+enum SubmitOutcome { approved, pendingReview }
 
 class CreatePostState {
   final List<File> selectedMedia;
@@ -32,21 +36,14 @@ class CreatePostState {
 
 class CreatePostNotifier extends Notifier<CreatePostState> {
   @override
-  CreatePostState build() {
-    return CreatePostState();
-  }
+  CreatePostState build() => CreatePostState();
 
-  void setMode(bool isSimple) {
-    state = state.copyWith(isSimpleMode: isSimple);
-  }
+  void setMode(bool isSimple) => state = state.copyWith(isSimpleMode: isSimple);
 
-  void setCaption(String text) {
-    state = state.copyWith(caption: text);
-  }
+  void setCaption(String text) => state = state.copyWith(caption: text);
 
   void addMedia(List<File> files) {
     final newList = List<File>.from(state.selectedMedia)..addAll(files);
-    // Limit to 5
     state = state.copyWith(selectedMedia: newList.take(5).toList());
   }
 
@@ -55,31 +52,36 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
     state = state.copyWith(selectedMedia: newList);
   }
 
-  Future<bool> submitPost() async {
+  /// Returns null on failure, or a [SubmitOutcome] on success.
+  Future<SubmitOutcome?> submitPost() async {
     state = state.copyWith(submissionState: const AsyncLoading());
     try {
       final repo = ref.read(postRepositoryProvider);
-      
-      await repo.createPostWithMedia(
+      final result = await repo.createPostWithMedia(
         caption: state.caption,
         mediaFiles: state.selectedMedia,
       );
-      
+
       state = state.copyWith(submissionState: const AsyncData(null));
-      return true; // Success
+
+      // Refresh the feed so the new post appears immediately.
+      ref.invalidate(feedPostsProvider);
+
+      return result == PostSubmitResult.pendingReview
+          ? SubmitOutcome.pendingReview
+          : SubmitOutcome.approved;
     } catch (e, st) {
       print('SUBMIT POST ERROR: $e');
       print('STACKTRACE: $st');
       state = state.copyWith(submissionState: AsyncError(e, st));
-      return false; // Failed
+      return null; // failure
     }
   }
 
-  void reset() {
-    state = CreatePostState();
-  }
+  void reset() => state = CreatePostState();
 }
 
-final createPostProvider = NotifierProvider<CreatePostNotifier, CreatePostState>(() {
+final createPostProvider =
+    NotifierProvider<CreatePostNotifier, CreatePostState>(() {
   return CreatePostNotifier();
 });

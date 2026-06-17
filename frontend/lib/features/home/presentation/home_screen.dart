@@ -68,7 +68,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         );
       case NavbarStyle.standard:
-      default:
         return _buildStandardNav(
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         );

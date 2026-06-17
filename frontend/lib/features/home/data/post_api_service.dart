@@ -24,10 +24,8 @@ class PostApiService {
     required File file,
     required String contentType,
   }) async {
-    // Note: We use a fresh Dio instance here because the uploadUrl is a full URL to Google Cloud Storage
-    // and we DON'T want to attach our Firebase Bearer token to this request (Storage handles its own signed auth)
+    // Fresh Dio — no Firebase Bearer token on GCS signed URL requests.
     final storageDio = Dio();
-    
     await storageDio.put(
       uploadUrl,
       data: file.openRead(),
@@ -40,16 +38,34 @@ class PostApiService {
     );
   }
 
-  Future<Map<String, dynamic>> createPost({
+  /// Returns the full response map including [statusCode] so callers can
+  /// distinguish 201 (approved) from 202 (pending_review).
+  Future<({int statusCode, Map<String, dynamic> data})> createPost({
     required String caption,
     required List<String> mediaUrls,
     required String mediaType,
   }) async {
-    final response = await _dio.post('/api/v1/posts', data: {
-      'text': caption,
-      'media_urls': mediaUrls,
-      'media_type': mediaType,
-    });
-    return response.data;
+    final response = await _dio.post(
+      '/api/v1/posts',
+      data: {
+        'text': caption,
+        'media_urls': mediaUrls,
+        'media_type': mediaType,
+      },
+      // Accept 201 and 202 without throwing.
+      options: Options(validateStatus: (s) => s != null && s >= 200 && s < 300),
+    );
+    return (statusCode: response.statusCode ?? 200, data: response.data as Map<String, dynamic>);
+  }
+
+  /// Fetch the public feed. Returns a list of post maps.
+  Future<List<Map<String, dynamic>>> getFeed({int limit = 20}) async {
+    final response = await _dio.get(
+      '/api/v1/posts/feed',
+      queryParameters: {'limit': limit},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final posts = (data['data']?['posts'] as List<dynamic>?) ?? [];
+    return posts.cast<Map<String, dynamic>>();
   }
 }

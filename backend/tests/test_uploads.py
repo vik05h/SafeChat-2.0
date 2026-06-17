@@ -38,6 +38,11 @@ class _FakeBucket:
         return _FakeBlob(path)
 
 
+class _FakeSettings:
+    def __init__(self, bucket_name: str) -> None:
+        self.storage_bucket_name = bucket_name
+
+
 # --------------------------------------------------------------------------
 # Service-layer tests  (sync — generate_upload_url is not async)
 # --------------------------------------------------------------------------
@@ -95,6 +100,66 @@ def test_expires_at_is_15_minutes_from_now(
     # expires_at must be within 2 seconds of exactly 15 minutes from now.
     diff_seconds = (result.expires_at - before).total_seconds()
     assert abs(diff_seconds - 900) < 2
+
+
+# --------------------------------------------------------------------------
+# Download / read-URL signing tests
+# --------------------------------------------------------------------------
+
+def test_object_path_from_url_extracts_path_for_our_bucket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        storage_service, "get_settings", lambda: _FakeSettings("test-bucket")
+    )
+
+    url = "https://storage.googleapis.com/test-bucket/uploads/post/uid-1/abc.jpg"
+    assert storage_service.object_path_from_url(url) == "uploads/post/uid-1/abc.jpg"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://picsum.photos/seed/x/300/400",
+        "https://i.pravatar.cc/150?img=3",
+        "https://storage.googleapis.com/other-bucket/uploads/x.jpg",
+        "not-a-url",
+    ],
+)
+def test_object_path_from_url_returns_none_for_foreign_urls(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        storage_service, "get_settings", lambda: _FakeSettings("test-bucket")
+    )
+    assert storage_service.object_path_from_url(url) is None
+
+
+def test_sign_media_url_signs_our_bucket_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(storage_service, "bucket", _FakeBucket())
+    monkeypatch.setattr(
+        storage_service, "get_settings", lambda: _FakeSettings("test-bucket")
+    )
+
+    url = "https://storage.googleapis.com/test-bucket/uploads/post/uid-1/abc.jpg"
+    signed = storage_service.sign_media_url(url)
+
+    assert "X-Goog-Signature=fake" in signed
+    assert "uploads/post/uid-1/abc.jpg" in signed
+
+
+def test_sign_media_url_leaves_foreign_urls_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(storage_service, "bucket", _FakeBucket())
+    monkeypatch.setattr(
+        storage_service, "get_settings", lambda: _FakeSettings("test-bucket")
+    )
+
+    url = "https://picsum.photos/seed/x/300/400"
+    assert storage_service.sign_media_url(url) == url
 
 
 # --------------------------------------------------------------------------

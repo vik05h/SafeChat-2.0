@@ -17,6 +17,7 @@ from moderation.engine import moderate_text
 from services import blocks as blocks_service
 from services import follows as follows_service
 from services import posts as posts_service
+from services import storage as storage_service
 from services import users as users_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -270,6 +271,15 @@ async def list_user_posts(
         raise _user_not_found(uid)
         
     posts = await posts_service.get_posts_by_author(uid, limit)
-    data = [post.model_dump(mode="json") for post in posts]
-    
+    data = []
+    for post in posts:
+        post_dict = post.model_dump(mode="json")
+        if post_dict.get("image_url"):
+            post_dict["image_url"] = storage_service.sign_media_url(post_dict["image_url"])
+        if post_dict.get("media_urls"):
+            post_dict["media_urls"] = [
+                storage_service.sign_media_url(url) for url in post_dict["media_urls"]
+            ]
+        data.append(post_dict)
+
     return JSONResponse(content={"data": data, "meta": _meta()})

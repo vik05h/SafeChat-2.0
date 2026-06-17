@@ -17,7 +17,7 @@ import logging
 import time
 
 from models.moderation import ModerationResult
-from moderation.keyword_filter import keyword_filter
+from moderation.keyword_filter import check as keyword_check
 from moderation.openai_moderation import check_with_openai
 from moderation.vision import check_image_with_vision
 
@@ -54,7 +54,7 @@ async def moderate_text(text: str) -> ModerationResult:
 
     # ---- Layer 1: keyword filter (in-process, no I/O) ---------------------
     layer_start = _now_ms()
-    keyword_verdict = keyword_filter.check(text)
+    keyword_verdict = keyword_check(text)
     layer_latencies["keyword"] = _now_ms() - layer_start
 
     if keyword_verdict.blocked:

@@ -140,8 +140,13 @@ async def send_message(
         raise NotAuthorized(sender_uid)
 
     result = await moderate_text(text)
-    if result.blocked:
-        raise MessageBlocked(layer=result.layer, reason=result.reason)
+    is_flagged = result.blocked
+    if is_flagged:
+        logger.info(
+            "Message flagged by %s (%s) — saved as pending_review, not delivered.",
+            result.layer,
+            result.reason,
+        )
 
     message_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
@@ -155,6 +160,8 @@ async def send_message(
         "created_at": now,
         "updated_at": now,
         "schema_version": 1,
+        "is_flagged": is_flagged,
+        "moderation_layer": result.layer if is_flagged else None,
     }
 
     def _write() -> None:
@@ -176,21 +183,20 @@ async def send_message(
     snap = await asyncio.to_thread(_message_ref(chat_id, message_id).get)
     message = Message.model_validate(snap.to_dict())
 
-    # Fire-and-forget push notification to the other participant.
-    # Runs after the message is already stored so delivery is never blocked
-    # by a missing token or a transient FCM error.
-    participants = chat_data.get("participants", [])
-    recipient_uid = next((uid for uid in participants if uid != sender_uid), None)
-    if recipient_uid:
-        sender_snap = await asyncio.to_thread(
-            db.collection(USERS_COLLECTION).document(sender_uid).get
-        )
-        display_name: str = (
-            (sender_snap.to_dict() or {}).get("display_name") or "Someone"
-        )
-        asyncio.create_task(
-            send_message_notification(recipient_uid, display_name, text, chat_id)
-        )
+    # Only fire push notification to recipient if the message passed moderation.
+    if not is_flagged:
+        participants = chat_data.get("participants", [])
+        recipient_uid = next((uid for uid in participants if uid != sender_uid), None)
+        if recipient_uid:
+            sender_snap = await asyncio.to_thread(
+                db.collection(USERS_COLLECTION).document(sender_uid).get
+            )
+            display_name: str = (
+                (sender_snap.to_dict() or {}).get("display_name") or "Someone"
+            )
+            asyncio.create_task(
+                send_message_notification(recipient_uid, display_name, text, chat_id)
+            )
 
     return message
 
