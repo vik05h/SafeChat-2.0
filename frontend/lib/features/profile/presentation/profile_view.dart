@@ -1,3 +1,4 @@
+import 'dart:ui' as dart_ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
@@ -24,6 +25,14 @@ class ProfileView extends ConsumerWidget {
         SliverAppBar(
           expandedHeight: 200.0,
           pinned: true,
+          iconTheme: const IconThemeData(
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
+          ),
+          actionsIconTheme: const IconThemeData(
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.settings),
@@ -34,20 +43,19 @@ class ProfileView extends ConsumerWidget {
             background: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  'https://picsum.photos/seed/cover/800/400',
-                  fit: BoxFit.cover,
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.black54, Colors.transparent, Theme.of(context).scaffoldBackgroundColor],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
+                // Extreme Ambient Frosted Glass Blur
+                ImageFiltered(
+                  imageFilter: dart_ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Image.network(
+                    'https://picsum.photos/seed/cover/800/400',
+                    fit: BoxFit.cover,
                   ),
                 ),
+                // Subtle darkening overlay so white icons pop
+                Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                ),
+                // Removed the gradient overlay so the avatar sits cleanly on the blurred ambient image
               ],
             ),
           ),

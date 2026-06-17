@@ -39,10 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _views,
-      )
+      body: IndexedStack(index: _currentIndex, children: _views)
           .animate()
           .fadeIn(duration: 400.ms, curve: Curves.easeOut)
           .slideY(begin: 0.05, duration: 350.ms, curve: Curves.easeOutCubic),
@@ -55,14 +52,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case NavbarStyle.floatingPill:
         return _buildFloatingPillNav();
       case NavbarStyle.hiddenLabels:
-        return _buildStandardNav(labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected);
+        return _buildStandardNav(
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        );
       case NavbarStyle.standard:
       default:
-        return _buildStandardNav(labelBehavior: NavigationDestinationLabelBehavior.alwaysShow);
+        return _buildStandardNav(
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        );
     }
   }
 
-  Widget _buildStandardNav({required NavigationDestinationLabelBehavior labelBehavior}) {
+  Widget _buildStandardNav({
+    required NavigationDestinationLabelBehavior labelBehavior,
+  }) {
     return NavigationBar(
       selectedIndex: _currentIndex,
       onDestinationSelected: _onTabSelected,
@@ -99,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildFloatingPillNav() {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     // Map index 0..4 to alignment x: -1.0..1.0
     final alignmentX = -1.0 + (_currentIndex * 0.5);
 
@@ -121,10 +124,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           child: Stack(
             children: [
-              // Bouncing Active Background Pill
+              // Active Background Pill
               AnimatedAlign(
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.elasticOut,
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutCubic,
                 alignment: Alignment(alignmentX, 0),
                 child: FractionallySizedBox(
                   widthFactor: 1 / 5, // 5 items
@@ -144,11 +147,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildFloatingPillItem(Icons.home_outlined, Icons.home_rounded, 0),
-                  _buildFloatingPillItem(Icons.search_outlined, Icons.search_rounded, 1),
-                  _buildFloatingPillItem(Icons.add_circle_outline, Icons.add_circle_rounded, 2),
-                  _buildFloatingPillItem(Icons.chat_bubble_outline, Icons.chat_bubble_rounded, 3),
-                  _buildFloatingPillItem(Icons.person_outline, Icons.person_rounded, 4),
+                  _buildFloatingPillItem(
+                    Icons.home_outlined,
+                    Icons.home_rounded,
+                    0,
+                  ),
+                  _buildFloatingPillItem(
+                    Icons.search_outlined,
+                    Icons.search_rounded,
+                    1,
+                  ),
+                  _buildFloatingPillItem(
+                    Icons.add_circle_outline,
+                    Icons.add_circle_rounded,
+                    2,
+                  ),
+                  _buildFloatingPillItem(
+                    Icons.chat_bubble_outline,
+                    Icons.chat_bubble_rounded,
+                    3,
+                  ),
+                  _buildFloatingPillItem(
+                    Icons.person_outline,
+                    Icons.person_rounded,
+                    4,
+                  ),
                 ],
               ),
             ],
@@ -158,7 +181,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildFloatingPillItem(IconData icon, IconData selectedIcon, int index) {
+  Widget _buildFloatingPillItem(
+    IconData icon,
+    IconData selectedIcon,
+    int index,
+  ) {
     final isSelected = _currentIndex == index;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -175,7 +202,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Icon(
               isSelected ? selectedIcon : icon,
               key: ValueKey<bool>(isSelected),
-              color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+              color: isSelected
+                  ? colorScheme.onPrimaryContainer
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
