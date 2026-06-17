@@ -50,7 +50,9 @@ class FeedView extends ConsumerWidget {
             ),
           ),
           feedAsync.when(
-            loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
+            loading: () => const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            ),
             error: (e, _) => SliverFillRemaining(
               child: _ErrorView(
                 message: e.toString(),
@@ -59,7 +61,11 @@ class FeedView extends ConsumerWidget {
             ),
             data: (posts) {
               if (posts.isEmpty) {
-                return SliverFillRemaining(child: _EmptyFeed(onRetry: () => ref.invalidate(feedPostsProvider)));
+                return SliverFillRemaining(
+                  child: _EmptyFeed(
+                    onRetry: () => ref.invalidate(feedPostsProvider),
+                  ),
+                );
               }
               return SliverPadding(
                 padding: const EdgeInsets.all(12),
@@ -119,17 +125,20 @@ class _EmptyFeed extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.photo_library_outlined,
-              size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+          Icon(
+            Icons.photo_library_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           const SizedBox(height: 16),
-          Text('No posts yet',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('No posts yet', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          Text('Follow people or create your first post!',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Theme.of(context).colorScheme.outline)),
+          Text(
+            'Follow people or create your first post!',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: onRetry,
@@ -155,17 +164,24 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off_rounded,
-                size: 64, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
-            Text('Couldn\'t load feed',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Couldn\'t load feed',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
-            Text(message,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onRetry,
@@ -236,7 +252,9 @@ class _GridPostCard extends StatelessWidget {
             Container(
               height: height,
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Center(child: Icon(Icons.article_outlined, size: 40)),
+              child: const Center(
+                child: Icon(Icons.article_outlined, size: 40),
+              ),
             ),
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -245,26 +263,38 @@ class _GridPostCard extends StatelessWidget {
               children: [
                 Text(
                   post.text,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
-                Row(children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundImage: post.authorPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(post.authorPhotoUrl) : null,
-                    child: post.authorPhotoUrl.isEmpty ? const Icon(Icons.person, size: 14) : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      post.authorDisplayName,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundImage: post.authorPhotoUrl.isNotEmpty
+                          ? CachedNetworkImageProvider(post.authorPhotoUrl)
+                          : null,
+                      child: post.authorPhotoUrl.isEmpty
+                          ? const Icon(Icons.person, size: 14)
+                          : null,
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        post.authorDisplayName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -294,8 +324,12 @@ class _ListPostCard extends StatelessWidget {
         children: [
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: post.authorPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(post.authorPhotoUrl) : null,
-              child: post.authorPhotoUrl.isEmpty ? const Icon(Icons.person) : null,
+              backgroundImage: post.authorPhotoUrl.isNotEmpty
+                  ? CachedNetworkImageProvider(post.authorPhotoUrl)
+                  : null,
+              child: post.authorPhotoUrl.isEmpty
+                  ? const Icon(Icons.person)
+                  : null,
             ),
             title: Text(
               post.authorDisplayName,
@@ -304,9 +338,7 @@ class _ListPostCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              post.createdAt != null
-                  ? _timeAgo(post.createdAt!)
-                  : 'Just now',
+              post.createdAt != null ? _timeAgo(post.createdAt!) : 'Just now',
             ),
           ),
           if (thumb != null)
@@ -340,28 +372,46 @@ class _ListPostCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(children: [
-                  const Icon(Icons.favorite_border, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text('${post.likeCount}', style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text('${post.commentCount}', style: const TextStyle(color: Colors.grey)),
-                ]),
-                Row(children: [
-                  FloatingActionButton.small(
-                    heroTag: 'like_${post.id}',
-                    onPressed: () {},
-                    child: const Icon(Icons.favorite_border),
-                  ),
-                  const SizedBox(width: 8),
-                  FloatingActionButton.small(
-                    heroTag: 'comment_${post.id}',
-                    onPressed: () => showCommentsBottomSheet(context),
-                    child: const Icon(Icons.chat_bubble_outline),
-                  ),
-                ]),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.favorite_border,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.likeCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.commentCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    FloatingActionButton.small(
+                      heroTag: 'like_${post.id}',
+                      onPressed: () {},
+                      child: const Icon(Icons.favorite_border),
+                    ),
+                    const SizedBox(width: 8),
+                    FloatingActionButton.small(
+                      heroTag: 'comment_${post.id}',
+                      onPressed: () => showCommentsBottomSheet(context),
+                      child: const Icon(Icons.chat_bubble_outline),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -408,8 +458,12 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: isEdgeToEdge ? Colors.white : Theme.of(context).iconTheme.color,
-          shadows: isEdgeToEdge ? const [Shadow(color: Colors.black45, blurRadius: 10)] : null,
+          color: isEdgeToEdge
+              ? Colors.white
+              : Theme.of(context).iconTheme.color,
+          shadows: isEdgeToEdge
+              ? const [Shadow(color: Colors.black45, blurRadius: 10)]
+              : null,
         ),
       ),
       body: Stack(
@@ -434,13 +488,18 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                         Positioned.fill(
                           child: PageView.builder(
                             itemCount: _mediaUrls.length,
-                            onPageChanged: (i) => setState(() => _currentPage = i),
+                            onPageChanged: (i) =>
+                                setState(() => _currentPage = i),
                             itemBuilder: (context, i) => CachedNetworkImage(
                               imageUrl: _mediaUrls[i],
                               fit: BoxFit.cover,
                               placeholder: (_, _) => Container(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: const Center(child: CircularProgressIndicator()),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
                               ),
                             ),
                           ),
@@ -448,13 +507,17 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                         // Dot indicators.
                         if (_mediaUrls.length > 1)
                           Positioned(
-                            bottom: 16, left: 0, right: 0,
+                            bottom: 16,
+                            left: 0,
+                            right: 0,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: List.generate(_mediaUrls.length, (i) {
                                 return AnimatedContainer(
                                   duration: const Duration(milliseconds: 300),
-                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
                                   width: _currentPage == i ? 12 : 8,
                                   height: _currentPage == i ? 12 : 8,
                                   decoration: BoxDecoration(
@@ -463,7 +526,10 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                         : Colors.white.withValues(alpha: 0.5),
                                     shape: BoxShape.circle,
                                     boxShadow: const [
-                                      BoxShadow(color: Colors.black45, blurRadius: 4)
+                                      BoxShadow(
+                                        color: Colors.black45,
+                                        blurRadius: 4,
+                                      ),
                                     ],
                                   ),
                                 );
@@ -473,7 +539,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       ],
                     ),
                   ),
-                
+
                 // User Info Row
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
@@ -481,8 +547,14 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundImage: widget.post.authorPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(widget.post.authorPhotoUrl) : null,
-                        child: widget.post.authorPhotoUrl.isEmpty ? const Icon(Icons.person, size: 28) : null,
+                        backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
+                            ? CachedNetworkImageProvider(
+                                widget.post.authorPhotoUrl,
+                              )
+                            : null,
+                        child: widget.post.authorPhotoUrl.isEmpty
+                            ? const Icon(Icons.person, size: 28)
+                            : null,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -491,13 +563,15 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                           children: [
                             Text(
                               widget.post.authorDisplayName,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
                               '@${widget.post.authorUsername}',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.grey),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -514,7 +588,10 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
 
                 // Post Content
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -522,10 +599,9 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                         widget.post.createdAt != null
                             ? _timeAgo(widget.post.createdAt!)
                             : 'Just now',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: Colors.grey),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.grey),
                       ),
                       const SizedBox(height: 24), // Pushes content downward
                       MarkdownBody(
@@ -534,10 +610,16 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                         inlineSyntaxes: [HighlightSyntax()],
                         builders: {'highlight': HighlightBuilder(context)},
                         styleSheet: MarkdownStyleSheet(
-                          p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
-                          h1: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                          h2: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                          h3: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          p: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(height: 1.5),
+                          h1: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          h2: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          h3: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -568,7 +650,11 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
   Widget _buildAction(IconData icon, String label, VoidCallback onTap) {
     return Column(
       children: [
-        IconButton.filledTonal(onPressed: onTap, icon: Icon(icon), iconSize: 28),
+        IconButton.filledTonal(
+          onPressed: onTap,
+          icon: Icon(icon),
+          iconSize: 28,
+        ),
         const SizedBox(height: 8),
         Text(label),
       ],
@@ -615,8 +701,10 @@ void showCommentsBottomSheet(BuildContext context) {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Comments',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Comments',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const Divider(),
               Expanded(
                 child: ListView.builder(
@@ -625,13 +713,19 @@ void showCommentsBottomSheet(BuildContext context) {
                   itemBuilder: (context, index) => ListTile(
                     leading: CircleAvatar(
                       backgroundImage: NetworkImage(
-                          'https://i.pravatar.cc/150?img=${index + 10}'),
+                        'https://i.pravatar.cc/150?img=${index + 10}',
+                      ),
                     ),
-                    title: Text('Commenter $index',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    subtitle:
-                        Text('This is an awesome comment $index! Looks so good!'),
+                    title: Text(
+                      'Commenter $index',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'This is an awesome comment $index! Looks so good!',
+                    ),
                     trailing: IconButton(
                       icon: const Icon(Icons.favorite_border, size: 16),
                       onPressed: () {},
@@ -649,15 +743,19 @@ void showCommentsBottomSheet(BuildContext context) {
                           decoration: InputDecoration(
                             hintText: 'Add a comment...',
                             border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24)),
-                            contentPadding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.send,
-                            color: Theme.of(context).colorScheme.primary),
+                        icon: Icon(
+                          Icons.send,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],

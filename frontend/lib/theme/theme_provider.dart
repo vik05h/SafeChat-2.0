@@ -28,6 +28,7 @@ class AmbientModeNotifier extends Notifier<bool> {
 final ambientModeProvider = NotifierProvider<AmbientModeNotifier, bool>(() {
   return AmbientModeNotifier();
 });
+
 enum FeedLayoutMode { grid, card }
 
 class FeedLayoutNotifier extends Notifier<FeedLayoutMode> {
@@ -35,7 +36,9 @@ class FeedLayoutNotifier extends Notifier<FeedLayoutMode> {
   FeedLayoutMode build() {
     try {
       final box = Hive.box('settings');
-      final index = box.get('feed_layout', defaultValue: FeedLayoutMode.grid.index) as int;
+      final index =
+          box.get('feed_layout', defaultValue: FeedLayoutMode.grid.index)
+              as int;
       return FeedLayoutMode.values[index];
     } catch (e) {
       return FeedLayoutMode.grid;
@@ -43,7 +46,9 @@ class FeedLayoutNotifier extends Notifier<FeedLayoutMode> {
   }
 
   void toggleLayout() {
-    setLayout(state == FeedLayoutMode.grid ? FeedLayoutMode.card : FeedLayoutMode.grid);
+    setLayout(
+      state == FeedLayoutMode.grid ? FeedLayoutMode.card : FeedLayoutMode.grid,
+    );
   }
 
   void setLayout(FeedLayoutMode mode) {
@@ -62,7 +67,8 @@ class BrightnessNotifier extends Notifier<ThemeMode> {
   ThemeMode build() {
     try {
       final box = Hive.box('settings');
-      final index = box.get('theme_mode', defaultValue: ThemeMode.system.index) as int;
+      final index =
+          box.get('theme_mode', defaultValue: ThemeMode.system.index) as int;
       return ThemeMode.values[index];
     } catch (e) {
       return ThemeMode.system;
@@ -90,9 +96,11 @@ class BrightnessNotifier extends Notifier<ThemeMode> {
   }
 }
 
-final feedLayoutProvider = NotifierProvider<FeedLayoutNotifier, FeedLayoutMode>(() {
-  return FeedLayoutNotifier();
-});
+final feedLayoutProvider = NotifierProvider<FeedLayoutNotifier, FeedLayoutMode>(
+  () {
+    return FeedLayoutNotifier();
+  },
+);
 
 final brightnessProvider = NotifierProvider<BrightnessNotifier, ThemeMode>(() {
   return BrightnessNotifier();
@@ -105,7 +113,9 @@ class NavbarStyleNotifier extends Notifier<NavbarStyle> {
   NavbarStyle build() {
     try {
       final box = Hive.box('settings');
-      final index = box.get('navbar_style', defaultValue: NavbarStyle.standard.index) as int;
+      final index =
+          box.get('navbar_style', defaultValue: NavbarStyle.standard.index)
+              as int;
       return NavbarStyle.values[index];
     } catch (e) {
       return NavbarStyle.standard;
@@ -123,9 +133,11 @@ class NavbarStyleNotifier extends Notifier<NavbarStyle> {
   }
 }
 
-final navbarStyleProvider = NotifierProvider<NavbarStyleNotifier, NavbarStyle>(() {
-  return NavbarStyleNotifier();
-});
+final navbarStyleProvider = NotifierProvider<NavbarStyleNotifier, NavbarStyle>(
+  () {
+    return NavbarStyleNotifier();
+  },
+);
 
 enum ColorThemeStyle { pastelPop, cyberNeon, ultraMinimalist }
 
@@ -134,7 +146,9 @@ class ColorThemeNotifier extends Notifier<ColorThemeStyle> {
   ColorThemeStyle build() {
     try {
       final box = Hive.box('settings');
-      final index = box.get('color_theme', defaultValue: ColorThemeStyle.pastelPop.index) as int;
+      final index =
+          box.get('color_theme', defaultValue: ColorThemeStyle.pastelPop.index)
+              as int;
       return ColorThemeStyle.values[index];
     } catch (e) {
       return ColorThemeStyle.pastelPop;
@@ -152,9 +166,10 @@ class ColorThemeNotifier extends Notifier<ColorThemeStyle> {
   }
 }
 
-final colorThemeProvider = NotifierProvider<ColorThemeNotifier, ColorThemeStyle>(() {
-  return ColorThemeNotifier();
-});
+final colorThemeProvider =
+    NotifierProvider<ColorThemeNotifier, ColorThemeStyle>(() {
+      return ColorThemeNotifier();
+    });
 
 enum ProfileLayoutStyle { modernCover, centeredMinimalist }
 
@@ -163,7 +178,12 @@ class ProfileLayoutNotifier extends Notifier<ProfileLayoutStyle> {
   ProfileLayoutStyle build() {
     try {
       final box = Hive.box('settings');
-      final index = box.get('profile_layout', defaultValue: ProfileLayoutStyle.modernCover.index) as int;
+      final index =
+          box.get(
+                'profile_layout',
+                defaultValue: ProfileLayoutStyle.modernCover.index,
+              )
+              as int;
       return ProfileLayoutStyle.values[index];
     } catch (e) {
       return ProfileLayoutStyle.modernCover;
@@ -181,9 +201,10 @@ class ProfileLayoutNotifier extends Notifier<ProfileLayoutStyle> {
   }
 }
 
-final profileLayoutProvider = NotifierProvider<ProfileLayoutNotifier, ProfileLayoutStyle>(() {
-  return ProfileLayoutNotifier();
-});
+final profileLayoutProvider =
+    NotifierProvider<ProfileLayoutNotifier, ProfileLayoutStyle>(() {
+      return ProfileLayoutNotifier();
+    });
 
 enum AmbientPhysicsMode { pulse, aurora, wave }
 
@@ -210,9 +231,10 @@ class AmbientPhysicsNotifier extends Notifier<AmbientPhysicsMode> {
   }
 }
 
-final ambientPhysicsProvider = NotifierProvider<AmbientPhysicsNotifier, AmbientPhysicsMode>(() {
-  return AmbientPhysicsNotifier();
-});
+final ambientPhysicsProvider =
+    NotifierProvider<AmbientPhysicsNotifier, AmbientPhysicsMode>(() {
+      return AmbientPhysicsNotifier();
+    });
 
 enum PostImageLayoutStyle { edgeToEdge, padded }
 
@@ -221,7 +243,12 @@ class PostImageLayoutNotifier extends Notifier<PostImageLayoutStyle> {
   PostImageLayoutStyle build() {
     try {
       final box = Hive.box('settings');
-      final index = box.get('post_image_layout', defaultValue: PostImageLayoutStyle.edgeToEdge.index) as int;
+      final index =
+          box.get(
+                'post_image_layout',
+                defaultValue: PostImageLayoutStyle.edgeToEdge.index,
+              )
+              as int;
       return PostImageLayoutStyle.values[index];
     } catch (e) {
       return PostImageLayoutStyle.edgeToEdge;
@@ -239,6 +266,7 @@ class PostImageLayoutNotifier extends Notifier<PostImageLayoutStyle> {
   }
 }
 
-final postImageLayoutProvider = NotifierProvider<PostImageLayoutNotifier, PostImageLayoutStyle>(() {
-  return PostImageLayoutNotifier();
-});
+final postImageLayoutProvider =
+    NotifierProvider<PostImageLayoutNotifier, PostImageLayoutStyle>(() {
+      return PostImageLayoutNotifier();
+    });
