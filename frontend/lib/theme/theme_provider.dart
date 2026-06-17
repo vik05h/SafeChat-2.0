@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'app_theme.dart';
 
-class ThemeNotifier extends Notifier<AppThemeMode> {
+enum FeedLayoutMode { grid, card }
+
+class FeedLayoutNotifier extends Notifier<FeedLayoutMode> {
   @override
-  AppThemeMode build() {
-    return AppThemeMode.material3;
+  FeedLayoutMode build() {
+    return FeedLayoutMode.grid;
   }
 
-  void toggleTheme() {
-    state = state == AppThemeMode.material3
-        ? AppThemeMode.neobrutalism
-        : AppThemeMode.material3;
+  void toggleLayout() {
+    state = state == FeedLayoutMode.grid ? FeedLayoutMode.card : FeedLayoutMode.grid;
   }
-  
-  void setTheme(AppThemeMode mode) {
+
+  void setLayout(FeedLayoutMode mode) {
     state = mode;
   }
 }
@@ -40,10 +39,44 @@ class BrightnessNotifier extends Notifier<ThemeMode> {
   }
 }
 
-final themeProvider = NotifierProvider<ThemeNotifier, AppThemeMode>(() {
-  return ThemeNotifier();
+final feedLayoutProvider = NotifierProvider<FeedLayoutNotifier, FeedLayoutMode>(() {
+  return FeedLayoutNotifier();
 });
 
 final brightnessProvider = NotifierProvider<BrightnessNotifier, ThemeMode>(() {
   return BrightnessNotifier();
+});
+
+enum NavbarStyle { standard, hiddenLabels, floatingPill }
+
+class NavbarStyleNotifier extends Notifier<NavbarStyle> {
+  @override
+  NavbarStyle build() {
+    return NavbarStyle.standard;
+  }
+
+  void setStyle(NavbarStyle style) {
+    state = style;
+  }
+}
+
+final navbarStyleProvider = NotifierProvider<NavbarStyleNotifier, NavbarStyle>(() {
+  return NavbarStyleNotifier();
+});
+
+enum ColorThemeStyle { pastelPop, cyberNeon, ultraMinimalist }
+
+class ColorThemeNotifier extends Notifier<ColorThemeStyle> {
+  @override
+  ColorThemeStyle build() {
+    return ColorThemeStyle.pastelPop;
+  }
+
+  void setStyle(ColorThemeStyle style) {
+    state = style;
+  }
+}
+
+final colorThemeProvider = NotifierProvider<ColorThemeNotifier, ColorThemeStyle>(() {
+  return ColorThemeNotifier();
 });

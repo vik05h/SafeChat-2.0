@@ -22,9 +22,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _initApp() async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
       
       // Let the beautiful animation play for a moment
       await Future.delayed(const Duration(seconds: 2));

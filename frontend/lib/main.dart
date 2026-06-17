@@ -21,9 +21,13 @@ void main() async {
       debugPrint('No .env file found. Using default values or dart-defines.');
     }
 
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      debugPrint('Firebase init error (likely hot restart): $e');
+    }
 
     // Enable 120Hz / High refresh rate on Android
     if (Platform.isAndroid) {

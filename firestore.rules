@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default: Authenticated users can read everything, but CANNOT write (since writes should go through backend for moderation)
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; 
+    }
+    
+    // Exception for onboarding: Allow users to create and update their own profile while the backend is bypassed
+    match /users/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

@@ -1,139 +1,199 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:animations/animations.dart';
+import '../../../theme/theme_provider.dart';
+import 'create_post_view.dart';
 
-class FeedView extends StatelessWidget {
+class FeedView extends ConsumerWidget {
   const FeedView({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final layoutMode = ref.watch(feedLayoutProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'SafeChat',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+      ),
+      body: layoutMode == FeedLayoutMode.grid
+          ? _buildGridView(context)
+          : _buildCardView(context),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CreatePostView()),
+          );
+        },
+        child: const Icon(Icons.edit),
+      ),
+    );
+  }
+
+  Widget _buildGridView(BuildContext context) {
+    return MasonryGridView.count(
+      padding: const EdgeInsets.all(12),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      itemCount: 20,
+      itemBuilder: (context, index) {
+        return _PostOpenContainer(
+          index: index,
+          child: _GridPostCard(index: index),
+        );
+      },
+    );
+  }
+
+  Widget _buildCardView(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: 20,
+      separatorBuilder: (context, index) => const SizedBox(height: 24),
+      itemBuilder: (context, index) {
+        return _PostOpenContainer(
+          index: index,
+          child: _ListPostCard(index: index),
+        );
+      },
+    );
+  }
+}
+
+class _PostOpenContainer extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _PostOpenContainer({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return OpenContainer(
+      transitionType: ContainerTransitionType.fadeThrough,
+      closedElevation: 0,
+      openElevation: 0,
+      closedColor: Colors.transparent,
+      openColor: Theme.of(context).scaffoldBackgroundColor,
+      closedBuilder: (context, action) => child,
+      openBuilder: (context, action) => _PostDetailScreen(index: index),
+    );
+  }
+}
+
+class _GridPostCard extends StatelessWidget {
+  final int index;
+
+  const _GridPostCard({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final height = 150.0 + (index % 4) * 50.0;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: height,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: NetworkImage('https://picsum.photos/seed/$index/300/400'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Text(
+              'Grid Post Title $index',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ListPostCard extends StatelessWidget {
+  final int index;
+
+  const _ListPostCard({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=$index'),
+            ),
+            title: Text('User $index', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('2 hours ago'),
+          ),
+          Container(
+            height: 300,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: NetworkImage('https://picsum.photos/seed/${index + 100}/600/400'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text('This is the caption for the card feed post $index. Exploring the new Material 3 layout!'),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'like_$index',
+                  onPressed: () {},
+                  child: const Icon(Icons.favorite_border),
+                ),
+                const SizedBox(width: 8),
+                FloatingActionButton.small(
+                  heroTag: 'comment_$index',
+                  onPressed: () {},
+                  child: const Icon(Icons.chat_bubble_outline),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostDetailScreen extends StatelessWidget {
+  final int index;
+
+  const _PostDetailScreen({required this.index});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SafeChat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-        actions: [
-          IconButton(icon: const Icon(Icons.favorite_border), onPressed: () {}),
-        ],
+      appBar: AppBar(title: const Text('Post Details')),
+      body: Center(
+        child: Text('Full content for post $index'),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 110,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: 10,
-                itemBuilder: (context, index) {
-                  return _buildStoryRing(index == 0);
-                },
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: Divider()),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return _buildPostCard(context, index);
-              },
-              childCount: 5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStoryRing(bool isAdd) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isAdd 
-                ? null 
-                : const LinearGradient(colors: [Colors.purple, Colors.orange]),
-              color: isAdd ? Colors.grey.withOpacity(0.2) : null,
-            ),
-            child: CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.white,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=${isAdd ? 10 : 20}'),
-              child: isAdd ? const Icon(Icons.add, color: Colors.blue) : null,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(isAdd ? 'Your Story' : 'User_name', style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPostCard(BuildContext context, int index) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        ListTile(
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=$index'),
-          ),
-          title: Text('mock_user_$index', style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: const Text('New York, NY'),
-          trailing: const Icon(Icons.more_vert),
-        ),
-        // Image
-        Container(
-          height: 400,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            image: DecorationImage(
-              image: NetworkImage('https://picsum.photos/seed/$index/600/600'),
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        // Actions
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              const Icon(Icons.favorite_border, size: 28),
-              const SizedBox(width: 16),
-              const Icon(Icons.chat_bubble_outline, size: 28),
-              const SizedBox(width: 16),
-              const Icon(Icons.send_outlined, size: 28),
-              const Spacer(),
-              const Icon(Icons.bookmark_border, size: 28),
-            ],
-          ),
-        ),
-        // Likes & Caption
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('1,024 likes', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              RichText(
-                text: TextSpan(
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                  children: [
-                    TextSpan(text: 'mock_user_$index ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    const TextSpan(text: 'Just testing out the new feed layout! Let me know what you think. #flutter #dev'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text('View all 42 comments', style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

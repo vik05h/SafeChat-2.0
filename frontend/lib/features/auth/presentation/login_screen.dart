@@ -37,8 +37,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeProvider);
-    final isNeo = themeMode.name == 'neobrutalism';
     final brightness = ref.watch(brightnessProvider);
     final isDark = brightness == ThemeMode.dark || 
         (brightness == ThemeMode.system && MediaQuery.of(context).platformBrightness == Brightness.dark);
@@ -52,13 +50,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             tooltip: 'Toggle Light/Dark',
             onPressed: () {
               ref.read(brightnessProvider.notifier).toggleBrightness();
-            },
-          ),
-          IconButton(
-            icon: Icon(isNeo ? Icons.palette : Icons.palette_outlined),
-            tooltip: 'Toggle Theme Style',
-            onPressed: () {
-              ref.read(themeProvider.notifier).toggleTheme();
             },
           ),
         ],
