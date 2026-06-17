@@ -1,8 +1,9 @@
-import 'dart:ui' as dart_ui;
+// removed dart:ui
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../../theme/theme_provider.dart';
+import '../../../shared/widgets/animated_ambient_background.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -24,122 +25,91 @@ class ProfileView extends ConsumerWidget {
 
     return Stack(
       children: [
-        // 1. YouTube-style Ambient Background
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 500,
-          child: ImageFiltered(
-            imageFilter: dart_ui.ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-            child: Image.network(
-              'https://picsum.photos/seed/cover/800/400',
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        // Blend the ambient glow into the scaffold background
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  scaffoldColor.withValues(alpha: 0.3),
-                  scaffoldColor.withValues(alpha: 0.85),
-                  scaffoldColor,
-                ],
-                stops: const [0.0, 0.4, 0.8],
-              ),
-            ),
-          ),
+        // 1. Dynamic Animated Ambient Background
+        const AnimatedAmbientBackground(
+          imageUrl: 'https://picsum.photos/seed/cover/800/400',
+          height: 800, // Covers most of the screen
         ),
 
         // 2. Scrolling Content
         CustomScrollView(
           slivers: [
-            // Safe area for the top settings button
+            // Edge-to-Edge Cover Photo & Avatar
             SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                  child: Align(
-                    alignment: Alignment.topRight,
-                    child: IconButton.filledTonal(
-                      icon: const Icon(Icons.settings),
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+              child: SizedBox(
+                height: 260, // 200 for cover + 60 for avatar overlap
+                child: Stack(
+                  children: [
+                    // Sharp Edge-to-Edge Cover Photo
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 200,
+                      child: Image.network(
+                        'https://picsum.photos/seed/cover/800/400',
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
+                    // Settings Button in Safe Area
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: IconButton.filledTonal(
+                            icon: const Icon(Icons.settings),
+                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Avatar perfectly overlapping the bottom edge
+                    Positioned(
+                      top: 155, // 200 - 45 (radius) = 155
+                      left: 16,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: scaffoldColor, width: 4),
+                        ),
+                        child: CircleAvatar(
+                          radius: 45,
+                          backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                          child: user?.photoURL == null ? const Icon(Icons.person, size: 45) : null,
+                        ),
+                      ),
+                    ),
+                    // Action buttons to the right of avatar
+                    Positioned(
+                      top: 210, // Just below the cover photo
+                      right: 16,
+                      child: Row(
+                        children: [
+                          FilledButton.tonal(
+                            onPressed: () {},
+                            child: const Text('Edit Profile'),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: () {},
+                            icon: const Icon(Icons.share),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // Cover Photo & Avatar
+            // Profile Info Below
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Stack for Cover Image + Avatar Overlap
-                    SizedBox(
-                      height: 220, // 160 for cover + 60 for avatar overlap
-                      child: Stack(
-                        alignment: Alignment.topCenter,
-                        children: [
-                          // Sharp Cover Photo
-                          Container(
-                            height: 160,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 5)),
-                              ],
-                              image: const DecorationImage(
-                                image: NetworkImage('https://picsum.photos/seed/cover/800/400'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          // Avatar perfectly overlapping the bottom edge
-                          Positioned(
-                            bottom: 0,
-                            left: 16,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: scaffoldColor, width: 4),
-                              ),
-                              child: CircleAvatar(
-                                radius: 45,
-                                backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                                child: user?.photoURL == null ? const Icon(Icons.person, size: 45) : null,
-                              ),
-                            ),
-                          ),
-                          // Action buttons to the right of avatar
-                          Positioned(
-                            bottom: 10,
-                            right: 0,
-                            child: Row(
-                              children: [
-                                FilledButton.tonal(
-                                  onPressed: () {},
-                                  child: const Text('Edit Profile'),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton.filledTonal(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.share),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     // Profile Info
                     Text(
@@ -442,6 +412,24 @@ class SettingsView extends ConsumerWidget {
               selected: {brightness},
               onSelectionChanged: (Set<ThemeMode> newSelection) {
                 ref.read(brightnessProvider.notifier).setBrightness(newSelection.first);
+              },
+            );
+          }),
+          const SizedBox(height: 24),
+          const Text(
+            'Ambient Mode',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          Consumer(builder: (context, ref, _) {
+            final isAmbientEnabled = ref.watch(ambientModeProvider);
+            return SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Dynamic Ambient Glow', style: TextStyle(fontSize: 14)),
+              subtitle: const Text('Creates a breathing light effect behind content', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              value: isAmbientEnabled,
+              onChanged: (value) {
+                ref.read(ambientModeProvider.notifier).toggleAmbientMode();
               },
             );
           }),

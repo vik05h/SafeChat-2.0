@@ -1,6 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
+class AmbientModeNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    try {
+      final box = Hive.box('settings');
+      return box.get('ambient_mode', defaultValue: true) as bool;
+    } catch (e) {
+      return true; // Fallback if Hive fails to initialize
+    }
+  }
+
+  void toggleAmbientMode() {
+    try {
+      final box = Hive.box('settings');
+      final newState = !state;
+      box.put('ambient_mode', newState);
+      state = newState;
+    } catch (e) {
+      state = !state;
+    }
+  }
+}
+
+final ambientModeProvider = NotifierProvider<AmbientModeNotifier, bool>(() {
+  return AmbientModeNotifier();
+});
 enum FeedLayoutMode { grid, card }
 
 class FeedLayoutNotifier extends Notifier<FeedLayoutMode> {

@@ -1,8 +1,10 @@
+// removed dart:ui
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
 import '../../../theme/theme_provider.dart';
+import '../../../shared/widgets/animated_ambient_background.dart';
 import 'create_post_view.dart';
 
 class FeedView extends ConsumerWidget {
@@ -211,6 +213,8 @@ class _PostDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -218,73 +222,105 @@ class _PostDetailScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white, shadows: [Shadow(color: Colors.black45, blurRadius: 10)]),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Hero(
-              tag: 'post_image_$index',
-              child: Container(
-                height: 400,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage('https://picsum.photos/seed/$index/300/400'),
-                    fit: BoxFit.cover,
+      body: Stack(
+        children: [
+          // Dynamic Animated Ambient Background
+          AnimatedAmbientBackground(
+            imageUrl: 'https://picsum.photos/seed/$index/300/400',
+            height: 800, // Covers most of the screen
+          ),
+          
+          // Scrolling Content
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image + Avatar Stack
+                SizedBox(
+                  height: 440, // 400 for image + 40 for avatar overlap
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 400,
+                        child: Hero(
+                          tag: 'post_image_$index',
+                          child: Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 5)),
+                              ],
+                              image: DecorationImage(
+                                image: NetworkImage('https://picsum.photos/seed/$index/300/400'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Avatar overlapping bottom left
+                      Positioned(
+                        bottom: 0,
+                        left: 24,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: scaffoldColor, width: 4),
+                          ),
+                          child: CircleAvatar(
+                            radius: 35,
+                            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=$index'),
+                          ),
+                        ),
+                      ),
+                      // Follow Button overlapping bottom right
+                      Positioned(
+                        bottom: 12,
+                        right: 24,
+                        child: FilledButton.tonal(
+                          onPressed: () {},
+                          child: const Text('Follow'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=$index'),
+                      Text('User $index', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                      Text('2 hours ago', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Epic shot $index 📸',
+                        style: Theme.of(context).textTheme.headlineMedium,
                       ),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 12),
+                      Text(
+                        'This is the full detail view for post $index. It looks absolutely stunning in the new Material 3 design system. We can add comments, like buttons, and more rich content here!',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Text('User $index', style: Theme.of(context).textTheme.titleLarge),
-                          Text('2 hours ago', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                          _buildAction(Icons.favorite_border, 'Like'),
+                          _buildAction(Icons.chat_bubble_outline, 'Comment'),
+                          _buildAction(Icons.share_outlined, 'Share'),
                         ],
                       ),
-                      const Spacer(),
-                      FilledButton.tonal(
-                        onPressed: () {},
-                        child: const Text('Follow'),
-                      ),
+                      const SizedBox(height: 48), // Bottom padding
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Epic shot $index 📸',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'This is the full detail view for post $index. It looks absolutely stunning in the new Material 3 design system. We can add comments, like buttons, and more rich content here!',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildAction(Icons.favorite_border, 'Like'),
-                      _buildAction(Icons.chat_bubble_outline, 'Comment'),
-                      _buildAction(Icons.share_outlined, 'Share'),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app.dart';
 import 'firebase_options.dart';
@@ -13,6 +14,10 @@ import 'firebase_options.dart';
 void main() async {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    
+    // Initialize Hive for local settings
+    await Hive.initFlutter();
+    await Hive.openBox('settings');
     
     // Attempt to load .env, but don't crash if it's missing.
     try {
