@@ -80,3 +80,20 @@ class ColorThemeNotifier extends Notifier<ColorThemeStyle> {
 final colorThemeProvider = NotifierProvider<ColorThemeNotifier, ColorThemeStyle>(() {
   return ColorThemeNotifier();
 });
+
+enum ProfileLayoutStyle { modernCover, centeredMinimalist }
+
+class ProfileLayoutNotifier extends Notifier<ProfileLayoutStyle> {
+  @override
+  ProfileLayoutStyle build() {
+    return ProfileLayoutStyle.modernCover;
+  }
+
+  void setStyle(ProfileLayoutStyle style) {
+    state = style;
+  }
+}
+
+final profileLayoutProvider = NotifierProvider<ProfileLayoutNotifier, ProfileLayoutStyle>(() {
+  return ProfileLayoutNotifier();
+});

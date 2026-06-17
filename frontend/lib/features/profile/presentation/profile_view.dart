@@ -9,45 +9,105 @@ class ProfileView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).user;
+    final layout = ref.watch(profileLayoutProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          user?.displayName ?? 'Profile',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsView()));
-            },
+      body: layout == ProfileLayoutStyle.modernCover
+          ? _buildModernCover(context, user)
+          : _buildCenteredMinimalist(context, user),
+    );
+  }
+
+  Widget _buildModernCover(BuildContext context, dynamic user) {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 200.0,
+          pinned: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+            ),
+          ],
+          flexibleSpace: FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  'https://picsum.photos/seed/cover/800/400',
+                  fit: BoxFit.cover,
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black54, Colors.transparent, Theme.of(context).scaffoldBackgroundColor],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Transform.translate(
+                  offset: const Offset(0, -40),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: user?.photoURL != null
-                            ? NetworkImage(user!.photoURL!)
-                            : null,
-                        child: user?.photoURL == null
-                            ? const Icon(Icons.person, size: 40)
-                            : null,
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 4),
+                        ),
+                        child: CircleAvatar(
+                          radius: 40,
+                          backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                          child: user?.photoURL == null ? const Icon(Icons.person, size: 40) : null,
+                        ),
                       ),
-                      const Expanded(
-                        child: Row(
+                      const Spacer(),
+                      FilledButton.tonal(
+                        onPressed: () {},
+                        child: const Text('Edit Profile'),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        onPressed: () {},
+                        icon: const Icon(Icons.share),
+                      ),
+                    ],
+                  ),
+                ),
+                Transform.translate(
+                  offset: const Offset(0, -20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.displayName ?? 'SafeChat User',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('@${user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}'),
+                      const SizedBox(height: 16),
+                      const Text('Creating a safer social space 🛡️\n#flutter #dev'),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             _StatColumn(label: 'Posts', count: '12'),
@@ -58,59 +118,102 @@ class ProfileView extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    user?.displayName ?? 'SafeChat User',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const Text(
-                    'Creating a safer social space 🛡️\n#flutter #dev',
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.tonal(
-                          onPressed: () {},
-                          child: const Text('Edit Profile'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.tonal(
-                          onPressed: () {},
-                          child: const Text('Share Profile'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ),
-          SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 2,
-              crossAxisSpacing: 2,
-            ),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  image: DecorationImage(
-                    image: NetworkImage(
-                      'https://picsum.photos/seed/${index + 50}/300/300',
-                    ),
-                    fit: BoxFit.cover,
-                  ),
                 ),
-              );
-            }, childCount: 12),
+              ],
+            ),
           ),
-        ],
+        ),
+        _buildGrid(),
+      ],
+    );
+  }
+
+  Widget _buildCenteredMinimalist(BuildContext context, dynamic user) {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          title: Text(user?.displayName ?? 'Profile'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+            ),
+          ],
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                  child: user?.photoURL == null ? const Icon(Icons.person, size: 50) : null,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  user?.displayName ?? 'SafeChat User',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                const Text('Creating a safer social space 🛡️\n#flutter #dev', textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _StatColumn(label: 'Posts', count: '12'),
+                    SizedBox(width: 32),
+                    _StatColumn(label: 'Followers', count: '1.2k'),
+                    SizedBox(width: 32),
+                    _StatColumn(label: 'Following', count: '450'),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: () {},
+                      child: const Text('Edit Profile'),
+                    ),
+                    const SizedBox(width: 16),
+                    FilledButton.tonal(
+                      onPressed: () {},
+                      child: const Text('Share Profile'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                const Divider(),
+              ],
+            ),
+          ),
+        ),
+        _buildGrid(),
+      ],
+    );
+  }
+
+  Widget _buildGrid() {
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 2,
       ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            image: DecorationImage(
+              image: NetworkImage('https://picsum.photos/seed/${index + 50}/300/300'),
+              fit: BoxFit.cover,
+            ),
+          ),
+        );
+      }, childCount: 15),
     );
   }
 }
@@ -142,6 +245,7 @@ class SettingsView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentLayout = ref.watch(feedLayoutProvider);
     final navbarStyle = ref.watch(navbarStyleProvider);
+    final profileLayout = ref.watch(profileLayoutProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -153,7 +257,6 @@ class SettingsView extends ConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          // Visual layout picker
           Row(
             children: [
               _LayoutCard(
@@ -161,9 +264,7 @@ class SettingsView extends ConsumerWidget {
                 icon: Icons.grid_view_rounded,
                 color: Theme.of(context).colorScheme.primary,
                 isSelected: currentLayout == FeedLayoutMode.grid,
-                onTap: () => ref
-                    .read(feedLayoutProvider.notifier)
-                    .setLayout(FeedLayoutMode.grid),
+                onTap: () => ref.read(feedLayoutProvider.notifier).setLayout(FeedLayoutMode.grid),
               ),
               const SizedBox(width: 16),
               _LayoutCard(
@@ -171,11 +272,33 @@ class SettingsView extends ConsumerWidget {
                 icon: Icons.view_agenda_rounded,
                 color: Theme.of(context).colorScheme.secondary,
                 isSelected: currentLayout == FeedLayoutMode.card,
-                onTap: () => ref
-                    .read(feedLayoutProvider.notifier)
-                    .setLayout(FeedLayoutMode.card),
+                onTap: () => ref.read(feedLayoutProvider.notifier).setLayout(FeedLayoutMode.card),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Profile Layout',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<ProfileLayoutStyle>(
+            segments: const [
+              ButtonSegment(
+                value: ProfileLayoutStyle.modernCover,
+                label: Text('Modern Cover', style: TextStyle(fontSize: 12)),
+                icon: Icon(Icons.panorama),
+              ),
+              ButtonSegment(
+                value: ProfileLayoutStyle.centeredMinimalist,
+                label: Text('Minimalist', style: TextStyle(fontSize: 12)),
+                icon: Icon(Icons.align_vertical_center),
+              ),
+            ],
+            selected: {profileLayout},
+            onSelectionChanged: (Set<ProfileLayoutStyle> newSelection) {
+              ref.read(profileLayoutProvider.notifier).setStyle(newSelection.first);
+            },
           ),
           const SizedBox(height: 24),
           const Text(
@@ -309,12 +432,10 @@ class _LayoutCard extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: isSelected
-                ? color.withOpacity(0.15)
-                : Theme.of(context).cardColor,
+            color: isSelected ? color.withValues(alpha: 0.15) : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? color : Colors.grey.withOpacity(0.3),
+              color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
               width: isSelected ? 2 : 1,
             ),
           ),

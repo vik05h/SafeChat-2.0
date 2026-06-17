@@ -98,12 +98,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildFloatingPillNav() {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    // Map index 0..4 to alignment x: -1.0..1.0
+    final alignmentX = -1.0 + (_currentIndex * 0.5);
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
         child: Container(
+          height: 64, // fixed height for consistent stack sizing
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            color: colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
@@ -113,18 +119,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildFloatingPillItem(Icons.home_outlined, Icons.home_rounded, 0),
-                _buildFloatingPillItem(Icons.search_outlined, Icons.search_rounded, 1),
-                _buildFloatingPillItem(Icons.add_circle_outline, Icons.add_circle_rounded, 2),
-                _buildFloatingPillItem(Icons.chat_bubble_outline, Icons.chat_bubble_rounded, 3),
-                _buildFloatingPillItem(Icons.person_outline, Icons.person_rounded, 4),
-              ],
-            ),
+          child: Stack(
+            children: [
+              // Bouncing Active Background Pill
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
+                alignment: Alignment(alignmentX, 0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / 5, // 5 items
+                  heightFactor: 1.0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // The Icons Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildFloatingPillItem(Icons.home_outlined, Icons.home_rounded, 0),
+                  _buildFloatingPillItem(Icons.search_outlined, Icons.search_rounded, 1),
+                  _buildFloatingPillItem(Icons.add_circle_outline, Icons.add_circle_rounded, 2),
+                  _buildFloatingPillItem(Icons.chat_bubble_outline, Icons.chat_bubble_rounded, 3),
+                  _buildFloatingPillItem(Icons.person_outline, Icons.person_rounded, 4),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -135,20 +162,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isSelected = _currentIndex == index;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: () => _onTabSelected(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Icon(
-          isSelected ? selectedIcon : icon,
-          color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabSelected(index),
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) {
+              return ScaleTransition(scale: animation, child: child);
+            },
+            child: Icon(
+              isSelected ? selectedIcon : icon,
+              key: ValueKey<bool>(isSelected),
+              color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       ),
     );

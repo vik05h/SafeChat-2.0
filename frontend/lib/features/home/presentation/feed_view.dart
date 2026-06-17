@@ -110,11 +110,33 @@ class _GridPostCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Text(
-              'Grid Post Title $index',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Epic shot $index 📸',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=$index'),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'User $index',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -190,10 +212,90 @@ class _PostDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Post Details')),
-      body: Center(
-        child: Text('Full content for post $index'),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white, shadows: [Shadow(color: Colors.black45, blurRadius: 10)]),
       ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Hero(
+              tag: 'post_image_$index',
+              child: Container(
+                height: 400,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: NetworkImage('https://picsum.photos/seed/$index/300/400'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=$index'),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('User $index', style: Theme.of(context).textTheme.titleLarge),
+                          Text('2 hours ago', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                        ],
+                      ),
+                      const Spacer(),
+                      FilledButton.tonal(
+                        onPressed: () {},
+                        child: const Text('Follow'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Epic shot $index 📸',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This is the full detail view for post $index. It looks absolutely stunning in the new Material 3 design system. We can add comments, like buttons, and more rich content here!',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildAction(Icons.favorite_border, 'Like'),
+                      _buildAction(Icons.chat_bubble_outline, 'Comment'),
+                      _buildAction(Icons.share_outlined, 'Share'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAction(IconData icon, String label) {
+    return Column(
+      children: [
+        IconButton.filledTonal(onPressed: () {}, icon: Icon(icon), iconSize: 28),
+        const SizedBox(height: 8),
+        Text(label),
+      ],
     );
   }
 }
