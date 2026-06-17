@@ -20,118 +20,162 @@ class ProfileView extends ConsumerWidget {
   }
 
   Widget _buildModernCover(BuildContext context, dynamic user) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          expandedHeight: 200.0,
-          pinned: true,
-          iconTheme: const IconThemeData(
-            color: Colors.white,
-            shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
-          ),
-          actionsIconTheme: const IconThemeData(
-            color: Colors.white,
-            shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+    final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+
+    return Stack(
+      children: [
+        // 1. YouTube-style Ambient Background
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 500,
+          child: ImageFiltered(
+            imageFilter: dart_ui.ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+            child: Image.network(
+              'https://picsum.photos/seed/cover/800/400',
+              fit: BoxFit.cover,
             ),
+          ),
+        ),
+        // Blend the ambient glow into the scaffold background
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  scaffoldColor.withValues(alpha: 0.3),
+                  scaffoldColor.withValues(alpha: 0.85),
+                  scaffoldColor,
+                ],
+                stops: const [0.0, 0.4, 0.8],
+              ),
+            ),
+          ),
+        ),
+
+        // 2. Scrolling Content
+        CustomScrollView(
+          slivers: [
+            // Safe area for the top settings button
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton.filledTonal(
+                      icon: const Icon(Icons.settings),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Cover Photo & Avatar
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Stack for Cover Image + Avatar Overlap
+                    SizedBox(
+                      height: 220, // 160 for cover + 60 for avatar overlap
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          // Sharp Cover Photo
+                          Container(
+                            height: 160,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 5)),
+                              ],
+                              image: const DecorationImage(
+                                image: NetworkImage('https://picsum.photos/seed/cover/800/400'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          // Avatar perfectly overlapping the bottom edge
+                          Positioned(
+                            bottom: 0,
+                            left: 16,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: scaffoldColor, width: 4),
+                              ),
+                              child: CircleAvatar(
+                                radius: 45,
+                                backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                                child: user?.photoURL == null ? const Icon(Icons.person, size: 45) : null,
+                              ),
+                            ),
+                          ),
+                          // Action buttons to the right of avatar
+                          Positioned(
+                            bottom: 10,
+                            right: 0,
+                            child: Row(
+                              children: [
+                                FilledButton.tonal(
+                                  onPressed: () {},
+                                  child: const Text('Edit Profile'),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.filledTonal(
+                                  onPressed: () {},
+                                  icon: const Icon(Icons.share),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Profile Info
+                    Text(
+                      user?.displayName ?? 'SafeChat User',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('@${user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}'),
+                    const SizedBox(height: 16),
+                    const Text('Creating a safer social space 🛡️\n#flutter #dev'),
+                    const SizedBox(height: 24),
+                    // Stats Card
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _StatColumn(label: 'Posts', count: '12'),
+                          _StatColumn(label: 'Followers', count: '1.2k'),
+                          _StatColumn(label: 'Following', count: '450'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            _buildGrid(),
           ],
-          flexibleSpace: FlexibleSpaceBar(
-            background: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Extreme Ambient Frosted Glass Blur
-                ImageFiltered(
-                  imageFilter: dart_ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-                  child: Image.network(
-                    'https://picsum.photos/seed/cover/800/400',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                // Subtle darkening overlay so white icons pop
-                Container(
-                  color: Colors.black.withValues(alpha: 0.3),
-                ),
-                // Removed the gradient overlay so the avatar sits cleanly on the blurred ambient image
-              ],
-            ),
-          ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Transform.translate(
-                  offset: const Offset(0, -40),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 4),
-                        ),
-                        child: CircleAvatar(
-                          radius: 40,
-                          backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                          child: user?.photoURL == null ? const Icon(Icons.person, size: 40) : null,
-                        ),
-                      ),
-                      const Spacer(),
-                      FilledButton.tonal(
-                        onPressed: () {},
-                        child: const Text('Edit Profile'),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filledTonal(
-                        onPressed: () {},
-                        icon: const Icon(Icons.share),
-                      ),
-                    ],
-                  ),
-                ),
-                Transform.translate(
-                  offset: const Offset(0, -20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user?.displayName ?? 'SafeChat User',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('@${user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}'),
-                      const SizedBox(height: 16),
-                      const Text('Creating a safer social space 🛡️\n#flutter #dev'),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _StatColumn(label: 'Posts', count: '12'),
-                            _StatColumn(label: 'Followers', count: '1.2k'),
-                            _StatColumn(label: 'Following', count: '450'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        _buildGrid(),
       ],
     );
   }
