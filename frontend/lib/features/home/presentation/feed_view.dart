@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import '../data/feed_post_model.dart';
@@ -227,11 +228,15 @@ class _GridPostCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Row(children: [
-                  const CircleAvatar(radius: 12, child: Icon(Icons.person, size: 14)),
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundImage: post.authorPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(post.authorPhotoUrl) : null,
+                    child: post.authorPhotoUrl.isEmpty ? const Icon(Icons.person, size: 14) : null,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      post.authorUid,
+                      post.authorDisplayName,
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -265,9 +270,12 @@ class _ListPostCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person)),
+            leading: CircleAvatar(
+              backgroundImage: post.authorPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(post.authorPhotoUrl) : null,
+              child: post.authorPhotoUrl.isEmpty ? const Icon(Icons.person) : null,
+            ),
             title: Text(
-              post.authorUid,
+              post.authorDisplayName,
               style: const TextStyle(fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -347,15 +355,15 @@ class _ListPostCard extends StatelessWidget {
 // Post detail screen (full-screen with ambient + image carousel)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostDetailScreen extends StatefulWidget {
+class _PostDetailScreen extends ConsumerStatefulWidget {
   final FeedPost post;
   const _PostDetailScreen({required this.post});
 
   @override
-  State<_PostDetailScreen> createState() => _PostDetailScreenState();
+  ConsumerState<_PostDetailScreen> createState() => _PostDetailScreenState();
 }
 
-class _PostDetailScreenState extends State<_PostDetailScreen> {
+class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
   int _currentPage = 0;
 
   List<String> get _mediaUrls => widget.post.displayUrls.isNotEmpty
@@ -365,15 +373,17 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+    final layoutStyle = ref.watch(postImageLayoutProvider);
+    final isEdgeToEdge = layoutStyle == PostImageLayoutStyle.edgeToEdge;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: isEdgeToEdge,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-          shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
+        iconTheme: IconThemeData(
+          color: isEdgeToEdge ? Colors.white : Theme.of(context).iconTheme.color,
+          shadows: isEdgeToEdge ? const [Shadow(color: Colors.black45, blurRadius: 10)] : null,
         ),
       ),
       body: Stack(
@@ -389,13 +399,12 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image carousel + overlapping avatar.
+                // Image carousel
                 SizedBox(
-                  height: 440,
+                  height: 400,
                   child: Stack(
                     children: [
-                      Positioned(
-                        top: 0, left: 0, right: 0, height: 400,
+                      Positioned.fill(
                         child: PageView.builder(
                           itemCount: _mediaUrls.length,
                           onPageChanged: (i) => setState(() => _currentPage = i),
@@ -412,7 +421,7 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
                       // Dot indicators.
                       if (_mediaUrls.length > 1)
                         Positioned(
-                          bottom: 48, left: 0, right: 0,
+                          bottom: 16, left: 0, right: 0,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: List.generate(_mediaUrls.length, (i) {
@@ -434,55 +443,72 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
                             }),
                           ),
                         ),
-                      // Author avatar overlapping bottom-left.
-                      Positioned(
-                        bottom: 0, left: 24,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: scaffoldColor, width: 4),
-                          ),
-                          child: const CircleAvatar(
-                            radius: 35,
-                            child: Icon(Icons.person, size: 32),
-                          ),
+                    ],
+                  ),
+                ),
+                
+                // User Info Row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundImage: widget.post.authorPhotoUrl.isNotEmpty ? CachedNetworkImageProvider(widget.post.authorPhotoUrl) : null,
+                        child: widget.post.authorPhotoUrl.isEmpty ? const Icon(Icons.person, size: 28) : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.post.authorDisplayName,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '@${widget.post.authorUsername}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                      Positioned(
-                        bottom: 12, right: 24,
-                        child: FilledButton.tonal(
-                          onPressed: () {},
-                          child: const Text('Follow'),
-                        ),
+                      FilledButton.tonal(
+                        onPressed: () {},
+                        child: const Text('Follow'),
                       ),
                     ],
                   ),
                 ),
+
+                // Post Content
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.post.authorUid,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
                       Text(
                         widget.post.createdAt != null
                             ? _timeAgo(widget.post.createdAt!)
                             : 'Just now',
                         style: Theme.of(context)
                             .textTheme
-                            .bodyMedium
+                            .bodySmall
                             ?.copyWith(color: Colors.grey),
                       ),
-                      const SizedBox(height: 24),
-                      Text(
-                        widget.post.text,
-                        style: Theme.of(context).textTheme.bodyLarge,
+                      const SizedBox(height: 24), // Pushes content downward
+                      MarkdownBody(
+                        data: widget.post.text,
+                        styleSheet: MarkdownStyleSheet(
+                          p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
+                          h1: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                          h2: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          h3: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const SizedBox(height: 32),
                       Row(

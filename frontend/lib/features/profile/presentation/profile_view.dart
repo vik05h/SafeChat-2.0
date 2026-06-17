@@ -300,6 +300,33 @@ class SettingsView extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           const Text(
+            'Post Image Layout',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          Consumer(builder: (context, ref, _) {
+            final postLayout = ref.watch(postImageLayoutProvider);
+            return SegmentedButton<PostImageLayoutStyle>(
+              segments: const [
+                ButtonSegment(
+                  value: PostImageLayoutStyle.edgeToEdge,
+                  label: Text('Edge-to-Edge', style: TextStyle(fontSize: 12)),
+                  icon: Icon(Icons.fullscreen),
+                ),
+                ButtonSegment(
+                  value: PostImageLayoutStyle.padded,
+                  label: Text('Padded', style: TextStyle(fontSize: 12)),
+                  icon: Icon(Icons.padding),
+                ),
+              ],
+              selected: {postLayout},
+              onSelectionChanged: (Set<PostImageLayoutStyle> newSelection) {
+                ref.read(postImageLayoutProvider.notifier).setStyle(newSelection.first);
+              },
+            );
+          }),
+          const SizedBox(height: 24),
+          const Text(
             'Profile Layout',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),

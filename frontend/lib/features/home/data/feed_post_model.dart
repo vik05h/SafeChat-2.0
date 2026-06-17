@@ -3,6 +3,9 @@
 class FeedPost {
   final String id;
   final String authorUid;
+  final String authorUsername;
+  final String authorDisplayName;
+  final String authorPhotoUrl;
   final String text;
   final String? imageUrl;
   final List<String> mediaUrls;
@@ -15,6 +18,9 @@ class FeedPost {
   const FeedPost({
     required this.id,
     required this.authorUid,
+    required this.authorUsername,
+    required this.authorDisplayName,
+    required this.authorPhotoUrl,
     required this.text,
     this.imageUrl,
     this.mediaUrls = const [],
@@ -29,6 +35,9 @@ class FeedPost {
     return FeedPost(
       id: json['id'] as String? ?? '',
       authorUid: json['author_uid'] as String? ?? '',
+      authorUsername: json['author_username'] as String? ?? 'unknown',
+      authorDisplayName: json['author_display_name'] as String? ?? 'Anonymous',
+      authorPhotoUrl: json['author_photo_url'] as String? ?? '',
       text: json['text'] as String? ?? '',
       imageUrl: json['image_url'] as String?,
       mediaUrls: (json['media_urls'] as List<dynamic>?)

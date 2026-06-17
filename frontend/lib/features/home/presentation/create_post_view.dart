@@ -389,43 +389,112 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
     }
   }
 
+  void _addFormat(String prefix, String suffix) {
+    final text = _captionController.text;
+    final selection = _captionController.selection;
+    
+    if (!selection.isValid || selection.start == selection.end) {
+      final insertPos = selection.isValid ? selection.start : text.length;
+      final newText = text.replaceRange(insertPos, insertPos, '$prefix$suffix');
+      _captionController.value = _captionController.value.copyWith(
+        text: newText,
+        selection: TextSelection.collapsed(offset: insertPos + prefix.length),
+      );
+      return;
+    }
+
+    final selectedText = selection.textInside(text);
+    final newText = text.replaceRange(selection.start, selection.end, '$prefix$selectedText$suffix');
+    _captionController.value = _captionController.value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(offset: selection.end + prefix.length + suffix.length),
+    );
+  }
+
   Widget _buildEditorSection(bool isLoading) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: TextField(
-        controller: _captionController,
-        maxLines: null, minLines: 5,
-        enabled: !isLoading,
-        onChanged: (val) => ref.read(createPostProvider.notifier).setCaption(val),
-        decoration: const InputDecoration(
-          hintText: 'What\'s on your mind? Select text to format it!',
-          border: OutlineInputBorder(), filled: false,
-        ),
-        contextMenuBuilder: (BuildContext context, EditableTextState editableTextState) {
-          final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
-          
-          void addFormat(String prefix, String suffix) {
-            final text = _captionController.text;
-            final selection = _captionController.selection;
-            final selectedText = selection.textInside(text);
-            final newText = text.replaceRange(selection.start, selection.end, '$prefix$selectedText$suffix');
-            _captionController.value = _captionController.value.copyWith(
-              text: newText,
-              selection: TextSelection.collapsed(offset: selection.end + prefix.length + suffix.length),
-            );
-            ContextMenuController.removeAny();
-          }
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 4,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.title),
+                  tooltip: 'Heading',
+                  onPressed: isLoading ? null : () => _addFormat('### ', ''),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_bold),
+                  tooltip: 'Bold',
+                  onPressed: isLoading ? null : () => _addFormat('**', '**'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_italic),
+                  tooltip: 'Italic',
+                  onPressed: isLoading ? null : () => _addFormat('_', '_'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.highlight),
+                  tooltip: 'Highlight',
+                  onPressed: isLoading ? null : () => _addFormat('==', '=='),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_strikethrough),
+                  tooltip: 'Strikethrough',
+                  onPressed: isLoading ? null : () => _addFormat('~~', '~~'),
+                ),
+              ],
+            ),
+          ),
+          TextField(
+            controller: _captionController,
+            maxLines: null, minLines: 5,
+            enabled: !isLoading,
+            onChanged: (val) => ref.read(createPostProvider.notifier).setCaption(val),
+            decoration: const InputDecoration(
+              hintText: 'What\'s on your mind? Select text or use the toolbar to format!',
+              border: OutlineInputBorder(), filled: false,
+            ),
+            contextMenuBuilder: (BuildContext context, EditableTextState editableTextState) {
+              final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
+              
+              buttonItems.insert(0, ContextMenuButtonItem(label: 'Heading', onPressed: () {
+                _addFormat('### ', '');
+                ContextMenuController.removeAny();
+              }));
+              buttonItems.insert(1, ContextMenuButtonItem(label: 'Bold', onPressed: () {
+                _addFormat('**', '**');
+                ContextMenuController.removeAny();
+              }));
+              buttonItems.insert(2, ContextMenuButtonItem(label: 'Italic', onPressed: () {
+                _addFormat('_', '_');
+                ContextMenuController.removeAny();
+              }));
+              buttonItems.insert(3, ContextMenuButtonItem(label: 'Highlight', onPressed: () {
+                _addFormat('==', '==');
+                ContextMenuController.removeAny();
+              }));
+              buttonItems.insert(4, ContextMenuButtonItem(label: 'Strike', onPressed: () {
+                _addFormat('~~', '~~');
+                ContextMenuController.removeAny();
+              }));
 
-          buttonItems.insert(0, ContextMenuButtonItem(label: 'Bold', onPressed: () => addFormat('**', '**')));
-          buttonItems.insert(1, ContextMenuButtonItem(label: 'Italic', onPressed: () => addFormat('_', '_')));
-          buttonItems.insert(2, ContextMenuButtonItem(label: 'Highlight', onPressed: () => addFormat('==', '==')));
-          buttonItems.insert(3, ContextMenuButtonItem(label: 'Strike', onPressed: () => addFormat('~~', '~~')));
-
-          return AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: editableTextState.contextMenuAnchors,
-            buttonItems: buttonItems,
-          );
-        },
+              return AdaptiveTextSelectionToolbar.buttonItems(
+                anchors: editableTextState.contextMenuAnchors,
+                buttonItems: buttonItems,
+              );
+            },
+          ),
+        ],
       ),
     );
   }

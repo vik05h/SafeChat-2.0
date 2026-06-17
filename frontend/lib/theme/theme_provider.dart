@@ -33,36 +33,60 @@ enum FeedLayoutMode { grid, card }
 class FeedLayoutNotifier extends Notifier<FeedLayoutMode> {
   @override
   FeedLayoutMode build() {
-    return FeedLayoutMode.grid;
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('feed_layout', defaultValue: FeedLayoutMode.grid.index) as int;
+      return FeedLayoutMode.values[index];
+    } catch (e) {
+      return FeedLayoutMode.grid;
+    }
   }
 
   void toggleLayout() {
-    state = state == FeedLayoutMode.grid ? FeedLayoutMode.card : FeedLayoutMode.grid;
+    setLayout(state == FeedLayoutMode.grid ? FeedLayoutMode.card : FeedLayoutMode.grid);
   }
 
   void setLayout(FeedLayoutMode mode) {
-    state = mode;
+    try {
+      final box = Hive.box('settings');
+      box.put('feed_layout', mode.index);
+      state = mode;
+    } catch (e) {
+      state = mode;
+    }
   }
 }
 
 class BrightnessNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
-    return ThemeMode.system; // Default to system brightness
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('theme_mode', defaultValue: ThemeMode.system.index) as int;
+      return ThemeMode.values[index];
+    } catch (e) {
+      return ThemeMode.system;
+    }
   }
 
   void toggleBrightness() {
     if (state == ThemeMode.system) {
-      state = ThemeMode.dark;
+      setBrightness(ThemeMode.dark);
     } else if (state == ThemeMode.light) {
-      state = ThemeMode.dark;
+      setBrightness(ThemeMode.dark);
     } else {
-      state = ThemeMode.light;
+      setBrightness(ThemeMode.light);
     }
   }
 
   void setBrightness(ThemeMode mode) {
-    state = mode;
+    try {
+      final box = Hive.box('settings');
+      box.put('theme_mode', mode.index);
+      state = mode;
+    } catch (e) {
+      state = mode;
+    }
   }
 }
 
@@ -79,11 +103,23 @@ enum NavbarStyle { standard, hiddenLabels, floatingPill }
 class NavbarStyleNotifier extends Notifier<NavbarStyle> {
   @override
   NavbarStyle build() {
-    return NavbarStyle.standard;
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('navbar_style', defaultValue: NavbarStyle.standard.index) as int;
+      return NavbarStyle.values[index];
+    } catch (e) {
+      return NavbarStyle.standard;
+    }
   }
 
   void setStyle(NavbarStyle style) {
-    state = style;
+    try {
+      final box = Hive.box('settings');
+      box.put('navbar_style', style.index);
+      state = style;
+    } catch (e) {
+      state = style;
+    }
   }
 }
 
@@ -96,11 +132,23 @@ enum ColorThemeStyle { pastelPop, cyberNeon, ultraMinimalist }
 class ColorThemeNotifier extends Notifier<ColorThemeStyle> {
   @override
   ColorThemeStyle build() {
-    return ColorThemeStyle.pastelPop;
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('color_theme', defaultValue: ColorThemeStyle.pastelPop.index) as int;
+      return ColorThemeStyle.values[index];
+    } catch (e) {
+      return ColorThemeStyle.pastelPop;
+    }
   }
 
   void setStyle(ColorThemeStyle style) {
-    state = style;
+    try {
+      final box = Hive.box('settings');
+      box.put('color_theme', style.index);
+      state = style;
+    } catch (e) {
+      state = style;
+    }
   }
 }
 
@@ -113,11 +161,23 @@ enum ProfileLayoutStyle { modernCover, centeredMinimalist }
 class ProfileLayoutNotifier extends Notifier<ProfileLayoutStyle> {
   @override
   ProfileLayoutStyle build() {
-    return ProfileLayoutStyle.modernCover;
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('profile_layout', defaultValue: ProfileLayoutStyle.modernCover.index) as int;
+      return ProfileLayoutStyle.values[index];
+    } catch (e) {
+      return ProfileLayoutStyle.modernCover;
+    }
   }
 
   void setStyle(ProfileLayoutStyle style) {
-    state = style;
+    try {
+      final box = Hive.box('settings');
+      box.put('profile_layout', style.index);
+      state = style;
+    } catch (e) {
+      state = style;
+    }
   }
 }
 
@@ -152,4 +212,33 @@ class AmbientPhysicsNotifier extends Notifier<AmbientPhysicsMode> {
 
 final ambientPhysicsProvider = NotifierProvider<AmbientPhysicsNotifier, AmbientPhysicsMode>(() {
   return AmbientPhysicsNotifier();
+});
+
+enum PostImageLayoutStyle { edgeToEdge, padded }
+
+class PostImageLayoutNotifier extends Notifier<PostImageLayoutStyle> {
+  @override
+  PostImageLayoutStyle build() {
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('post_image_layout', defaultValue: PostImageLayoutStyle.edgeToEdge.index) as int;
+      return PostImageLayoutStyle.values[index];
+    } catch (e) {
+      return PostImageLayoutStyle.edgeToEdge;
+    }
+  }
+
+  void setStyle(PostImageLayoutStyle style) {
+    try {
+      final box = Hive.box('settings');
+      box.put('post_image_layout', style.index);
+      state = style;
+    } catch (e) {
+      state = style;
+    }
+  }
+}
+
+final postImageLayoutProvider = NotifierProvider<PostImageLayoutNotifier, PostImageLayoutStyle>(() {
+  return PostImageLayoutNotifier();
 });
