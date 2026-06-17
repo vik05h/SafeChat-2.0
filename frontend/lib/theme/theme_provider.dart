@@ -124,3 +124,32 @@ class ProfileLayoutNotifier extends Notifier<ProfileLayoutStyle> {
 final profileLayoutProvider = NotifierProvider<ProfileLayoutNotifier, ProfileLayoutStyle>(() {
   return ProfileLayoutNotifier();
 });
+
+enum AmbientPhysicsMode { pulse, aurora, wave }
+
+class AmbientPhysicsNotifier extends Notifier<AmbientPhysicsMode> {
+  @override
+  AmbientPhysicsMode build() {
+    try {
+      final box = Hive.box('settings');
+      final index = box.get('ambient_physics', defaultValue: 0) as int;
+      return AmbientPhysicsMode.values[index];
+    } catch (e) {
+      return AmbientPhysicsMode.pulse;
+    }
+  }
+
+  void setMode(AmbientPhysicsMode mode) {
+    try {
+      final box = Hive.box('settings');
+      box.put('ambient_physics', mode.index);
+      state = mode;
+    } catch (e) {
+      state = mode;
+    }
+  }
+}
+
+final ambientPhysicsProvider = NotifierProvider<AmbientPhysicsNotifier, AmbientPhysicsMode>(() {
+  return AmbientPhysicsNotifier();
+});

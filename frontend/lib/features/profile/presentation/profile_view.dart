@@ -433,6 +433,33 @@ class SettingsView extends ConsumerWidget {
               },
             );
           }),
+          const SizedBox(height: 12),
+          Consumer(builder: (context, ref, _) {
+            final physicsMode = ref.watch(ambientPhysicsProvider);
+            return SegmentedButton<AmbientPhysicsMode>(
+              segments: const [
+                ButtonSegment(
+                  value: AmbientPhysicsMode.pulse,
+                  label: Text('Pulse', style: TextStyle(fontSize: 12)),
+                  icon: Icon(Icons.waves),
+                ),
+                ButtonSegment(
+                  value: AmbientPhysicsMode.aurora,
+                  label: Text('Aurora', style: TextStyle(fontSize: 12)),
+                  icon: Icon(Icons.blur_on),
+                ),
+                ButtonSegment(
+                  value: AmbientPhysicsMode.wave,
+                  label: Text('Wave', style: TextStyle(fontSize: 12)),
+                  icon: Icon(Icons.water),
+                ),
+              ],
+              selected: {physicsMode},
+              onSelectionChanged: (Set<AmbientPhysicsMode> newSelection) {
+                ref.read(ambientPhysicsProvider.notifier).setMode(newSelection.first);
+              },
+            );
+          }),
           const SizedBox(height: 24),
           const Divider(),
           ListTile(
