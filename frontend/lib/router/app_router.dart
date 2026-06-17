@@ -33,7 +33,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = state.uri.path == '/login';
       final isOnboarding = state.uri.path == '/onboarding';
 
-      if (isSplash) return null; // Let splash decide where to go initially
+      // CRITICAL FIX: While auth is loading (or we're on the splash screen),
+      // never redirect. Let the SplashScreen handle navigation itself.
+      if (isSplash || authState.isLoading) return null;
 
       final isAuth = authState.isAuthenticated;
       final needsOnboard = authState.needsOnboarding;
@@ -47,13 +49,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (isAuth && !needsOnboard) {
-        if (isLoggingIn || isOnboarding || isSplash) {
+        if (isLoggingIn || isOnboarding) {
           return '/home';
         }
       }
 
       return null;
     },
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('Page Not Found')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Error: ${state.error}', textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    ),
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
