@@ -4,6 +4,8 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
+import '../../../shared/utils/markdown_extensions.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import '../data/feed_post_model.dart';
@@ -305,7 +307,12 @@ class _ListPostCard extends StatelessWidget {
             ),
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(post.text),
+            child: MarkdownBody(
+              data: post.text,
+              extensionSet: md.ExtensionSet.gitHubFlavored,
+              inlineSyntaxes: [HighlightSyntax()],
+              builders: {'highlight': HighlightBuilder(context)},
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
@@ -503,6 +510,9 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       const SizedBox(height: 24), // Pushes content downward
                       MarkdownBody(
                         data: widget.post.text,
+                        extensionSet: md.ExtensionSet.gitHubFlavored,
+                        inlineSyntaxes: [HighlightSyntax()],
+                        builders: {'highlight': HighlightBuilder(context)},
                         styleSheet: MarkdownStyleSheet(
                           p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
                           h1: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),

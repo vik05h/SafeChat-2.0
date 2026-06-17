@@ -20,6 +20,7 @@ from core.firebase import db
 from models.post import Post
 from moderation.engine import moderate_image, moderate_text
 from services import follows as follows_service
+from services import users as users_service
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +108,14 @@ async def create_post(
 
     post_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
+    user = await users_service.get_user_profile(author_uid)
+    
     post_data: dict[str, Any] = {
         "id": post_id,
         "author_uid": author_uid,
+        "author_username": user.username if user else "unknown",
+        "author_display_name": user.display_name if user else "Anonymous",
+        "author_photo_url": user.photo_url if user and user.photo_url else "",
         "text": text,
         "image_url": media_urls[0] if media_urls else None,
         "media_urls": media_urls or [],
