@@ -1,0 +1,432 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'create_post_provider.dart';
+
+class CreatePostView extends ConsumerStatefulWidget {
+  const CreatePostView({super.key});
+
+  @override
+  ConsumerState<CreatePostView> createState() => _CreatePostViewState();
+}
+
+class _CreatePostViewState extends ConsumerState<CreatePostView> {
+  final TextEditingController _captionController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  final PageController _pageController = PageController();
+  int _currentStep = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _captionController.text = ref.read(createPostProvider).caption;
+    });
+  }
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickMedia() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      final files = images.map((x) => File(x.path)).toList();
+      ref.read(createPostProvider.notifier).addMedia(files);
+    }
+  }
+
+  Future<void> _submit() async {
+    ref.read(createPostProvider.notifier).setCaption(_captionController.text);
+    final outcome = await ref.read(createPostProvider.notifier).submitPost();
+
+    if (!mounted) return;
+
+    if (outcome != null) {
+      // Success: reset state and close the sheet first.
+      ref.read(createPostProvider.notifier).reset();
+      Navigator.of(context).pop();
+
+      if (outcome == SubmitOutcome.approved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Post live! Check your feed.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        // pendingReview
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📋 Post under review. It\'ll go live once approved!'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } else {
+      // Failure
+      final error = ref.read(createPostProvider).submissionState.error;
+      final message = error != null
+          ? 'Error: ${error.toString().split('\n').first}'
+          : 'Failed to create post. Please try again.';
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Post Failed'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _nextStep() {
+    if (_currentStep < 2) {
+      setState(() => _currentStep++);
+      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    }
+  }
+
+  void _prevStep() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+      _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(createPostProvider);
+    final isLoading = state.submissionState is AsyncLoading;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Create Post', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    if (!state.isSimpleMode || _currentStep == 2)
+                      FilledButton(
+                        onPressed: isLoading ? null : _submit,
+                        child: const Text('Post'),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              
+              if (isLoading) ...[
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      LinearProgressIndicator(),
+                      SizedBox(height: 8),
+                      Text('Verifying post with AI Moderation...', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Advanced Canvas')),
+                    ButtonSegment(value: true, label: Text('Simple Wizard')),
+                  ],
+                  selected: {state.isSimpleMode},
+                  onSelectionChanged: (Set<bool> selection) {
+                    ref.read(createPostProvider.notifier).setMode(selection.first);
+                  },
+                ),
+              ),
+
+              Expanded(
+                child: state.isSimpleMode 
+                    ? _buildSimpleWizard(state, isLoading)
+                    : SingleChildScrollView(child: _buildAdvancedCanvas(state, isLoading)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdvancedCanvas(CreatePostState state, bool isLoading) {
+    return Column(
+      children: [
+        _buildMediaSection(state),
+        const SizedBox(height: 16),
+        _buildEditorSection(isLoading),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildSimpleWizard(CreatePostState state, bool isLoading) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 8,
+              width: _currentStep == index ? 24 : 8,
+              decoration: BoxDecoration(
+                color: _currentStep == index ? Theme.of(context).colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              // Step 0: Media
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text('Step 1: Add Media', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    Expanded(child: _buildMediaSection(state)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _nextStep,
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('Next: Write Caption'),
+                    )
+                  ],
+                ),
+              ),
+              // Step 1: Text
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text('Step 2: Write a Caption', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    Expanded(child: _buildEditorSection(isLoading)),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(onPressed: _prevStep, icon: const Icon(Icons.arrow_back), label: const Text('Back')),
+                        FilledButton.icon(onPressed: _nextStep, icon: const Icon(Icons.arrow_forward), label: const Text('Next: Review')),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+              // Step 2: Review
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text('Step 3: Review', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (state.selectedMedia.isNotEmpty)
+                              SizedBox(
+                                height: 200,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: state.selectedMedia.length,
+                                  itemBuilder: (context, index) => Container(
+                                    margin: const EdgeInsets.only(right: 8),
+                                    width: 150,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      image: DecorationImage(image: FileImage(state.selectedMedia[index]), fit: BoxFit.cover),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            const Text('Caption:', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text(_captionController.text.isEmpty ? '(No caption)' : _captionController.text),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(onPressed: _prevStep, icon: const Icon(Icons.arrow_back), label: const Text('Back')),
+                        FilledButton.icon(onPressed: isLoading ? null : _submit, icon: const Icon(Icons.check), label: const Text('Post Now')),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMediaSection(CreatePostState state) {
+    if (state.selectedMedia.isNotEmpty) {
+      return SizedBox(
+        height: 120,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: state.selectedMedia.length + 1,
+          itemBuilder: (context, index) {
+            if (index == state.selectedMedia.length) {
+              if (state.selectedMedia.length >= 5) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: InkWell(
+                  onTap: _pickMedia,
+                  child: Container(
+                    width: 100, height: 100,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.add_photo_alternate, size: 40),
+                  ),
+                ),
+              );
+            }
+            final file = state.selectedMedia[index];
+            return Stack(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  width: 100, height: 100,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
+                  ),
+                ),
+                Positioned(
+                  top: 4, right: 12,
+                  child: GestureDetector(
+                    onTap: () => ref.read(createPostProvider.notifier).removeMedia(index),
+                    child: const CircleAvatar(
+                      radius: 12, backgroundColor: Colors.black54,
+                      child: Icon(Icons.close, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: InkWell(
+          onTap: _pickMedia,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 100, width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_photo_alternate, size: 32),
+                SizedBox(height: 8),
+                Text('Add Photos or Videos'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildEditorSection(bool isLoading) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: TextField(
+        controller: _captionController,
+        maxLines: null, minLines: 5,
+        enabled: !isLoading,
+        onChanged: (val) => ref.read(createPostProvider.notifier).setCaption(val),
+        decoration: const InputDecoration(
+          hintText: 'What\'s on your mind? Select text to format it!',
+          border: OutlineInputBorder(), filled: false,
+        ),
+        contextMenuBuilder: (BuildContext context, EditableTextState editableTextState) {
+          final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
+          
+          void addFormat(String prefix, String suffix) {
+            final text = _captionController.text;
+            final selection = _captionController.selection;
+            final selectedText = selection.textInside(text);
+            final newText = text.replaceRange(selection.start, selection.end, '$prefix$selectedText$suffix');
+            _captionController.value = _captionController.value.copyWith(
+              text: newText,
+              selection: TextSelection.collapsed(offset: selection.end + prefix.length + suffix.length),
+            );
+            ContextMenuController.removeAny();
+          }
+
+          buttonItems.insert(0, ContextMenuButtonItem(label: 'Bold', onPressed: () => addFormat('**', '**')));
+          buttonItems.insert(1, ContextMenuButtonItem(label: 'Italic', onPressed: () => addFormat('_', '_')));
+          buttonItems.insert(2, ContextMenuButtonItem(label: 'Highlight', onPressed: () => addFormat('==', '==')));
+          buttonItems.insert(3, ContextMenuButtonItem(label: 'Strike', onPressed: () => addFormat('~~', '~~')));
+
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: editableTextState.contextMenuAnchors,
+            buttonItems: buttonItems,
+          );
+        },
+      ),
+    );
+  }
+}

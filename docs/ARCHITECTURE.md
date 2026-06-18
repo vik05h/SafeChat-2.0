@@ -154,7 +154,7 @@ Security:          Security Rules enforced (see DATABASE_SCHEMA.md)
 ### Firebase Storage
 
 ```yaml
-Bucket:            safechat-prod.firebasestorage.app
+Bucket:            safechat-prod-66143.firebasestorage.app
 Location:          US-EAST1 (compatible with nam5 Firestore)
 Storage class:     Standard
 Access:            Authenticated only, via Storage Rules
@@ -163,7 +163,7 @@ Access:            Authenticated only, via Storage Rules
 ### Firebase Hosting (Web Frontend)
 
 ```yaml
-Domain:            safechat-prod.web.app (auto-provisioned)
+Domain:            safechat-prod-66143.web.app (auto-provisioned)
 Custom domain:     safechat.app (when acquired)
 SSL:               Auto-provisioned via Firebase
 CDN:               Google Global CDN included
@@ -311,7 +311,7 @@ When approaching 100k+ daily active users:
 ```
 Local        → Developer machine, local Firestore emulator optional
 Staging      → Separate Firebase project (safechat-staging)
-Production   → safechat-prod
+Production   → safechat-prod-66143
 ```
 
 ### CI/CD Pipeline

@@ -80,7 +80,8 @@ def _user_ref(uid: str) -> DocumentReference:
 async def create_post(
     author_uid: str,
     text: str,
-    image_url: str | None = None,
+    media_urls: list[str] | None = None,
+    media_type: str = "text",
 ) -> Post:
     """Moderate then persist a new post. Atomically increments author.post_count.
 
@@ -88,8 +89,21 @@ async def create_post(
         PostBlocked: if the moderation cascade rejects the text.
     """
     result = await moderate_text(text)
+    # Determine initial status based on moderation result.
+    # blocked → "pending_review" (stored in Firebase, visible only to author;
+    # a human moderator then approves or rejects it).
+    initial_status = "pending_review" if result.blocked else "approved"
+    moderation_meta: dict[str, Any] = {}
     if result.blocked:
-        raise PostBlocked(layer=result.layer, reason=result.reason)
+        moderation_meta = {
+            "moderation_layer": result.layer,
+            "moderation_reason": result.reason,
+        }
+        logger.info(
+            "Post flagged by %s (%s) — saved as pending_review for human review.",
+            result.layer,
+            result.reason,
+        )
 
     post_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
@@ -97,8 +111,11 @@ async def create_post(
         "id": post_id,
         "author_uid": author_uid,
         "text": text,
-        "image_url": image_url,
-        "status": "approved",
+        "image_url": media_urls[0] if media_urls else None,
+        "media_urls": media_urls or [],
+        "media_type": media_type,
+        "status": initial_status,
+        **moderation_meta,
         "like_count": 0,
         "comment_count": 0,
         "created_at": now,
@@ -121,8 +138,9 @@ async def create_post(
     # Fire-and-forget image moderation. Runs after the post is already stored
     # so the author sees their post immediately; it is quietly rejected if the
     # Vision check fails.
-    if image_url:
-        asyncio.create_task(_moderate_post_image(post.id, image_url))
+    if media_urls and media_type == "image":
+        for url in media_urls:
+            asyncio.create_task(_moderate_post_image(post.id, url))
 
     return post
 
@@ -181,8 +199,8 @@ async def get_feed(
     # TODO: filter out posts from users the viewer has blocked (Step 2 block system)
     """
     following = await follows_service.get_following(viewer_uid)
-    if not following:
-        return []
+    # Always include the user's own posts in their feed
+    following.append(viewer_uid)
 
     cap = min(limit, 20)
 

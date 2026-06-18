@@ -1,63 +1,54 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'app.dart';
 import 'firebase_options.dart';
 
-import 'app/router/router.dart';
-import 'app/theme/app_theme.dart';
-import 'features/notifications/services/fcm_service.dart';
-import 'shared/widgets/no_connection_banner.dart';
-
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase (Assuming options will be added later based on the actual platform)
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // Initialize Hive for local settings
+    await Hive.initFlutter();
+    await Hive.openBox('settings');
+    
+    // Attempt to load .env, but don't crash if it's missing.
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint('No .env file found. Using default values or dart-defines.');
+    }
+
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      debugPrint('Firebase init error (likely hot restart): $e');
+    }
+
+    // Enable 120Hz / High refresh rate on Android
+    if (Platform.isAndroid) {
+      try {
+        await FlutterDisplayMode.setHighRefreshRate();
+      } catch (e) {
+        debugPrint('Failed to set high refresh rate: $e');
+      }
+    }
+    
+    runApp(
+      const ProviderScope(
+        child: SafeChatApp(),
+      ),
     );
-  } catch (e) {
-    debugPrint('Firebase initialization error: $e');
-  }
-
-  runApp(
-    const ProviderScope(
-      child: SafeChatApp(),
-    ),
-  );
-}
-
-class SafeChatApp extends ConsumerStatefulWidget {
-  const SafeChatApp({super.key});
-
-  @override
-  ConsumerState<SafeChatApp> createState() => _SafeChatAppState();
-}
-
-class _SafeChatAppState extends ConsumerState<SafeChatApp> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final router = ref.read(routerProvider);
-      ref.read(fcmServiceProvider).initialize(router);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final router = ref.watch(routerProvider);
-
-    return MaterialApp.router(
-      title: 'SafeChat',
-      theme: AppTheme.darkTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark, // Enforce dark mode as per spec
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) {
-        return NoConnectionBanner(child: child!);
-      },
-    );
-  }
+  }, (error, stack) {
+    debugPrint('Uncaught error: $error\n$stack');
+  });
 }

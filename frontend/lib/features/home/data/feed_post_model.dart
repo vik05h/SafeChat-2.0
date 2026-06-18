@@ -1,0 +1,57 @@
+// frontend/lib/features/home/data/feed_post_model.dart
+
+class FeedPost {
+  final String id;
+  final String authorUid;
+  final String text;
+  final String? imageUrl;
+  final List<String> mediaUrls;
+  final String mediaType;
+  final String status;
+  final int likeCount;
+  final int commentCount;
+  final DateTime? createdAt;
+
+  const FeedPost({
+    required this.id,
+    required this.authorUid,
+    required this.text,
+    this.imageUrl,
+    this.mediaUrls = const [],
+    this.mediaType = 'text',
+    this.status = 'approved',
+    this.likeCount = 0,
+    this.commentCount = 0,
+    this.createdAt,
+  });
+
+  factory FeedPost.fromJson(Map<String, dynamic> json) {
+    return FeedPost(
+      id: json['id'] as String? ?? '',
+      authorUid: json['author_uid'] as String? ?? '',
+      text: json['text'] as String? ?? '',
+      imageUrl: json['image_url'] as String?,
+      mediaUrls: (json['media_urls'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      mediaType: json['media_type'] as String? ?? 'text',
+      status: json['status'] as String? ?? 'approved',
+      likeCount: json['like_count'] as int? ?? 0,
+      commentCount: json['comment_count'] as int? ?? 0,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())
+          : null,
+    );
+  }
+
+  /// All displayable image/video URLs, falling back to image_url for backward compat.
+  List<String> get displayUrls {
+    if (mediaUrls.isNotEmpty) return mediaUrls;
+    if (imageUrl != null) return [imageUrl!];
+    return [];
+  }
+
+  /// True when this post is still being reviewed by a human moderator.
+  bool get isPendingReview => status == 'pending_review';
+}

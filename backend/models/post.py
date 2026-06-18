@@ -16,7 +16,11 @@ class Post(BaseModel):
     author_uid: str
     text: str
     image_url: str | None = None
-    status: Literal["approved", "rejected", "pending"] = "approved"
+    media_urls: list[str] = Field(default_factory=list)
+    media_type: str = "text"
+    status: Literal["approved", "rejected", "pending_review"] = "approved"
+    moderation_layer: str | None = None
+    moderation_reason: str | None = None
     like_count: int = 0
     comment_count: int = 0
     created_at: datetime
@@ -25,5 +29,6 @@ class Post(BaseModel):
 
 
 class CreatePostRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=500)
-    image_url: str | None = None
+    text: str = Field(..., min_length=1, max_length=2000)
+    media_urls: list[str] = Field(default_factory=list, max_length=10)
+    media_type: str = "text"

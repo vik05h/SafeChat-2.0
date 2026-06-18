@@ -16,7 +16,7 @@ Phase 0 — Foundation. GCP project created, Firebase services enabled, credenti
 
 ### Deliverables
 
-- [x] GCP project `safechat-prod` created
+- [x] GCP project `safechat-prod-66143` created
 - [x] Firebase Authentication enabled (Google + Email/Password)
 - [x] Cloud Firestore database provisioned (nam5)
 - [x] Firebase Storage configured
