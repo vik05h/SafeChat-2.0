@@ -61,6 +61,29 @@ class AuthRepository {
     }
   }
 
+  Future<AuthState> signUpWithEmailAndPassword(String email, String password) async {
+    try {
+      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      final user = credential.user;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+
+      return AuthState(
+        user: user,
+        needsOnboarding: true,
+      );
+    } on firebase.FirebaseAuthException catch (e) {
+      return AuthState(error: e.message ?? 'Sign up failed');
+    } catch (e) {
+      return AuthState(error: 'An unknown error occurred');
+    }
+  }
+
   Future<AuthState> signInWithGoogle() async {
     try {
       // 1. Trigger the Google Sign In flow
@@ -128,7 +151,7 @@ class AuthRepository {
   Future<AuthState> onboard({
     required String username,
     required String displayName,
-    required String phoneNumber,
+    String? phoneNumber,
     required String dob,
     String? bio,
   }) async {

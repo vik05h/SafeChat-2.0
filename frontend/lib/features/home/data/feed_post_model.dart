@@ -54,6 +54,38 @@ class FeedPost {
     );
   }
 
+  factory FeedPost.fromFirestore(Map<String, dynamic> data, String docId) {
+    dynamic createdAtData = data['created_at'];
+    DateTime? parsedDate;
+    if (createdAtData != null) {
+      if (createdAtData.runtimeType.toString() == 'Timestamp') {
+         // Hack to avoid importing cloud_firestore if we don't want to couple the model
+         parsedDate = createdAtData.toDate();
+      } else {
+         parsedDate = DateTime.tryParse(createdAtData.toString());
+      }
+    }
+
+    return FeedPost(
+      id: docId,
+      authorUid: data['author_uid'] as String? ?? '',
+      authorUsername: data['author_username'] as String? ?? 'unknown',
+      authorDisplayName: data['author_display_name'] as String? ?? 'Anonymous',
+      authorPhotoUrl: data['author_photo_url'] as String? ?? '',
+      text: data['text'] as String? ?? data['caption'] as String? ?? '',
+      imageUrl: data['image_url'] as String?,
+      mediaUrls: (data['media_urls'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      mediaType: data['media_type'] as String? ?? 'text',
+      status: data['status'] as String? ?? 'approved',
+      likeCount: data['like_count'] as int? ?? 0,
+      commentCount: data['comment_count'] as int? ?? 0,
+      createdAt: parsedDate,
+    );
+  }
+
   /// All displayable image/video URLs, falling back to image_url for backward compat.
   List<String> get displayUrls {
     if (mediaUrls.isNotEmpty) return mediaUrls;

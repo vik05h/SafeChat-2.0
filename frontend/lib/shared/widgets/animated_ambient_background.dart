@@ -132,7 +132,6 @@ class _AnimatedAmbientBackgroundState extends ConsumerState<AnimatedAmbientBackg
         physicsWidget = _buildWaveMode(baseImage);
         break;
       case AmbientPhysicsMode.pulse:
-      default:
         physicsWidget = _buildPulseMode(baseImage);
         break;
     }

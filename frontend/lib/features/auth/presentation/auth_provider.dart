@@ -42,6 +42,16 @@ class AuthController extends Notifier<AuthState> {
     state = result.copyWith(isLoading: false);
   }
 
+  Future<void> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    final repo = ref.read(authRepositoryProvider);
+    final result = await repo.signUpWithEmailAndPassword(email, password);
+    state = result.copyWith(isLoading: false);
+  }
+
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     
@@ -58,7 +68,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> onboard({
     required String username,
     required String displayName,
-    required String phoneNumber,
+    String? phoneNumber,
     required String dob,
     String? bio,
   }) async {

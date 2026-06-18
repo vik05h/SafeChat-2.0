@@ -10,7 +10,7 @@ class UserProfile {
   @JsonKey(name: 'display_name')
   final String displayName;
   @JsonKey(name: 'phone_number')
-  final String phoneNumber;
+  final String? phoneNumber;
   final String dob;
   final String? bio;
   @JsonKey(name: 'photo_url')
@@ -24,7 +24,7 @@ class UserProfile {
     required this.uid,
     required this.username,
     required this.displayName,
-    required this.phoneNumber,
+    this.phoneNumber,
     required this.dob,
     this.bio,
     this.photoUrl,
@@ -42,14 +42,14 @@ class OnboardRequest {
   @JsonKey(name: 'display_name')
   final String displayName;
   @JsonKey(name: 'phone_number')
-  final String phoneNumber;
+  final String? phoneNumber;
   final String dob;
   final String? bio;
 
   OnboardRequest({
     required this.username,
     required this.displayName,
-    required this.phoneNumber,
+    this.phoneNumber,
     required this.dob,
     this.bio,
   });

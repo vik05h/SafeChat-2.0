@@ -51,7 +51,7 @@ async def reserve_username(
     *,
     uid: str,
     email: str | None,
-    phone_number: str,
+    phone_number: str | None,
     username: str,
     display_name: str,
     dob: str,
@@ -70,14 +70,14 @@ async def reserve_username(
         AlreadyOnboarded: /users/{uid} already exists.
     """
     username_ref = _username_ref(username)
-    phone_ref = _phone_ref(phone_number)
+    phone_ref = _phone_ref(phone_number) if phone_number else None
     user_ref = _user_ref(uid)
 
     @firestore.transactional
     def _txn(transaction: Transaction) -> None:
         # All reads must happen before any writes within a Firestore txn.
         username_snap = username_ref.get(transaction=transaction)
-        phone_snap = phone_ref.get(transaction=transaction)
+        phone_snap = phone_ref.get(transaction=transaction) if phone_ref else None
         user_snap = user_ref.get(transaction=transaction)
 
         if username_snap.exists:
@@ -85,7 +85,7 @@ async def reserve_username(
             if owner_uid != uid:
                 raise UsernameTaken(username)
                 
-        if phone_snap.exists:
+        if phone_snap and phone_snap.exists:
             owner_uid = (phone_snap.to_dict() or {}).get("uid")
             if owner_uid != uid:
                 raise PhoneNumberTaken(phone_number)
@@ -98,10 +98,11 @@ async def reserve_username(
             username_ref,
             {"username": username, "uid": uid, "reserved_at": now},
         )
-        transaction.set(
-            phone_ref,
-            {"phone_number": phone_number, "uid": uid, "reserved_at": now},
-        )
+        if phone_ref:
+            transaction.set(
+                phone_ref,
+                {"phone_number": phone_number, "uid": uid, "reserved_at": now},
+            )
         transaction.set(
             user_ref,
             {

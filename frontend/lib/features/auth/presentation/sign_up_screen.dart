@@ -5,33 +5,54 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../theme/theme_provider.dart';
 import 'auth_provider.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends ConsumerStatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleSignUp() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Implement actual login logic via Riverpod AuthProvider
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logging in...')),
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Passwords do not match')),
+        );
+        return;
+      }
+      
+      await ref.read(authControllerProvider.notifier).signUpWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
       );
-      // context.go('/home'); // Navigate to home on success
+      
+      if (mounted) {
+        final authState = ref.read(authControllerProvider);
+        if (authState.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(authState.error!)),
+          );
+        } else {
+           // Go to verification screen
+           context.push('/verify-email');
+        }
+      }
     }
   }
 
@@ -40,10 +61,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final brightness = ref.watch(brightnessProvider);
     final isDark = brightness == ThemeMode.dark || 
         (brightness == ThemeMode.system && MediaQuery.of(context).platformBrightness == Brightness.dark);
+    final authState = ref.watch(authControllerProvider);
+    final isLoading = authState.isLoading;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SafeChat'),
+        title: const Text('Create Account'),
         actions: [
           IconButton(
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
@@ -65,13 +88,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Icon(
-                    Icons.chat_bubble_rounded,
+                    Icons.person_add_alt_1_rounded,
                     size: 64,
                     color: Colors.blueAccent, 
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Welcome Back',
+                    'Join SafeChat',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -79,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Login to continue to SafeChat',
+                    'Sign up to connect with friends safely',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
@@ -97,6 +120,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your email';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Please enter a valid email';
                       }
                       return null;
                     },
@@ -124,101 +150,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your password';
                       }
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to forgot password screen
-                      },
-                      child: const Text('Forgot Password?'),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      hintText: 'Re-enter your password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
                     ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
+                      }
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   ElevatedButton(
-                    onPressed: _handleLogin,
+                    onPressed: isLoading ? null : _handleSignUp,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                            fontWeight: FontWeight.bold,
+                    child: isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text(
+                            'Sign Up',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))),
-                    ],
                   ),
-                  const SizedBox(height: 24),
-                  Consumer(builder: (context, ref, child) {
-                    final authState = ref.watch(authControllerProvider);
-                    final isLoading = authState.isLoading;
-                    return OutlinedButton.icon(
-                      onPressed: isLoading ? null : () async {
-                        await ref.read(authControllerProvider.notifier).signInWithGoogle();
-                        if (mounted) {
-                          final newAuthState = ref.read(authControllerProvider);
-                          if (newAuthState.error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(authState.error!)),
-                            );
-                          } else if (newAuthState.isAuthenticated) {
-                            if (newAuthState.needsOnboarding) {
-                              context.go('/onboarding');
-                            } else {
-                              context.go('/home');
-                            }
-                          }
-                        }
-                      },
-                      icon: isLoading 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text(
-                              'G',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                      label: Text(
-                        isLoading ? 'Signing in...' : 'Sign in with Google',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    );
-                  }),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "Don't have an account?",
+                        "Already have an account?",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                       TextButton(
                         onPressed: () {
-                          context.push('/signup');
+                          context.pop();
                         },
                         child: const Text(
-                          'Sign Up',
+                          'Sign In',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),

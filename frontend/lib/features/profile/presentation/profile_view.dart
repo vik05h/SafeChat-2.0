@@ -5,6 +5,9 @@ import '../../auth/presentation/auth_provider.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import 'edit_profile_view.dart';
+import 'follow_providers.dart';
+import 'network_graph_view.dart';
+import 'content_status_view.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -103,6 +106,18 @@ class ProfileView extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           IconButton.filledTonal(
+                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NetworkGraphView())),
+                            icon: const Icon(Icons.hub),
+                            tooltip: 'Network Graph',
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ContentStatusView())),
+                            icon: const Icon(Icons.gavel),
+                            tooltip: 'Content Status / Appeals',
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
                             onPressed: () {},
                             icon: const Icon(Icons.share),
                           ),
@@ -139,13 +154,31 @@ class ProfileView extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _StatColumn(label: 'Posts', count: '12'),
-                          _StatColumn(label: 'Followers', count: '1.2k'),
-                          _StatColumn(label: 'Following', count: '450'),
-                        ],
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final uid = user?.uid ?? '';
+                          final followersAsync = ref.watch(followersCountProvider(uid));
+                          final followingAsync = ref.watch(followingCountProvider(uid));
+                          final friendsAsync = ref.watch(friendsProvider(uid));
+                          
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _StatColumn(
+                                label: 'Followers', 
+                                count: followersAsync.value?.toString() ?? '-',
+                              ),
+                              _StatColumn(
+                                label: 'Following', 
+                                count: followingAsync.value?.toString() ?? '-',
+                              ),
+                              _StatColumn(
+                                label: 'Friends', 
+                                count: friendsAsync.value?.length.toString() ?? '-',
+                              ),
+                            ],
+                          );
+                        }
                       ),
                     ),
                   ],
@@ -192,15 +225,33 @@ class ProfileView extends ConsumerWidget {
                 const SizedBox(height: 4),
                 const Text('Creating a safer social space 🛡️\n#flutter #dev', textAlign: TextAlign.center),
                 const SizedBox(height: 24),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _StatColumn(label: 'Posts', count: '12'),
-                    SizedBox(width: 32),
-                    _StatColumn(label: 'Followers', count: '1.2k'),
-                    SizedBox(width: 32),
-                    _StatColumn(label: 'Following', count: '450'),
-                  ],
+                Consumer(
+                  builder: (context, ref, _) {
+                    final uid = user?.uid ?? '';
+                    final followersAsync = ref.watch(followersCountProvider(uid));
+                    final followingAsync = ref.watch(followingCountProvider(uid));
+                    final friendsAsync = ref.watch(friendsProvider(uid));
+                    
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _StatColumn(
+                          label: 'Followers', 
+                          count: followersAsync.value?.toString() ?? '-',
+                        ),
+                        const SizedBox(width: 32),
+                        _StatColumn(
+                          label: 'Following', 
+                          count: followingAsync.value?.toString() ?? '-',
+                        ),
+                        const SizedBox(width: 32),
+                        _StatColumn(
+                          label: 'Friends', 
+                          count: friendsAsync.value?.length.toString() ?? '-',
+                        ),
+                      ],
+                    );
+                  }
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -209,6 +260,18 @@ class ProfileView extends ConsumerWidget {
                     FilledButton.tonal(
                       onPressed: () {},
                       child: const Text('Edit Profile'),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton.filledTonal(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NetworkGraphView())),
+                      icon: const Icon(Icons.hub),
+                      tooltip: 'Network Graph',
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton.filledTonal(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ContentStatusView())),
+                      icon: const Icon(Icons.gavel),
+                      tooltip: 'Content Status / Appeals',
                     ),
                     const SizedBox(width: 16),
                     FilledButton.tonal(
@@ -499,6 +562,18 @@ class SettingsView extends ConsumerWidget {
           }),
           const SizedBox(height: 24),
           const Divider(),
+          ListTile(
+            leading: const Icon(Icons.phone_android),
+            title: const Text('Verify Phone Number'),
+            subtitle: const Text('Link your phone number to secure your account'),
+            onTap: () {
+              // Note: Implementation for phone verification in settings.
+              // We just show a snackbar for now to signify the entry point.
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Phone Verification flow will open here. Please make sure Phone Auth is enabled in Firebase.')),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Log Out', style: TextStyle(color: Colors.red)),

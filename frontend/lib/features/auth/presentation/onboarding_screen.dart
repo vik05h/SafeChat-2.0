@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'auth_provider.dart';
 import '../../../theme/app_colors.dart';
 
@@ -73,25 +74,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  String _verificationId = '';
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
-      // If validation fails, jump to the first page with an error
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fix the errors in the form.')),
       );
       return;
     }
 
+    _finishOnboarding();
+  }
+
+  Future<void> _finishOnboarding() async {
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
       await ref.read(authControllerProvider.notifier).onboard(
             username: _usernameController.text.trim().toLowerCase(),
             displayName: _displayNameController.text.trim(),
-            phoneNumber: _completePhoneNumber,
+            phoneNumber: _completePhoneNumber.isEmpty ? null : _completePhoneNumber,
             dob: _dobController.text.trim(),
             bio: _bioController.text.trim(),
           );
       
       final authState = ref.read(authStateProvider);
+      if (mounted) Navigator.of(context).pop(); // dismiss loading
+
       if (authState.error != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -99,10 +114,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           );
         }
       } else {
-        // Router will auto-redirect because needsOnboarding is now false
         if (mounted) context.go('/home');
       }
     } catch (e) {
+      if (mounted) Navigator.of(context).pop(); // dismiss loading
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -110,6 +125,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     }
   }
+
+  // Phone Verification logic is moved to Settings/Profile
 
   @override
   Widget build(BuildContext context) {
@@ -233,21 +250,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             },
           ),
           const SizedBox(height: 24),
-          IntlPhoneField(
-            controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              hintText: '1234567890',
+            IntlPhoneField(
+              controller: _phoneController,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number (Optional)',
+                hintText: '1234567890',
+              ),
+              initialCountryCode: 'IN', // Default to India based on your example
+              onChanged: (phone) {
+                _completePhoneNumber = phone.completeNumber;
+              },
             ),
-            initialCountryCode: 'IN', // Default to India based on your example
-            onChanged: (phone) {
-              _completePhoneNumber = phone.completeNumber;
-            },
-            validator: (phone) {
-              if (phone == null || phone.number.isEmpty) return 'Phone number is required';
-              return null;
-            },
-          ),
         ],
       ),
     );
@@ -330,7 +343,35 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: const Text('Back'),
             )
           else
-            const SizedBox.shrink(),
+            TextButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      try {
+                        await firebase.FirebaseAuth.instance.currentUser?.delete();
+                        if (mounted) context.go('/signup');
+                      } on firebase.FirebaseAuthException catch (e) {
+                        if (e.code == 'requires-recent-login') {
+                           // If it fails due to old login, just sign them out instead so they can log back in or use a different account
+                           await ref.read(authControllerProvider.notifier).signOut();
+                           if (mounted) context.go('/signup');
+                        } else {
+                           if (mounted) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(content: Text('Failed to cancel onboarding: ${e.message}')),
+                             );
+                           }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to cancel: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Cancel & Restart'),
+            ),
           
           FilledButton(
             onPressed: isLoading ? null : _nextPage,
