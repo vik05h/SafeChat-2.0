@@ -63,13 +63,18 @@ UpdateProfileRequest _$UpdateProfileRequestFromJson(
 
 Map<String, dynamic> _$UpdateProfileRequestToJson(
   UpdateProfileRequest instance,
-) => <String, dynamic>{
-  'display_name': instance.displayName,
-  'username': instance.username,
-  'bio': instance.bio,
-  'photo_url': instance.photoUrl,
-  'background_url': instance.backgroundUrl,
-};
+) {
+  final val = <String, dynamic>{};
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) val[key] = value;
+  }
+  writeNotNull('display_name', instance.displayName);
+  writeNotNull('username', instance.username);
+  writeNotNull('bio', instance.bio);
+  writeNotNull('photo_url', instance.photoUrl);
+  writeNotNull('background_url', instance.backgroundUrl);
+  return val;
+}
 
 AuthMeResponse _$AuthMeResponseFromJson(Map<String, dynamic> json) =>
     AuthMeResponse(

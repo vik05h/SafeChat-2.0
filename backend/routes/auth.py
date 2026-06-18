@@ -15,6 +15,7 @@ from core.firebase import db
 from middleware.auth import get_current_user_claims
 from models.auth import CurrentUser
 from models.user import OnboardRequest, UpdateProfileRequest
+from services import storage as storage_service
 from services import users as users_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -59,9 +60,14 @@ async def get_me(
     )
 
     if snapshot.exists:
+        profile_data = _sanitize(snapshot.to_dict())
+        if profile_data.get("photo_url"):
+            profile_data["photo_url"] = storage_service.sign_media_url(profile_data["photo_url"])
+        if profile_data.get("background_url"):
+            profile_data["background_url"] = storage_service.sign_media_url(profile_data["background_url"])
         data = {
             "user": user.model_dump(),
-            "profile": _sanitize(snapshot.to_dict()),
+            "profile": profile_data,
             "needs_onboarding": False,
         }
     else:
@@ -160,10 +166,16 @@ async def update_profile(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    profile_dict = profile.model_dump(mode="json")
+    if profile_dict.get("photo_url"):
+        profile_dict["photo_url"] = storage_service.sign_media_url(profile_dict["photo_url"])
+    if profile_dict.get("background_url"):
+        profile_dict["background_url"] = storage_service.sign_media_url(profile_dict["background_url"])
+
     return JSONResponse(
         status_code=200,
         content={
-            "data": {"profile": profile.model_dump(mode="json")},
+            "data": {"profile": profile_dict},
             "meta": _meta(),
         },
     )

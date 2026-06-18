@@ -267,19 +267,21 @@ async def get_posts_by_author(
     cap = min(limit, 50)
     
     def _query() -> list[Post]:
+        # Single equality filter avoids requiring a composite index.
+        # Status filter and sort happen in Python.
         q = (
             db.collection(POSTS_COLLECTION)
             .where(filter=FieldFilter("author_uid", "==", author_uid))
-            .where(filter=FieldFilter("status", "==", "approved"))
-            .order_by("created_at", direction=firestore.Query.DESCENDING)
-            .limit(cap)
+            .limit(200)
         )
-        
         results: list[Post] = []
         for snap in q.stream():
             d = snap.to_dict() or {}
-            results.append(Post.model_validate(d))
-        return results
+            post = Post.model_validate(d)
+            if post.status == "approved":
+                results.append(post)
+        results.sort(key=lambda p: p.created_at, reverse=True)
+        return results[:cap]
         
     return await asyncio.to_thread(_query)
 

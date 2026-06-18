@@ -6,6 +6,7 @@ import '../providers/firebase_storage_provider.dart';
 class FirebaseCachedNetworkImage extends ConsumerWidget {
   final String imageUrl;
   final BoxFit? fit;
+  final Alignment alignment;
   final Widget Function(BuildContext, String)? placeholder;
   final Widget Function(BuildContext, String, dynamic)? errorWidget;
 
@@ -13,6 +14,7 @@ class FirebaseCachedNetworkImage extends ConsumerWidget {
     super.key,
     required this.imageUrl,
     this.fit,
+    this.alignment = Alignment.center,
     this.placeholder,
     this.errorWidget,
   });
@@ -30,6 +32,7 @@ class FirebaseCachedNetworkImage extends ConsumerWidget {
         return CachedNetworkImage(
           imageUrl: resolvedUrl,
           fit: fit,
+          alignment: alignment,
           placeholder: placeholder,
           errorWidget: errorWidget,
         );

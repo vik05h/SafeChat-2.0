@@ -61,7 +61,7 @@ class OnboardRequest {
   Map<String, dynamic> toJson() => _$OnboardRequestToJson(this);
 }
 
-@JsonSerializable()
+@JsonSerializable(includeIfNull: false)
 class UpdateProfileRequest {
   @JsonKey(name: 'display_name')
   final String? displayName;

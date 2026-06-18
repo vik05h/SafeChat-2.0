@@ -171,18 +171,20 @@ async def update_profile(uid: str, fields: dict[str, Any]) -> UserProfile:
     ProfileNotFound if the user has no profile document.
     """
     user_ref = _user_ref(uid)
-    
-    # Check if we need to change username first
+
     new_username = fields.pop("username", None)
     if new_username:
         await change_username(uid, new_username)
-        
-    if not fields:
-        # If only username was changed, or nothing changed
+
+    # Drop None values — clients may send explicit nulls for unchanged fields,
+    # which must not overwrite existing Firestore data.
+    update_fields = {k: v for k, v in fields.items() if v is not None}
+
+    if not update_fields:
         snapshot = await asyncio.to_thread(user_ref.get)
         return UserProfile.model_validate(snapshot.to_dict())
 
-    payload: dict[str, Any] = {**fields, "updated_at": firestore.SERVER_TIMESTAMP}
+    payload: dict[str, Any] = {**update_fields, "updated_at": firestore.SERVER_TIMESTAMP}
 
     try:
         await asyncio.to_thread(lambda: user_ref.update(payload))

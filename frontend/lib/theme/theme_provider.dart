@@ -236,6 +236,64 @@ final ambientPhysicsProvider =
       return AmbientPhysicsNotifier();
     });
 
+class CoverAlignmentNotifier extends Notifier<Alignment> {
+  @override
+  Alignment build() {
+    try {
+      final box = Hive.box('settings');
+      final x = (box.get('cover_align_x', defaultValue: 0.0) as num).toDouble();
+      final y = (box.get('cover_align_y', defaultValue: 0.0) as num).toDouble();
+      return Alignment(x, y);
+    } catch (e) {
+      return Alignment.center;
+    }
+  }
+
+  void set(Alignment alignment) {
+    try {
+      final box = Hive.box('settings');
+      box.put('cover_align_x', alignment.x);
+      box.put('cover_align_y', alignment.y);
+      state = alignment;
+    } catch (e) {
+      state = alignment;
+    }
+  }
+}
+
+final coverAlignmentProvider = NotifierProvider<CoverAlignmentNotifier, Alignment>(
+  () => CoverAlignmentNotifier(),
+);
+
+class AvatarAlignmentNotifier extends Notifier<Alignment> {
+  @override
+  Alignment build() {
+    try {
+      final box = Hive.box('settings');
+      final x = (box.get('avatar_align_x', defaultValue: 0.0) as num).toDouble();
+      final y = (box.get('avatar_align_y', defaultValue: 0.0) as num).toDouble();
+      return Alignment(x, y);
+    } catch (e) {
+      return Alignment.center;
+    }
+  }
+
+  void set(Alignment alignment) {
+    try {
+      final box = Hive.box('settings');
+      box.put('avatar_align_x', alignment.x);
+      box.put('avatar_align_y', alignment.y);
+      state = alignment;
+    } catch (e) {
+      state = alignment;
+    }
+  }
+}
+
+final avatarAlignmentProvider = NotifierProvider<AvatarAlignmentNotifier, Alignment>(
+  () => AvatarAlignmentNotifier(),
+);
+
 enum PostImageLayoutStyle { edgeToEdge, padded }
 
 class PostImageLayoutNotifier extends Notifier<PostImageLayoutStyle> {

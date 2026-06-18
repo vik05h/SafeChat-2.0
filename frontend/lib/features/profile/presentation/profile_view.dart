@@ -1,4 +1,4 @@
-// removed dart:ui
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
@@ -29,14 +29,17 @@ class ProfileView extends ConsumerWidget {
   Widget _buildModernCover(BuildContext context, dynamic user, WidgetRef ref) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
     final profile = ref.watch(authStateProvider).profile;
+    final coverAlignment = ref.watch(coverAlignmentProvider);
+    final avatarAlignment = ref.watch(avatarAlignmentProvider);
 
     return Stack(
       children: [
         // 1. Dynamic Animated Ambient Background
-        const AnimatedAmbientBackground(
-          imageUrl: 'https://picsum.photos/seed/cover/800/400',
-          height: 800, // Covers most of the screen
-        ),
+        if (profile?.backgroundUrl != null)
+          AnimatedAmbientBackground(
+            imageUrl: profile!.backgroundUrl!,
+            height: 800,
+          ),
 
         // 2. Scrolling Content
         CustomScrollView(
@@ -60,23 +63,36 @@ class ProfileView extends ConsumerWidget {
                             FirebaseCachedNetworkImage(
                               imageUrl: profile!.backgroundUrl!,
                               fit: BoxFit.cover,
+                              alignment: coverAlignment,
                               placeholder: (_, __) => _buildGradientCover(user),
+                              errorWidget: (_, __, ___) => _buildGradientCover(user),
                             )
                           else
                             _buildGradientCover(user),
-                          Positioned(
-                            bottom: 16,
-                            right: 16,
-                            child: IconButton.filledTonal(
-                              icon: const Icon(Icons.auto_awesome),
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Dynamic gradient generated from your user ID!')),
-                                );
-                              },
-                              tooltip: 'Dynamic Background',
+                          if (profile?.backgroundUrl != null)
+                            Positioned(
+                              bottom: 12,
+                              right: 12,
+                              child: GestureDetector(
+                                onTap: () => _openRepositionSheet(context, ref, isAvatar: false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.white24),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.open_with, size: 14, color: Colors.white),
+                                      SizedBox(width: 4),
+                                      Text('Reposition', style: TextStyle(color: Colors.white, fontSize: 11)),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -105,18 +121,42 @@ class ProfileView extends ConsumerWidget {
                     ),
                     // Avatar perfectly overlapping the bottom edge
                     Positioned(
-                      top: 155, // 200 - 45 (radius) = 155
+                      top: 155,
                       left: 16,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: scaffoldColor, width: 4),
-                        ),
-                        child: CircleAvatar(
-                          radius: 45,
-                          backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                          child: user?.photoURL == null ? const Icon(Icons.person, size: 45) : null,
-                        ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: scaffoldColor, width: 4),
+                            ),
+                            child: ClipOval(
+                              child: SizedBox(
+                                width: 90,
+                                height: 90,
+                                child: _buildAvatarImage(profile, user, avatarAlignment),
+                              ),
+                            ),
+                          ),
+                          if ((profile?.photoUrl ?? user?.photoURL) != null)
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              child: GestureDetector(
+                                onTap: () => _openRepositionSheet(context, ref, isAvatar: true),
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white24),
+                                  ),
+                                  child: const Icon(Icons.open_with, size: 13, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     // Action buttons to the right of avatar
@@ -368,6 +408,199 @@ class ProfileView extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildAvatarImage(dynamic profile, dynamic user, Alignment alignment) {
+    final photoUrl = (profile?.photoUrl as String?) ?? (user?.photoURL as String?);
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return FirebaseCachedNetworkImage(
+        imageUrl: photoUrl,
+        fit: BoxFit.cover,
+        alignment: alignment,
+        placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
+      );
+    }
+    return const Icon(Icons.person, size: 45);
+  }
+
+  Future<void> _openRepositionSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isAvatar,
+  }) async {
+    final profile = ref.read(authStateProvider).profile;
+    final user = ref.read(authStateProvider).user;
+    final imageUrl = isAvatar
+        ? ((profile?.photoUrl as String?) ?? (user?.photoURL as String?))
+        : (profile?.backgroundUrl as String?);
+    if (imageUrl == null || imageUrl.isEmpty) return;
+
+    final currentAlignment = isAvatar
+        ? ref.read(avatarAlignmentProvider)
+        : ref.read(coverAlignmentProvider);
+
+    if (!context.mounted) return;
+    final result = await Navigator.of(context).push<Alignment>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _RepositionSheet(
+          imageUrl: imageUrl,
+          initialAlignment: currentAlignment,
+          isCircular: isAvatar,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      if (isAvatar) {
+        ref.read(avatarAlignmentProvider.notifier).set(result);
+      } else {
+        ref.read(coverAlignmentProvider.notifier).set(result);
+      }
+    }
+  }
+}
+
+class _RepositionSheet extends StatefulWidget {
+  final String imageUrl;
+  final Alignment initialAlignment;
+  final bool isCircular;
+
+  const _RepositionSheet({
+    required this.imageUrl,
+    required this.initialAlignment,
+    this.isCircular = false,
+  });
+
+  @override
+  State<_RepositionSheet> createState() => _RepositionSheetState();
+}
+
+class _RepositionSheetState extends State<_RepositionSheet> {
+  late Alignment _alignment;
+
+  @override
+  void initState() {
+    super.initState();
+    _alignment = widget.initialAlignment;
+  }
+
+  void _onPanUpdate(DragUpdateDetails details, Size size) {
+    setState(() {
+      // Image follows finger: dragging right reveals left side → alignment.x decreases
+      final sx = 2.0 / size.width;
+      final sy = 2.0 / size.height;
+      _alignment = Alignment(
+        (_alignment.x - details.delta.dx * sx).clamp(-1.0, 1.0),
+        (_alignment.y - details.delta.dy * sy).clamp(-1.0, 1.0),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+        ),
+        leadingWidth: 80,
+        title: const Text('Reposition', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, _alignment),
+            child: const Text(
+              'Done',
+              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (d) => _onPanUpdate(d, size),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: widget.imageUrl,
+              fit: BoxFit.cover,
+              alignment: _alignment,
+              placeholder: (_, __) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              errorWidget: (_, __, ___) => const Center(
+                child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
+              ),
+            ),
+            CustomPaint(
+              painter: _ViewfinderPainter(isCircular: widget.isCircular),
+            ),
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: [
+                  const Icon(Icons.open_with, color: Colors.white70, size: 28),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Drag to reposition',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewfinderPainter extends CustomPainter {
+  final bool isCircular;
+
+  const _ViewfinderPainter({required this.isCircular});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final overlay = Paint()..color = Colors.black.withValues(alpha: 0.55);
+    final border = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    if (isCircular) {
+      final diameter = size.width * 0.72;
+      final center = Offset(size.width / 2, size.height / 2);
+      final path = Path()
+        ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+        ..addOval(Rect.fromCenter(center: center, width: diameter, height: diameter))
+        ..fillType = PathFillType.evenOdd;
+      canvas.drawPath(path, overlay);
+      canvas.drawCircle(center, diameter / 2, border);
+    } else {
+      const viewH = 200.0;
+      final topH = (size.height - viewH) / 2;
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, topH), overlay);
+      canvas.drawRect(Rect.fromLTWH(0, topH + viewH, size.width, size.height - topH - viewH), overlay);
+      canvas.drawRect(Rect.fromLTWH(0, topH, size.width, viewH), border);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ViewfinderPainter old) => old.isCircular != isCircular;
 }
 
 class _StatColumn extends StatelessWidget {

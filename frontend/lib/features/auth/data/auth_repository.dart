@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../domain/models/auth_models.dart';
 import 'auth_api_service.dart';
@@ -27,35 +26,23 @@ class AuthRepository {
     }
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      
-      if (!doc.exists) {
-        return AuthState(
-          user: user,
-          needsOnboarding: true,
-        );
-      }
-      
-      final data = doc.data()!;
-      // Convert Timestamps to ISO strings for UserProfile.fromJson
-      if (data['created_at'] is Timestamp) {
-        data['created_at'] = (data['created_at'] as Timestamp).toDate().toIso8601String();
-      }
-      if (data['updated_at'] is Timestamp) {
-        data['updated_at'] = (data['updated_at'] as Timestamp).toDate().toIso8601String();
+      // Call the backend so we get signed media URLs instead of raw GCS paths.
+      final response = await _apiService.getMe();
+      final data = response.data['data'] as Map<String, dynamic>;
+      final needsOnboarding = data['needs_onboarding'] as bool? ?? true;
+
+      if (needsOnboarding || data['profile'] == null) {
+        return AuthState(user: user, needsOnboarding: true);
       }
 
-      final userProfile = UserProfile.fromJson(data);
-
-      return AuthState(
-        user: user,
-        profile: userProfile,
-        needsOnboarding: false,
+      final userProfile = UserProfile.fromJson(
+        data['profile'] as Map<String, dynamic>,
       );
+      return AuthState(user: user, profile: userProfile, needsOnboarding: false);
     } catch (e) {
       return AuthState(
         user: user,
-        error: 'Firestore profile read failed: $e',
+        error: 'Auth check failed: $e',
         needsOnboarding: true,
       );
     }
@@ -139,39 +126,8 @@ class AuthRepository {
         return AuthState(error: 'Firebase sign in failed');
       }
 
-      // 5. Call Firestore to verify onboard status and fetch profile
-      try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        
-        if (!doc.exists) {
-          return AuthState(
-            user: user,
-            needsOnboarding: true,
-          );
-        }
-        
-        final data = doc.data()!;
-        if (data['created_at'] is Timestamp) {
-          data['created_at'] = (data['created_at'] as Timestamp).toDate().toIso8601String();
-        }
-        if (data['updated_at'] is Timestamp) {
-          data['updated_at'] = (data['updated_at'] as Timestamp).toDate().toIso8601String();
-        }
-
-        final userProfile = UserProfile.fromJson(data);
-
-        return AuthState(
-          user: user,
-          profile: userProfile,
-          needsOnboarding: false,
-        );
-      } catch (e) {
-        return AuthState(
-          user: user,
-          error: 'Firestore verification failed: $e',
-          needsOnboarding: true, // Fail-safe
-        );
-      }
+      // 5. Verify onboard status and fetch profile (with signed URLs) via API.
+      return await checkAuthStatus();
     } catch (e) {
       return AuthState(error: 'Sign in error: $e');
     }
