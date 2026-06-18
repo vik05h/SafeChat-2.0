@@ -179,6 +179,8 @@ class AuthRepository {
     String? bio,
     String? photoUrl,
     String? backgroundUrl,
+    ImageTransform? avatarTransform,
+    ImageTransform? coverTransform,
   }) async {
     try {
       final user = _firebaseAuth.currentUser;
@@ -190,6 +192,8 @@ class AuthRepository {
         bio: bio,
         photoUrl: photoUrl,
         backgroundUrl: backgroundUrl,
+        avatarTransform: avatarTransform,
+        coverTransform: coverTransform,
       );
 
       final response = await _apiService.updateProfile(request);

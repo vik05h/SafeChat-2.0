@@ -16,6 +16,9 @@ import '../../../shared/widgets/firebase_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../profile/presentation/follow_providers.dart';
 import '../../profile/data/follow_repository.dart';
+import '../../profile/presentation/public_profile_view.dart';
+import '../../../shared/widgets/dp_viewer.dart';
+import '../../../shared/widgets/fullscreen_media_viewer.dart';
 import '../data/feed_post_model.dart';
 import '../data/post_repository.dart';
 import 'comments_provider.dart';
@@ -563,22 +566,62 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                             itemCount: _mediaUrls.length,
                             onPageChanged: (i) =>
                                 setState(() => _currentPage = i),
-                            itemBuilder: (context, i) => FirebaseCachedNetworkImage(
-                              imageUrl: _mediaUrls[i],
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => Container(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
+                            itemBuilder: (context, i) => GestureDetector(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  fullscreenDialog: true,
+                                  builder: (_) => FullscreenMediaViewer(
+                                    urls: _mediaUrls,
+                                    initialIndex: i,
+                                  ),
                                 ),
                               ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: const Center(
-                                  child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
-                                ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  FirebaseCachedNetworkImage(
+                                    imageUrl: _mediaUrls[i],
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.broken_image_outlined,
+                                          size: 48,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Fullscreen affordance icon
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black45,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.fullscreen,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -624,38 +667,49 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
-                            ? FirebaseImageProviderWrapper.getProvider(
-                                ref,
-                                widget.post.authorPhotoUrl,
-                              )
+                      GestureDetector(
+                        onTap: widget.post.authorPhotoUrl.isNotEmpty
+                            ? () => showDpViewer(
+                                context, ref, widget.post.authorPhotoUrl)
                             : null,
-                        child: widget.post.authorPhotoUrl.isEmpty
-                            ? const Icon(Icons.person, size: 28)
-                            : null,
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
+                              ? FirebaseImageProviderWrapper.getProvider(
+                                  ref,
+                                  widget.post.authorPhotoUrl,
+                                )
+                              : null,
+                          child: widget.post.authorPhotoUrl.isEmpty
+                              ? const Icon(Icons.person, size: 28)
+                              : null,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.post.authorDisplayName,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              '@${widget.post.authorUsername}',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.grey),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                        child: GestureDetector(
+                          onTap: _navigateToProfile,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.post.authorDisplayName,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '@${widget.post.authorUsername}',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       Builder(
@@ -765,6 +819,19 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _navigateToProfile() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (widget.post.authorUid == currentUid) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfileView(
+          uid: widget.post.authorUid,
+          username: widget.post.authorUsername,
+        ),
       ),
     );
   }

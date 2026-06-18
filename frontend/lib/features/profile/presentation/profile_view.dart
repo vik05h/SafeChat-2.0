@@ -2,6 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/models/auth_models.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import 'edit_profile_view.dart';
@@ -56,21 +58,27 @@ class ProfileView extends ConsumerWidget {
                       left: 0,
                       right: 0,
                       height: 200,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (profile?.backgroundUrl != null)
-                            FirebaseCachedNetworkImage(
-                              imageUrl: profile!.backgroundUrl!,
-                              fit: BoxFit.cover,
-                              alignment: coverAlignment,
-                              placeholder: (_, __) => _buildGradientCover(user),
-                              errorWidget: (_, __, ___) => _buildGradientCover(user),
-                            )
-                          else
-                            _buildGradientCover(user),
-                          if (profile?.backgroundUrl != null)
-                            Positioned(
+                      child: ClipRect(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (profile?.backgroundUrl != null)
+                              Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.identity()
+                                  ..translate(coverAlignment.offsetX, coverAlignment.offsetY)
+                                  ..scale(coverAlignment.scale),
+                                child: FirebaseCachedNetworkImage(
+                                  imageUrl: profile!.backgroundUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => _buildGradientCover(user),
+                                  errorWidget: (_, __, ___) => _buildGradientCover(user),
+                                ),
+                              )
+                            else
+                              _buildGradientCover(user),
+                            if (profile?.backgroundUrl != null)
+                              Positioned(
                               bottom: 12,
                               right: 12,
                               child: GestureDetector(
@@ -93,7 +101,8 @@ class ProfileView extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     // Action Buttons in Safe Area
@@ -409,15 +418,20 @@ class ProfileView extends ConsumerWidget {
     );
   }
 
-  Widget _buildAvatarImage(dynamic profile, dynamic user, Alignment alignment) {
+  Widget _buildAvatarImage(dynamic profile, dynamic user, ImageTransform transform) {
     final photoUrl = (profile?.photoUrl as String?) ?? (user?.photoURL as String?);
     if (photoUrl != null && photoUrl.isNotEmpty) {
-      return FirebaseCachedNetworkImage(
-        imageUrl: photoUrl,
-        fit: BoxFit.cover,
-        alignment: alignment,
-        placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
+      return Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..translate(transform.offsetX, transform.offsetY)
+          ..scale(transform.scale),
+        child: FirebaseCachedNetworkImage(
+          imageUrl: photoUrl,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
+        ),
       );
     }
     return const Icon(Icons.person, size: 45);
@@ -440,12 +454,12 @@ class ProfileView extends ConsumerWidget {
         : ref.read(coverAlignmentProvider);
 
     if (!context.mounted) return;
-    final result = await Navigator.of(context).push<Alignment>(
+    final result = await Navigator.of(context).push<ImageTransform>(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => _RepositionSheet(
           imageUrl: imageUrl,
-          initialAlignment: currentAlignment,
+          initialTransform: currentAlignment,
           isCircular: isAvatar,
         ),
       ),
@@ -454,8 +468,10 @@ class ProfileView extends ConsumerWidget {
     if (result != null) {
       if (isAvatar) {
         ref.read(avatarAlignmentProvider.notifier).set(result);
+        await ref.read(authControllerProvider.notifier).updateProfile(avatarTransform: result);
       } else {
         ref.read(coverAlignmentProvider.notifier).set(result);
+        await ref.read(authControllerProvider.notifier).updateProfile(coverTransform: result);
       }
     }
   }
@@ -463,12 +479,12 @@ class ProfileView extends ConsumerWidget {
 
 class _RepositionSheet extends StatefulWidget {
   final String imageUrl;
-  final Alignment initialAlignment;
+  final ImageTransform initialTransform;
   final bool isCircular;
 
   const _RepositionSheet({
     required this.imageUrl,
-    required this.initialAlignment,
+    required this.initialTransform,
     this.isCircular = false,
   });
 
@@ -477,30 +493,26 @@ class _RepositionSheet extends StatefulWidget {
 }
 
 class _RepositionSheetState extends State<_RepositionSheet> {
-  late Alignment _alignment;
+  late final TransformationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _alignment = widget.initialAlignment;
+    _controller = TransformationController(
+      Matrix4.identity()
+        ..translate(widget.initialTransform.offsetX, widget.initialTransform.offsetY)
+        ..scale(widget.initialTransform.scale),
+    );
   }
 
-  void _onPanUpdate(DragUpdateDetails details, Size size) {
-    setState(() {
-      // Image follows finger: dragging right reveals left side → alignment.x decreases
-      final sx = 2.0 / size.width;
-      final sy = 2.0 / size.height;
-      _alignment = Alignment(
-        (_alignment.x - details.delta.dx * sx).clamp(-1.0, 1.0),
-        (_alignment.y - details.delta.dy * sy).clamp(-1.0, 1.0),
-      );
-    });
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -517,7 +529,13 @@ class _RepositionSheetState extends State<_RepositionSheet> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, _alignment),
+            onPressed: () {
+              final m = _controller.value;
+              final scale = m.getMaxScaleOnAxis();
+              final tx = m.getTranslation().x;
+              final ty = m.getTranslation().y;
+              Navigator.pop(context, ImageTransform(scale: scale, offsetX: tx, offsetY: ty));
+            },
             child: const Text(
               'Done',
               style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
@@ -525,16 +543,17 @@ class _RepositionSheetState extends State<_RepositionSheet> {
           ),
         ],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanUpdate: (d) => _onPanUpdate(d, size),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          InteractiveViewer(
+            transformationController: _controller,
+            minScale: 0.5,
+            maxScale: 5.0,
+            boundaryMargin: const EdgeInsets.all(double.infinity),
+            child: FirebaseCachedNetworkImage(
               imageUrl: widget.imageUrl,
               fit: BoxFit.cover,
-              alignment: _alignment,
               placeholder: (_, __) => const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
@@ -542,27 +561,27 @@ class _RepositionSheetState extends State<_RepositionSheet> {
                 child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
               ),
             ),
-            CustomPaint(
-              painter: _ViewfinderPainter(isCircular: widget.isCircular),
+          ),
+          CustomPaint(
+            painter: _ViewfinderPainter(isCircular: widget.isCircular),
+          ),
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                const Icon(Icons.pinch, color: Colors.white70, size: 28),
+                const SizedBox(height: 8),
+                Text(
+                  'Pinch to zoom, drag to pan',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 14),
+                ),
+              ],
             ),
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: Column(
-                children: [
-                  const Icon(Icons.open_with, color: Colors.white70, size: 28),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Drag to reposition',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

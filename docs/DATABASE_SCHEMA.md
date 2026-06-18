@@ -57,6 +57,18 @@ The `uid` matches the Firebase Auth UID.
   display_name: string,         // 1-50 chars
   bio: string,                  // 0-200 chars
   photo_url: string | null,     // Firebase Storage URL
+  background_url: string | null,
+  
+  avatar_transform: {           // Persistent crop & zoom
+    scale: number,
+    offset_x: number,
+    offset_y: number
+  } | null,
+  cover_transform: {
+    scale: number,
+    offset_x: number,
+    offset_y: number
+  } | null,
   
   follower_count: number,       // denormalized counter
   following_count: number,
