@@ -13,18 +13,10 @@ final firebaseImageUrlProvider = FutureProvider.family<String, String>((ref, raw
   
   try {
     if (rawUrl.startsWith('https://storage.googleapis.com/')) {
-      // If it's already a signed URL from the backend, just return it directly
-      if (rawUrl.contains('Signature=') || rawUrl.contains('X-Goog-Signature=')) {
-        return rawUrl;
-      }
-      
-      final withoutDomain = rawUrl.replaceFirst('https://storage.googleapis.com/', '');
-      final parts = withoutDomain.split('/');
-      if (parts.length > 1) {
-        // Skip bucket name
-        final path = parts.skip(1).join('/');
-        return await FirebaseStorage.instance.ref().child(path).getDownloadURL().timeout(const Duration(seconds: 3));
-      }
+      // Since our Firebase Storage bucket is public-read for posts/profiles,
+      // we can use the raw URL directly and bypass the Firebase SDK.
+      // This avoids 403 AppCheck permission errors on the emulator.
+      return rawUrl;
     }
 
     String gsUrl = rawUrl;

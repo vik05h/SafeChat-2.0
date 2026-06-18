@@ -734,47 +734,8 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final isLikedAsync = ref.watch(isLikedProvider(widget.post.id));
-                          final isLiked = isLikedAsync.value ?? false;
-                          
-                          // Optimistic like count
-                          // If we don't have the real-time count, we just guess based on initial state.
-                          int displayCount = widget.post.likeCount;
-                          
-                          Widget icon = Icon(
-                            isLiked ? Icons.favorite : Icons.favorite_border,
-                            color: isLiked ? Colors.red : null,
-                          );
-                          
-                          if (isLiked) {
-                            icon = icon.animate(key: const ValueKey('liked')).scale(duration: 250.ms, curve: Curves.easeOutBack).tint(color: Colors.red);
-                          } else {
-                            icon = icon.animate(key: const ValueKey('unliked')).scale(duration: 200.ms);
-                          }
-
-                          return Column(
-                            children: [
-                              IconButton.filledTonal(
-                                onPressed: () {
-                                  if (isLiked) {
-                                    ref.read(postRepositoryProvider).unlikePost(widget.post.id);
-                                  } else {
-                                    ref.read(postRepositoryProvider).likePost(widget.post.id);
-                                  }
-                                },
-                                icon: icon,
-                                iconSize: 28,
-                              ),
-                              const SizedBox(height: 8),
-                              RollingCounter(
-                                value: displayCount,
-                                style: TextStyle(color: isLiked ? Colors.red : null),
-                              ),
-                            ],
-                          );
-                        },
+                      _LikeActionWidget(
+                        post: widget.post,
                       ),
                       _buildAction(
                         Icons.chat_bubble_outline,
@@ -958,4 +919,74 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
       );
     },
   );
+}
+
+
+class _LikeActionWidget extends ConsumerStatefulWidget {
+  final FeedPost post;
+
+  const _LikeActionWidget({required this.post});
+
+  @override
+  ConsumerState<_LikeActionWidget> createState() => _LikeActionWidgetState();
+}
+
+class _LikeActionWidgetState extends ConsumerState<_LikeActionWidget> {
+  bool? _initialIsLiked;
+  int _offset = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLikedAsync = ref.watch(isLikedProvider(widget.post.id));
+    final isLiked = isLikedAsync.value ?? false;
+
+    if (!isLikedAsync.isLoading && _initialIsLiked == null) {
+      _initialIsLiked = isLiked;
+    }
+
+    if (_initialIsLiked != null) {
+      if (isLiked && !_initialIsLiked!) {
+        _offset = 1;
+      } else if (!isLiked && _initialIsLiked!) {
+        _offset = -1;
+      } else {
+        _offset = 0;
+      }
+    }
+
+    int displayCount = widget.post.likeCount + _offset;
+    if (displayCount < 0) displayCount = 0;
+
+    Widget icon = Icon(
+      isLiked ? Icons.favorite : Icons.favorite_border,
+      color: isLiked ? Colors.red : null,
+    );
+
+    if (isLiked) {
+      icon = icon.animate(key: const ValueKey('liked')).scale(duration: 250.ms, curve: Curves.easeOutBack).tint(color: Colors.red);
+    } else {
+      icon = icon.animate(key: const ValueKey('unliked')).scale(duration: 200.ms);
+    }
+
+    return Column(
+      children: [
+        IconButton.filledTonal(
+          onPressed: () {
+            if (isLiked) {
+              ref.read(postRepositoryProvider).unlikePost(widget.post.id);
+            } else {
+              ref.read(postRepositoryProvider).likePost(widget.post.id);
+            }
+          },
+          icon: icon,
+          iconSize: 28,
+        ),
+        const SizedBox(height: 8),
+        RollingCounter(
+          value: displayCount,
+          style: TextStyle(color: isLiked ? Colors.red : null),
+        ),
+      ],
+    );
+  }
 }

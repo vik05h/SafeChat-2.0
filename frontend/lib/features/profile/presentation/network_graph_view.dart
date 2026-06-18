@@ -11,8 +11,14 @@ class NetworkGraphView extends StatefulWidget {
 }
 
 class _NetworkGraphViewState extends State<NetworkGraphView> {
-  final Graph graph = Graph()..isTree = false;
-  BuchheimWalkerConfiguration builder = BuchheimWalkerConfiguration();
+  // We use two separate graphs
+  final Graph networkGraph = Graph()..isTree = false;
+  final Graph friendsGraph = Graph()..isTree = false;
+  
+  // Algorithms
+  late FruchtermanReingoldAlgorithm networkAlgo;
+  late FruchtermanReingoldAlgorithm friendsAlgo;
+
   Map<String, Node> userNodes = {};
   Map<String, Map<String, dynamic>> userData = {};
   bool isLoading = true;
@@ -20,12 +26,13 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
   @override
   void initState() {
     super.initState();
-    // Default config
-    builder
-      ..siblingSeparation = (100)
-      ..levelSeparation = (150)
-      ..subtreeSeparation = (150)
-      ..orientation = (BuchheimWalkerConfiguration.ORIENTATION_TOP_BOTTOM);
+    // High repulsion force to avoid overlapping
+    final config = FruchtermanReingoldConfiguration()
+      ..repulsionRate = 0.8
+      ..iterations = 1000;
+      
+    networkAlgo = FruchtermanReingoldAlgorithm(config);
+    friendsAlgo = FruchtermanReingoldAlgorithm(config);
 
     _fetchGraphData();
   }
@@ -35,32 +42,26 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
     if (currentUid == null) return;
 
     try {
-      // For the network graph, we fetch:
-      // 1. The current user's friends
-      // 2. The friends of those friends (up to 2 degrees)
-      
-      final Set<String> allUidsToFetch = {currentUid};
-      final Set<String> firstDegreeFriends = await _getFriendsOf(currentUid);
-      allUidsToFetch.addAll(firstDegreeFriends);
+      final followingSnapshot = await FirebaseFirestore.instance
+          .collection('follows')
+          .where('follower_uid', isEqualTo: currentUid)
+          .get();
+          
+      final followerSnapshot = await FirebaseFirestore.instance
+          .collection('follows')
+          .where('followee_uid', isEqualTo: currentUid)
+          .get();
 
-      final List<Map<String, String>> edges = [];
+      final followingUids = followingSnapshot.docs.map((doc) => doc.data()['followee_uid'] as String).toSet();
+      final followerUids = followerSnapshot.docs.map((doc) => doc.data()['follower_uid'] as String).toSet();
       
-      for (final friendId in firstDegreeFriends) {
-        edges.add({'from': currentUid, 'to': friendId});
-        final secondDegree = await _getFriendsOf(friendId);
-        allUidsToFetch.addAll(secondDegree);
-        for (final fof in secondDegree) {
-          // Add edge but prevent duplicates in undirected graph
-          if (!edges.any((e) => (e['from'] == fof && e['to'] == friendId))) {
-             edges.add({'from': friendId, 'to': fof});
-          }
-        }
-      }
+      final mutualFriends = followingUids.intersection(followerUids);
+      final allUidsToFetch = {currentUid, ...followingUids, ...followerUids};
 
       // Fetch user data
       final usersSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where(FieldPath.documentId, whereIn: allUidsToFetch.take(10).toList())
+          .where(FieldPath.documentId, whereIn: allUidsToFetch.take(10).toList()) // limit to 10 for simplicity in this phase
           .get();
 
       for (var doc in usersSnapshot.docs) {
@@ -68,14 +69,31 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
         userNodes[doc.id] = Node.Id(doc.id);
       }
 
-      // Add nodes and edges to graph
+      // Populate Network Graph (Followers & Following)
       for (var docId in userData.keys) {
-        graph.addNode(userNodes[docId]!);
+        networkGraph.addNode(userNodes[docId]!);
+      }
+      
+      // Followers (Blue line from them to current user)
+      for (var uid in followerUids) {
+        if (userNodes.containsKey(uid) && userNodes.containsKey(currentUid)) {
+          networkGraph.addEdge(userNodes[uid]!, userNodes[currentUid]!, paint: Paint()..color = Colors.blue..strokeWidth = 2);
+        }
+      }
+      // Following (Green line from current user to them)
+      for (var uid in followingUids) {
+        if (userNodes.containsKey(uid) && userNodes.containsKey(currentUid)) {
+          networkGraph.addEdge(userNodes[currentUid]!, userNodes[uid]!, paint: Paint()..color = Colors.green..strokeWidth = 2);
+        }
       }
 
-      for (var edge in edges) {
-        if (userNodes.containsKey(edge['from']) && userNodes.containsKey(edge['to'])) {
-          graph.addEdge(userNodes[edge['from']]!, userNodes[edge['to']]!, paint: Paint()..color = Colors.blue.withValues(alpha: 0.5)..strokeWidth = 2);
+      // Populate Friends Graph (Mutuals only)
+      friendsGraph.addNode(userNodes[currentUid]!);
+      for (var uid in mutualFriends) {
+        if (userNodes.containsKey(uid) && userNodes.containsKey(currentUid)) {
+          friendsGraph.addNode(userNodes[uid]!);
+          // Gold line for mutual friends
+          friendsGraph.addEdge(userNodes[currentUid]!, userNodes[uid]!, paint: Paint()..color = Colors.amber..strokeWidth = 3);
         }
       }
 
@@ -90,52 +108,55 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
     }
   }
 
-  Future<Set<String>> _getFriendsOf(String uid) async {
-    final followingSnapshot = await FirebaseFirestore.instance
-        .collection('follows')
-        .where('follower_uid', isEqualTo: uid)
-        .get();
-        
-    final followerSnapshot = await FirebaseFirestore.instance
-        .collection('follows')
-        .where('followee_uid', isEqualTo: uid)
-        .get();
-
-    final followingUids = followingSnapshot.docs.map((doc) => doc.data()['followee_uid'] as String).toSet();
-    final followerUids = followerSnapshot.docs.map((doc) => doc.data()['follower_uid'] as String).toSet();
-
-    return followingUids.union(followerUids);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Network Graph'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('My Network Graph'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Network'),
+              Tab(text: 'Friends'),
+            ],
+          ),
+        ),
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                physics: const NeverScrollableScrollPhysics(), // prevent interfering with graph pan
+                children: [
+                  _buildGraphCanvas(networkGraph, networkAlgo, 'Not enough network connections found.'),
+                  _buildGraphCanvas(friendsGraph, friendsAlgo, 'No mutual friends found.'),
+                ],
+              ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : graph.nodes.length <= 1
-              ? const Center(child: Text('Not enough network connections found.'))
-              : InteractiveViewer(
-                  constrained: false,
-                  boundaryMargin: const EdgeInsets.all(100),
-                  minScale: 0.1,
-                  maxScale: 5.6,
-                  child: GraphView(
-                    graph: graph,
-                    algorithm: FruchtermanReingoldAlgorithm(FruchtermanReingoldConfiguration()), // Force directed graph layout is better for networks
-                    paint: Paint()
-                      ..color = Colors.blue
-                      ..strokeWidth = 1
-                      ..style = PaintingStyle.stroke,
-                    builder: (Node node) {
-                      var nodeId = node.key?.value as String?;
-                      var data = userData[nodeId] ?? {};
-                      return _buildNodeWidget(data);
-                    },
-                  ),
-                ),
+    );
+  }
+
+  Widget _buildGraphCanvas(Graph g, Algorithm algo, String emptyMessage) {
+    if (g.nodes.length <= 1) {
+      return Center(child: Text(emptyMessage));
+    }
+    return InteractiveViewer(
+      constrained: false,
+      boundaryMargin: const EdgeInsets.all(500),
+      minScale: 0.1,
+      maxScale: 5.6,
+      child: GraphView(
+        graph: g,
+        algorithm: algo,
+        paint: Paint()
+          ..color = Colors.grey
+          ..strokeWidth = 1
+          ..style = PaintingStyle.stroke,
+        builder: (Node node) {
+          var nodeId = node.key?.value as String?;
+          var data = userData[nodeId] ?? {};
+          return _buildNodeWidget(data);
+        },
+      ),
     );
   }
 
@@ -158,8 +179,8 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundImage: data['author_photo_url'] != null ? NetworkImage(data['author_photo_url']) : null,
-            child: data['author_photo_url'] == null ? const Icon(Icons.person) : null,
+            backgroundImage: data['photo_url'] != null ? NetworkImage(data['photo_url']) : null,
+            child: data['photo_url'] == null ? const Icon(Icons.person) : null,
           ),
           const SizedBox(height: 4),
           Text(
