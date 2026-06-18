@@ -84,6 +84,35 @@ class AuthRepository {
     }
   }
 
+  Future<AuthState> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      final user = credential.user;
+      if (user == null) {
+        return AuthState(error: 'User not found');
+      }
+
+      if (!user.emailVerified) {
+        return AuthState(
+          user: user,
+          error: 'Please verify your email address.',
+          needsOnboarding: true,
+        );
+      }
+
+      // Check if user is onboarded
+      return await checkAuthStatus();
+    } on firebase.FirebaseAuthException catch (e) {
+      return AuthState(error: e.message ?? 'Sign in failed');
+    } catch (e) {
+      return AuthState(error: 'An unknown error occurred');
+    }
+  }
+
   Future<AuthState> signInWithGoogle() async {
     try {
       // 1. Trigger the Google Sign In flow

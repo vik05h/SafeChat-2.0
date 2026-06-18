@@ -25,13 +25,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Implement actual login logic via Riverpod AuthProvider
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logging in...')),
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      await ref.read(authControllerProvider.notifier).signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      // context.go('/home'); // Navigate to home on success
+
+      if (mounted) {
+        final authState = ref.read(authControllerProvider);
+        if (authState.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(authState.error!)),
+          );
+        } else if (authState.isAuthenticated) {
+          if (authState.needsOnboarding) {
+            context.go('/onboarding');
+          } else {
+            context.go('/home');
+          }
+        }
+      }
     }
   }
 
@@ -138,15 +155,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final authState = ref.watch(authControllerProvider);
+                      final isLoading = authState.isLoading;
+                      return ElevatedButton(
+                        onPressed: isLoading ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text(
+                                'Sign In',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   Row(

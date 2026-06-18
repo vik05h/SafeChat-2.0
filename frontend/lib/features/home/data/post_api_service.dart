@@ -68,4 +68,42 @@ class PostApiService {
     final posts = (data['data']?['posts'] as List<dynamic>?) ?? [];
     return posts.cast<Map<String, dynamic>>();
   }
+
+  Future<void> viewPost(String postId) async {
+    await _dio.post('/api/v1/posts/$postId/view');
+  }
+
+  Future<void> likePost(String postId) async {
+    await _dio.post('/api/v1/posts/$postId/like');
+  }
+
+  Future<void> unlikePost(String postId) async {
+    await _dio.delete('/api/v1/posts/$postId/like');
+  }
+
+  Future<List<Map<String, dynamic>>> getComments(String postId, {int limit = 20}) async {
+    final response = await _dio.get(
+      '/api/v1/posts/$postId/comments',
+      queryParameters: {'limit': limit},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final comments = (data['data']?['comments'] as List<dynamic>?) ?? [];
+    return comments.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createComment(String postId, String text, {String? parentCommentId}) async {
+    final response = await _dio.post(
+      '/api/v1/posts/$postId/comments',
+      data: {
+        'text': text,
+        if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    return data['data']?['comment'] as Map<String, dynamic>? ?? {};
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await _dio.delete('/api/v1/posts/$postId/comments/$commentId');
+  }
 }

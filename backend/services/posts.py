@@ -124,6 +124,7 @@ async def create_post(
         **moderation_meta,
         "like_count": 0,
         "comment_count": 0,
+        "view_count": 0,
         "created_at": now,
         "updated_at": now,
         "schema_version": 1,
@@ -281,3 +282,26 @@ async def get_posts_by_author(
         return results
         
     return await asyncio.to_thread(_query)
+
+async def record_post_view(post_id: str, viewer_uid: str) -> None:
+    """Record a view for a post, incrementing the view_count if the user hasn't viewed it yet."""
+    def _record_view() -> None:
+        view_ref = _post_ref(post_id).collection("views").document(viewer_uid)
+        
+        @firestore.transactional
+        def update_in_transaction(transaction: firestore.Transaction, post_ref: DocumentReference, view_ref: DocumentReference) -> None:
+            view_snap = view_ref.get(transaction=transaction)
+            if view_snap.exists:
+                return  # Already viewed
+            
+            post_snap = post_ref.get(transaction=transaction)
+            if not post_snap.exists:
+                raise PostNotFound(post_id)
+                
+            transaction.set(view_ref, {"viewed_at": firestore.SERVER_TIMESTAMP})
+            transaction.update(post_ref, {"view_count": firestore.Increment(1)})
+
+        transaction = db.transaction()
+        update_in_transaction(transaction, _post_ref(post_id), view_ref)
+
+    await asyncio.to_thread(_record_view)

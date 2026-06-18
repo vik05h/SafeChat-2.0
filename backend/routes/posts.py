@@ -139,6 +139,19 @@ async def unlike_post(
     return Response(status_code=204)
 
 
+@router.post("/{post_id}/view", status_code=204)
+async def view_post(
+    post_id: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Record a view on a post. Idempotent."""
+    try:
+        await posts_service.record_post_view(post_id, claims["uid"])
+    except posts_service.PostNotFound as exc:
+        raise _post_not_found(post_id) from exc
+    return Response(status_code=204)
+
+
 # NOTE: three-segment path declared before two-segment /comments.
 @router.delete("/{post_id}/comments/{comment_id}", status_code=204)
 async def delete_comment(
@@ -180,6 +193,7 @@ async def create_comment(
             post_id=post_id,
             author_uid=claims["uid"],
             text=payload.text,
+            parent_comment_id=payload.parent_comment_id,
         )
     except comments_service.PostNotFound as exc:
         raise _post_not_found(post_id) from exc

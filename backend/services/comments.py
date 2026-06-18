@@ -19,13 +19,13 @@ from core.firebase import db
 from models.comment import Comment
 from moderation.engine import moderate_text
 
+from services import users as users_service
+
 POSTS_COLLECTION = "posts"
 COMMENTS_SUBCOLLECTION = "comments"
 
-
 class CommentBlocked(Exception):
     """Raised when comment text is rejected by the moderation cascade."""
-
     def __init__(
         self, layer: str | None = None, reason: str | None = None
     ) -> None:
@@ -33,22 +33,17 @@ class CommentBlocked(Exception):
         self.reason = reason
         super().__init__(reason or "Comment blocked by content moderation.")
 
-
 class CommentNotFound(Exception):
     """Raised when a requested comment document does not exist."""
-
 
 class PostNotFound(Exception):
     """Raised when the parent post does not exist."""
 
-
 class NotAuthorized(Exception):
     """Raised when the requesting user may not perform the action."""
 
-
 def _post_ref(post_id: str) -> DocumentReference:
     return db.collection(POSTS_COLLECTION).document(post_id)
-
 
 def _comment_ref(post_id: str, comment_id: str) -> DocumentReference:
     return (
@@ -58,19 +53,14 @@ def _comment_ref(post_id: str, comment_id: str) -> DocumentReference:
         .document(comment_id)
     )
 
-
 async def create_comment(
     post_id: str,
     author_uid: str,
     text: str,
+    parent_comment_id: str | None = None,
 ) -> Comment:
     """Moderate then persist a new comment.
-
     Atomically increments post.comment_count via batch write.
-
-    Raises:
-        PostNotFound: if the parent post does not exist.
-        CommentBlocked: if the moderation cascade rejects the text.
     """
     post_snap = await asyncio.to_thread(_post_ref(post_id).get)
     if not post_snap.exists:
@@ -80,13 +70,19 @@ async def create_comment(
     if result.blocked:
         raise CommentBlocked(layer=result.layer, reason=result.reason)
 
+    user = await users_service.get_user_profile(author_uid)
     comment_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
     comment_data: dict[str, Any] = {
         "id": comment_id,
         "post_id": post_id,
         "author_uid": author_uid,
+        "author_display_name": user.display_name if user else "Anonymous",
+        "author_photo_url": user.photo_url if user and user.photo_url else "",
+        "author_username": user.username if user else "unknown",
         "text": text,
+        "parent_comment_id": parent_comment_id,
+        "like_count": 0,
         "created_at": now,
         "updated_at": now,
         "schema_version": 1,

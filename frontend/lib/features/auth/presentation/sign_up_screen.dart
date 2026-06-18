@@ -207,7 +207,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          context.pop();
+                          context.go('/login');
                         },
                         child: const Text(
                           'Sign In',

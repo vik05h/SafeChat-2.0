@@ -2,15 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_provider.dart';
 
-class VerifyEmailScreen extends StatefulWidget {
+class VerifyEmailScreen extends ConsumerStatefulWidget {
   const VerifyEmailScreen({super.key});
 
   @override
-  State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
+  ConsumerState<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
-class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
+class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
   bool isEmailVerified = false;
   Timer? timer;
   bool canResendEmail = false;
@@ -101,7 +103,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'We\'ve sent a verification email to ${FirebaseAuth.instance.currentUser?.email}. Please check your inbox and click the link to continue.',
+                'We\'ve sent a verification email to ${FirebaseAuth.instance.currentUser?.email ?? 'your email'}. Please check your inbox and click the link to continue.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
@@ -113,9 +115,9 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
-                  FirebaseAuth.instance.signOut();
-                  context.go('/login');
+                onPressed: () async {
+                  await ref.read(authControllerProvider.notifier).signOut();
+                  if (mounted) context.go('/login');
                 },
                 child: const Text('Cancel & Sign Out'),
               )

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import 'comment_model.dart';
 import 'feed_post_model.dart';
 import 'post_api_service.dart';
 
@@ -79,6 +80,33 @@ class PostRepository {
   Future<List<FeedPost>> getFeed({int limit = 20, String type = 'following'}) async {
     final maps = await _apiService.getFeed(limit: limit, type: type);
     return maps.map(FeedPost.fromJson).toList();
+  }
+
+  /// Records a view for a post on the backend.
+  Future<void> viewPost(String postId) async {
+    await _apiService.viewPost(postId);
+  }
+
+  Future<void> likePost(String postId) async {
+    await _apiService.likePost(postId);
+  }
+
+  Future<void> unlikePost(String postId) async {
+    await _apiService.unlikePost(postId);
+  }
+
+  Future<List<Comment>> getComments(String postId, {int limit = 20}) async {
+    final maps = await _apiService.getComments(postId, limit: limit);
+    return maps.map(Comment.fromJson).toList();
+  }
+
+  Future<Comment> createComment(String postId, String text, {String? parentCommentId}) async {
+    final map = await _apiService.createComment(postId, text, parentCommentId: parentCommentId);
+    return Comment.fromJson(map);
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await _apiService.deleteComment(postId, commentId);
   }
 
   String _getContentType(String path) {

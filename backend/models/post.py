@@ -26,6 +26,7 @@ class Post(BaseModel):
     moderation_reason: str | None = None
     like_count: int = 0
     comment_count: int = 0
+    view_count: int = 0
     created_at: datetime
     updated_at: datetime
     schema_version: int = 1

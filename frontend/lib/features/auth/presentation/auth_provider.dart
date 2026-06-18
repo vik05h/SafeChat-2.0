@@ -52,6 +52,21 @@ class AuthController extends Notifier<AuthState> {
     state = result.copyWith(isLoading: false);
   }
 
+  Future<void> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    final repo = ref.read(authRepositoryProvider);
+    final result = await repo.signInWithEmailAndPassword(email, password);
+    
+    if (result.isAuthenticated && !result.needsOnboarding) {
+      Hive.box('settings').put('isAuthenticated', true);
+    }
+    
+    state = result.copyWith(isLoading: false);
+  }
+
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     

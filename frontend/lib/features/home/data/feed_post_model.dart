@@ -13,6 +13,7 @@ class FeedPost {
   final String status;
   final int likeCount;
   final int commentCount;
+  final int viewCount;
   final DateTime? createdAt;
 
   const FeedPost({
@@ -28,6 +29,7 @@ class FeedPost {
     this.status = 'approved',
     this.likeCount = 0,
     this.commentCount = 0,
+    this.viewCount = 0,
     this.createdAt,
   });
 
@@ -48,6 +50,7 @@ class FeedPost {
       status: json['status'] as String? ?? 'approved',
       likeCount: json['like_count'] as int? ?? 0,
       commentCount: json['comment_count'] as int? ?? 0,
+      viewCount: json['view_count'] as int? ?? 0,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -82,6 +85,7 @@ class FeedPost {
       status: data['status'] as String? ?? 'approved',
       likeCount: data['like_count'] as int? ?? 0,
       commentCount: data['comment_count'] as int? ?? 0,
+      viewCount: data['view_count'] as int? ?? 0,
       createdAt: parsedDate,
     );
   }
