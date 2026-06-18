@@ -104,7 +104,7 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
     final followingUids = followingSnapshot.docs.map((doc) => doc.data()['followee_uid'] as String).toSet();
     final followerUids = followerSnapshot.docs.map((doc) => doc.data()['follower_uid'] as String).toSet();
 
-    return followingUids.intersection(followerUids);
+    return followingUids.union(followerUids);
   }
 
   @override

@@ -82,6 +82,12 @@ class PostRepository {
     return maps.map(FeedPost.fromJson).toList();
   }
 
+  /// Fetch posts authored by a specific user.
+  Future<List<FeedPost>> getUserPosts(String uid, {int limit = 20}) async {
+    final maps = await _apiService.getUserPosts(uid, limit: limit);
+    return maps.map(FeedPost.fromJson).toList();
+  }
+
   /// Records a view for a post on the backend.
   Future<void> viewPost(String postId) async {
     await _apiService.viewPost(postId);

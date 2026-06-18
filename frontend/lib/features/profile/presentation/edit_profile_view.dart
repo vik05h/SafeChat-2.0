@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../auth/presentation/auth_provider.dart';
+import '../../home/data/post_repository.dart';
+import '../../../shared/widgets/firebase_image.dart';
 
 class EditProfileView extends ConsumerStatefulWidget {
   const EditProfileView({super.key});
@@ -14,6 +18,9 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   late TextEditingController _displayNameController;
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
+  File? _selectedImage;
+  File? _selectedBgImage;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -32,6 +39,26 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _pickBgImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, maxHeight: 1080);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedBgImage = File(pickedFile.path);
+      });
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -40,16 +67,74 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     final String? updatedDisplayName = _displayNameController.text.trim() != profile?.displayName ? _displayNameController.text.trim() : null;
     final String? updatedBio = _bioController.text.trim() != profile?.bio ? _bioController.text.trim() : null;
 
-    if (updatedUsername == null && updatedDisplayName == null && updatedBio == null) {
+    if (updatedUsername == null && updatedDisplayName == null && updatedBio == null && _selectedImage == null && _selectedBgImage == null) {
       if (mounted) Navigator.pop(context);
       return;
     }
 
     try {
+      setState(() => _isUploading = true);
+      String? photoUrl;
+      String? backgroundUrl;
+      
+      final apiService = ref.read(postApiServiceProvider);
+
+      if (_selectedImage != null) {
+        final file = _selectedImage!;
+        final lower = file.path.toLowerCase();
+        final contentType = lower.endsWith('.png') ? 'image/png' : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+
+        final signResponse = await apiService.signUpload(
+          contentType: contentType,
+          sizeBytes: file.lengthSync(),
+          purpose: 'avatar',
+        );
+
+        final uploadUrl = signResponse['data']['upload_url'] as String;
+        final objectPath = signResponse['data']['object_path'] as String;
+
+        await apiService.uploadDirectlyToStorage(
+          uploadUrl: uploadUrl,
+          file: file,
+          contentType: contentType,
+        );
+
+        final uri = Uri.parse(uploadUrl);
+        final bucketName = uri.pathSegments.first;
+        photoUrl = 'https://storage.googleapis.com/$bucketName/$objectPath';
+      }
+
+      if (_selectedBgImage != null) {
+        final file = _selectedBgImage!;
+        final lower = file.path.toLowerCase();
+        final contentType = lower.endsWith('.png') ? 'image/png' : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+
+        final signResponse = await apiService.signUpload(
+          contentType: contentType,
+          sizeBytes: file.lengthSync(),
+          purpose: 'background',
+        );
+
+        final uploadUrl = signResponse['data']['upload_url'] as String;
+        final objectPath = signResponse['data']['object_path'] as String;
+
+        await apiService.uploadDirectlyToStorage(
+          uploadUrl: uploadUrl,
+          file: file,
+          contentType: contentType,
+        );
+
+        final uri = Uri.parse(uploadUrl);
+        final bucketName = uri.pathSegments.first;
+        backgroundUrl = 'https://storage.googleapis.com/$bucketName/$objectPath';
+      }
+
       await ref.read(authControllerProvider.notifier).updateProfile(
         displayName: updatedDisplayName,
         username: updatedUsername,
         bio: updatedBio,
+        photoUrl: photoUrl,
+        backgroundUrl: backgroundUrl,
       );
       
       if (mounted) {
@@ -63,6 +148,10 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -90,6 +179,82 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Column(
+                    children: [
+                      // Background Image Picker
+                      GestureDetector(
+                        onTap: _pickBgImage,
+                        child: Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(16),
+                            image: _selectedBgImage != null
+                                ? DecorationImage(
+                                    image: FileImage(_selectedBgImage!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : (ref.read(authStateProvider).profile?.backgroundUrl != null
+                                    ? DecorationImage(
+                                        image: FirebaseImageProviderWrapper.getProvider(ref, ref.read(authStateProvider).profile!.backgroundUrl!) ?? const NetworkImage(''),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null),
+                          ),
+                          child: _selectedBgImage == null && ref.read(authStateProvider).profile?.backgroundUrl == null
+                              ? const Center(child: Icon(Icons.add_photo_alternate, size: 40))
+                              : const Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Colors.black54,
+                                      child: Icon(Icons.edit, size: 16, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Profile Photo Picker
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundImage: _selectedImage != null
+                                ? FileImage(_selectedImage!) as ImageProvider
+                                : (ref.read(authStateProvider).profile?.photoUrl != null
+                                    ? FirebaseImageProviderWrapper.getProvider(ref, ref.read(authStateProvider).profile!.photoUrl!)
+                                    : null),
+                            child: _selectedImage == null && ref.read(authStateProvider).profile?.photoUrl == null
+                                ? const Icon(Icons.person, size: 50)
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
                 TextFormField(
                   controller: _displayNameController,
                   decoration: const InputDecoration(

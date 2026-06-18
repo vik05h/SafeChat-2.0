@@ -40,6 +40,7 @@ class UpdateProfileRequest(BaseModel):
     username: str | None = Field(default=None, min_length=3, max_length=30)
     bio: str | None = Field(default=None, max_length=200)
     photo_url: str | None = None
+    background_url: str | None = None
     private_account: bool | None = None
     allow_messages_from: Literal["everyone", "followers", "none"] | None = None
 
@@ -55,6 +56,7 @@ class UserProfile(BaseModel):
     dob: str
     bio: str
     photo_url: str | None = None
+    background_url: str | None = None
 
     follower_count: int
     following_count: int

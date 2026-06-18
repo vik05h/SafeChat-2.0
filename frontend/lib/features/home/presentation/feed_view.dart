@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../shared/utils/markdown_extensions.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
+import '../../../shared/widgets/rolling_counter.dart';
 import '../../../shared/widgets/firebase_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../profile/presentation/follow_providers.dart';
@@ -463,7 +464,7 @@ class _ListPostCard extends ConsumerWidget {
                           child: Icon(
                             isLiked ? Icons.favorite : Icons.favorite_border,
                             color: isLiked ? Colors.red : null,
-                          ),
+                          ).animate(key: ValueKey(isLiked)).scaleXY(begin: 0.8, end: 1.0, duration: 200.ms, curve: Curves.easeOutBack),
                         );
                       },
                     ),
@@ -676,7 +677,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                 }
                               },
                               child: Text(isFollowing ? 'Following' : 'Follow'),
-                            ),
+                            ).animate(key: ValueKey(isFollowing)).scaleXY(begin: 0.8, end: 1.0, duration: 200.ms, curve: Curves.easeOutBack),
                             loading: () => const FilledButton.tonal(
                               onPressed: null,
                               child: SizedBox(
@@ -767,22 +768,9 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                 iconSize: 28,
                               ),
                               const SizedBox(height: 8),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 300),
-                                transitionBuilder: (Widget child, Animation<double> animation) {
-                                  return SlideTransition(
-                                    position: Tween<Offset>(
-                                      begin: const Offset(0.0, 0.5),
-                                      end: Offset.zero,
-                                    ).animate(animation),
-                                    child: FadeTransition(opacity: animation, child: child),
-                                  );
-                                },
-                                child: Text(
-                                  displayCount > 0 ? '$displayCount' : 'Like',
-                                  key: ValueKey<int>(displayCount),
-                                  style: TextStyle(color: isLiked ? Colors.red : null),
-                                ),
+                              RollingCounter(
+                                value: displayCount,
+                                style: TextStyle(color: isLiked ? Colors.red : null),
                               ),
                             ],
                           );
@@ -790,7 +778,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       ),
                       _buildAction(
                         Icons.chat_bubble_outline,
-                        'Comment',
+                        '${widget.post.commentCount}',
                         () => showCommentsBottomSheet(context, widget.post.id),
                       ),
                           _buildAction(
@@ -803,7 +791,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                           ),
                           _buildAction(
                             Icons.visibility_outlined,
-                            '${widget.post.viewCount > 0 ? widget.post.viewCount : "View"}',
+                            '${widget.post.viewCount}',
                             () {}, // View count is just a display
                           ),
                         ],

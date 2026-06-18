@@ -14,6 +14,7 @@ UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => UserProfile(
   dob: json['dob'] as String,
   bio: json['bio'] as String?,
   photoUrl: json['photo_url'] as String?,
+  backgroundUrl: json['background_url'] as String?,
   createdAt: json['created_at'] as String,
   updatedAt: json['updated_at'] as String,
 );
@@ -27,6 +28,7 @@ Map<String, dynamic> _$UserProfileToJson(UserProfile instance) =>
       'dob': instance.dob,
       'bio': instance.bio,
       'photo_url': instance.photoUrl,
+      'background_url': instance.backgroundUrl,
       'created_at': instance.createdAt,
       'updated_at': instance.updatedAt,
     };
@@ -55,6 +57,8 @@ UpdateProfileRequest _$UpdateProfileRequestFromJson(
   displayName: json['display_name'] as String?,
   username: json['username'] as String?,
   bio: json['bio'] as String?,
+  photoUrl: json['photo_url'] as String?,
+  backgroundUrl: json['background_url'] as String?,
 );
 
 Map<String, dynamic> _$UpdateProfileRequestToJson(
@@ -63,6 +67,8 @@ Map<String, dynamic> _$UpdateProfileRequestToJson(
   'display_name': instance.displayName,
   'username': instance.username,
   'bio': instance.bio,
+  'photo_url': instance.photoUrl,
+  'background_url': instance.backgroundUrl,
 };
 
 AuthMeResponse _$AuthMeResponseFromJson(Map<String, dynamic> json) =>

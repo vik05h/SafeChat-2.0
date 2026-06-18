@@ -56,21 +56,25 @@ class ProfileView extends ConsumerWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.network(
-                            'https://picsum.photos/seed/cover/800/400',
-                            fit: BoxFit.cover,
-                          ),
+                          if (profile?.backgroundUrl != null)
+                            FirebaseCachedNetworkImage(
+                              imageUrl: profile!.backgroundUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => _buildGradientCover(user),
+                            )
+                          else
+                            _buildGradientCover(user),
                           Positioned(
                             bottom: 16,
                             right: 16,
                             child: IconButton.filledTonal(
-                              icon: const Icon(Icons.camera_alt),
+                              icon: const Icon(Icons.auto_awesome),
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Edit background image coming soon!')),
+                                  const SnackBar(content: Text('Dynamic gradient generated from your user ID!')),
                                 );
                               },
-                              tooltip: 'Edit Background',
+                              tooltip: 'Dynamic Background',
                             ),
                           ),
                         ],
@@ -347,6 +351,21 @@ class ProfileView extends ConsumerWidget {
           }, childCount: posts.length),
         );
       },
+    );
+  }
+
+  Widget _buildGradientCover(dynamic user) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            HSLColor.fromAHSL(1.0, ((user?.uid ?? 'a').hashCode % 360).toDouble(), 0.7, 0.6).toColor(),
+            HSLColor.fromAHSL(1.0, (((user?.uid ?? 'a').hashCode >> 8) % 360).toDouble(), 0.7, 0.6).toColor(),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
     );
   }
 }

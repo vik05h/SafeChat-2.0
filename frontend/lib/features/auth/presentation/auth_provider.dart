@@ -109,6 +109,8 @@ class AuthController extends Notifier<AuthState> {
     String? displayName,
     String? username,
     String? bio,
+    String? photoUrl,
+    String? backgroundUrl,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     
@@ -117,6 +119,8 @@ class AuthController extends Notifier<AuthState> {
       displayName: displayName,
       username: username,
       bio: bio,
+      photoUrl: photoUrl,
+      backgroundUrl: backgroundUrl,
     );
     
     state = result.copyWith(isLoading: false);

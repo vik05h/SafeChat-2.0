@@ -15,6 +15,8 @@ class UserProfile {
   final String? bio;
   @JsonKey(name: 'photo_url')
   final String? photoUrl;
+  @JsonKey(name: 'background_url')
+  final String? backgroundUrl;
   @JsonKey(name: 'created_at')
   final String createdAt;
   @JsonKey(name: 'updated_at')
@@ -28,6 +30,7 @@ class UserProfile {
     required this.dob,
     this.bio,
     this.photoUrl,
+    this.backgroundUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -64,11 +67,17 @@ class UpdateProfileRequest {
   final String? displayName;
   final String? username;
   final String? bio;
+  @JsonKey(name: 'photo_url')
+  final String? photoUrl;
+  @JsonKey(name: 'background_url')
+  final String? backgroundUrl;
 
   UpdateProfileRequest({
     this.displayName,
     this.username,
     this.bio,
+    this.photoUrl,
+    this.backgroundUrl,
   });
 
   factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) => _$UpdateProfileRequestFromJson(json);

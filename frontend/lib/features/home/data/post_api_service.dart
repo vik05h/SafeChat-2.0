@@ -58,7 +58,6 @@ class PostApiService {
     return (statusCode: response.statusCode ?? 200, data: response.data as Map<String, dynamic>);
   }
 
-  /// Fetch the public feed. Returns a list of post maps.
   Future<List<Map<String, dynamic>>> getFeed({int limit = 20, String type = 'following'}) async {
     final response = await _dio.get(
       '/api/v1/posts/feed',
@@ -66,6 +65,17 @@ class PostApiService {
     );
     final data = response.data as Map<String, dynamic>;
     final posts = (data['data']?['posts'] as List<dynamic>?) ?? [];
+    return posts.cast<Map<String, dynamic>>();
+  }
+
+  /// Fetch posts authored by a specific user.
+  Future<List<Map<String, dynamic>>> getUserPosts(String uid, {int limit = 20}) async {
+    final response = await _dio.get(
+      '/api/v1/users/$uid/posts',
+      queryParameters: {'limit': limit},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final posts = (data['data'] as List<dynamic>?) ?? [];
     return posts.cast<Map<String, dynamic>>();
   }
 
