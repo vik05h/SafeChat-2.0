@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../home/data/post_repository.dart';
 import '../../../shared/widgets/firebase_image.dart';
+import '../../../shared/widgets/image_crop_sheet.dart';
 
 class EditProfileView extends ConsumerStatefulWidget {
   const EditProfileView({super.key});
@@ -42,21 +43,39 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
-    }
+    if (pickedFile == null || !mounted) return;
+    // Bake a square crop so the avatar is framed identically everywhere it shows.
+    final cropped = await Navigator.of(context).push<File>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ImageCropSheet(
+          file: File(pickedFile.path),
+          aspectRatio: 1.0,
+          circle: true,
+          targetWidth: 512,
+        ),
+      ),
+    );
+    if (cropped != null) setState(() => _selectedImage = cropped);
   }
 
   Future<void> _pickBgImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, maxHeight: 1080);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedBgImage = File(pickedFile.path);
-      });
-    }
+    if (pickedFile == null || !mounted) return;
+    // Bake a 2:1 banner crop to match the profile cover's display aspect.
+    final cropped = await Navigator.of(context).push<File>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ImageCropSheet(
+          file: File(pickedFile.path),
+          aspectRatio: 2.0,
+          circle: false,
+          targetWidth: 1280,
+        ),
+      ),
+    );
+    if (cropped != null) setState(() => _selectedBgImage = cropped);
   }
 
   Future<void> _saveProfile() async {
@@ -157,15 +176,17 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authStateProvider).isLoading;
+    // _isUploading covers the whole save (image upload + profile update);
+    // the provider's isLoading only covers the final update call.
+    final isBusy = _isUploading || ref.watch(authStateProvider).isLoading;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
         actions: [
           TextButton(
-            onPressed: isLoading ? null : _saveProfile,
-            child: isLoading
+            onPressed: isBusy ? null : _saveProfile,
+            child: isBusy
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Save'),
           ),

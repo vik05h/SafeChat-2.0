@@ -11,12 +11,6 @@ from pydantic import BaseModel, Field, field_validator
 
 USERNAME_PATTERN = re.compile(r"^[a-z0-9_]{3,30}$")
 
-class ImageTransform(BaseModel):
-    """Stores the zoom and pan crop transform for an image."""
-    scale: float
-    offset_x: float
-    offset_y: float
-
 
 class OnboardRequest(BaseModel):
     """Input for POST /auth/onboard."""
@@ -47,8 +41,6 @@ class UpdateProfileRequest(BaseModel):
     bio: str | None = Field(default=None, max_length=200)
     photo_url: str | None = None
     background_url: str | None = None
-    avatar_transform: ImageTransform | None = None
-    cover_transform: ImageTransform | None = None
     private_account: bool | None = None
     allow_messages_from: Literal["everyone", "followers", "none"] | None = None
 
@@ -65,8 +57,6 @@ class UserProfile(BaseModel):
     bio: str
     photo_url: str | None = None
     background_url: str | None = None
-    avatar_transform: ImageTransform | None = None
-    cover_transform: ImageTransform | None = None
 
     follower_count: int
     following_count: int

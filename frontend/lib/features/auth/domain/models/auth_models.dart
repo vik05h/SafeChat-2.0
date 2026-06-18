@@ -17,10 +17,6 @@ class UserProfile {
   final String? photoUrl;
   @JsonKey(name: 'background_url')
   final String? backgroundUrl;
-  @JsonKey(name: 'avatar_transform')
-  final ImageTransform? avatarTransform;
-  @JsonKey(name: 'cover_transform')
-  final ImageTransform? coverTransform;
   @JsonKey(name: 'created_at')
   final String createdAt;
   @JsonKey(name: 'updated_at')
@@ -35,8 +31,6 @@ class UserProfile {
     this.bio,
     this.photoUrl,
     this.backgroundUrl,
-    this.avatarTransform,
-    this.coverTransform,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -77,10 +71,6 @@ class UpdateProfileRequest {
   final String? photoUrl;
   @JsonKey(name: 'background_url')
   final String? backgroundUrl;
-  @JsonKey(name: 'avatar_transform')
-  final ImageTransform? avatarTransform;
-  @JsonKey(name: 'cover_transform')
-  final ImageTransform? coverTransform;
 
   UpdateProfileRequest({
     this.displayName,
@@ -88,8 +78,6 @@ class UpdateProfileRequest {
     this.bio,
     this.photoUrl,
     this.backgroundUrl,
-    this.avatarTransform,
-    this.coverTransform,
   });
 
   factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) => _$UpdateProfileRequestFromJson(json);
@@ -146,22 +134,4 @@ class AuthState {
       error: error ?? this.error,
     );
   }
-}
-
-@JsonSerializable()
-class ImageTransform {
-  final double scale;
-  @JsonKey(name: 'offset_x')
-  final double offsetX;
-  @JsonKey(name: 'offset_y')
-  final double offsetY;
-
-  ImageTransform({
-    required this.scale,
-    required this.offsetX,
-    required this.offsetY,
-  });
-
-  factory ImageTransform.fromJson(Map<String, dynamic> json) => _$ImageTransformFromJson(json);
-  Map<String, dynamic> toJson() => _$ImageTransformToJson(this);
 }

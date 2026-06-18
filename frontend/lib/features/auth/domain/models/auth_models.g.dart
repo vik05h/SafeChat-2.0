@@ -15,16 +15,6 @@ UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => UserProfile(
   bio: json['bio'] as String?,
   photoUrl: json['photo_url'] as String?,
   backgroundUrl: json['background_url'] as String?,
-  avatarTransform: json['avatar_transform'] == null
-      ? null
-      : ImageTransform.fromJson(
-          json['avatar_transform'] as Map<String, dynamic>,
-        ),
-  coverTransform: json['cover_transform'] == null
-      ? null
-      : ImageTransform.fromJson(
-          json['cover_transform'] as Map<String, dynamic>,
-        ),
   createdAt: json['created_at'] as String,
   updatedAt: json['updated_at'] as String,
 );
@@ -39,8 +29,6 @@ Map<String, dynamic> _$UserProfileToJson(UserProfile instance) =>
       'bio': instance.bio,
       'photo_url': instance.photoUrl,
       'background_url': instance.backgroundUrl,
-      'avatar_transform': instance.avatarTransform,
-      'cover_transform': instance.coverTransform,
       'created_at': instance.createdAt,
       'updated_at': instance.updatedAt,
     };
@@ -71,16 +59,6 @@ UpdateProfileRequest _$UpdateProfileRequestFromJson(
   bio: json['bio'] as String?,
   photoUrl: json['photo_url'] as String?,
   backgroundUrl: json['background_url'] as String?,
-  avatarTransform: json['avatar_transform'] == null
-      ? null
-      : ImageTransform.fromJson(
-          json['avatar_transform'] as Map<String, dynamic>,
-        ),
-  coverTransform: json['cover_transform'] == null
-      ? null
-      : ImageTransform.fromJson(
-          json['cover_transform'] as Map<String, dynamic>,
-        ),
 );
 
 Map<String, dynamic> _$UpdateProfileRequestToJson(
@@ -91,8 +69,6 @@ Map<String, dynamic> _$UpdateProfileRequestToJson(
   'bio': ?instance.bio,
   'photo_url': ?instance.photoUrl,
   'background_url': ?instance.backgroundUrl,
-  'avatar_transform': ?instance.avatarTransform,
-  'cover_transform': ?instance.coverTransform,
 };
 
 AuthMeResponse _$AuthMeResponseFromJson(Map<String, dynamic> json) =>
@@ -109,18 +85,4 @@ Map<String, dynamic> _$AuthMeResponseToJson(AuthMeResponse instance) =>
       'user': instance.user,
       'profile': instance.profile,
       'needs_onboarding': instance.needsOnboarding,
-    };
-
-ImageTransform _$ImageTransformFromJson(Map<String, dynamic> json) =>
-    ImageTransform(
-      scale: (json['scale'] as num).toDouble(),
-      offsetX: (json['offset_x'] as num).toDouble(),
-      offsetY: (json['offset_y'] as num).toDouble(),
-    );
-
-Map<String, dynamic> _$ImageTransformToJson(ImageTransform instance) =>
-    <String, dynamic>{
-      'scale': instance.scale,
-      'offset_x': instance.offsetX,
-      'offset_y': instance.offsetY,
     };

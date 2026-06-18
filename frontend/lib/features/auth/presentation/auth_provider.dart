@@ -111,11 +111,9 @@ class AuthController extends Notifier<AuthState> {
     String? bio,
     String? photoUrl,
     String? backgroundUrl,
-    ImageTransform? avatarTransform,
-    ImageTransform? coverTransform,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.updateProfile(
       displayName: displayName,
@@ -123,10 +121,8 @@ class AuthController extends Notifier<AuthState> {
       bio: bio,
       photoUrl: photoUrl,
       backgroundUrl: backgroundUrl,
-      avatarTransform: avatarTransform,
-      coverTransform: coverTransform,
     );
-    
+
     state = result.copyWith(isLoading: false);
   }
 

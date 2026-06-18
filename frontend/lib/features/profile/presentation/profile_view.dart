@@ -1,9 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
-import '../../auth/data/auth_repository.dart';
-import '../../auth/domain/models/auth_models.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import 'edit_profile_view.dart';
@@ -18,8 +15,15 @@ class ProfileView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).user;
+    final authState = ref.watch(authStateProvider);
+    final user = authState.user;
     final layout = ref.watch(profileLayoutProvider);
+
+    // Authenticated but the profile is still being fetched from the backend —
+    // show a skeleton instead of fallback text + spinners.
+    if (authState.profile == null && authState.isLoading) {
+      return const Scaffold(body: _ProfileSkeleton());
+    }
 
     return Scaffold(
       body: layout == ProfileLayoutStyle.modernCover
@@ -31,8 +35,6 @@ class ProfileView extends ConsumerWidget {
   Widget _buildModernCover(BuildContext context, dynamic user, WidgetRef ref) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
     final profile = ref.watch(authStateProvider).profile;
-    final coverAlignment = ref.watch(coverAlignmentProvider);
-    final avatarAlignment = ref.watch(avatarAlignmentProvider);
 
     return Stack(
       children: [
@@ -59,50 +61,14 @@ class ProfileView extends ConsumerWidget {
                       right: 0,
                       height: 200,
                       child: ClipRect(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (profile?.backgroundUrl != null)
-                              Transform(
-                                alignment: Alignment.center,
-                                transform: Matrix4.identity()
-                                  ..translate(coverAlignment.offsetX, coverAlignment.offsetY)
-                                  ..scale(coverAlignment.scale),
-                                child: FirebaseCachedNetworkImage(
-                                  imageUrl: profile!.backgroundUrl!,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => _buildGradientCover(user),
-                                  errorWidget: (_, __, ___) => _buildGradientCover(user),
-                                ),
+                        child: profile?.backgroundUrl != null
+                            ? FirebaseCachedNetworkImage(
+                                imageUrl: profile!.backgroundUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => _buildGradientCover(user),
+                                errorWidget: (_, __, ___) => _buildGradientCover(user),
                               )
-                            else
-                              _buildGradientCover(user),
-                            if (profile?.backgroundUrl != null)
-                              Positioned(
-                              bottom: 12,
-                              right: 12,
-                              child: GestureDetector(
-                                onTap: () => _openRepositionSheet(context, ref, isAvatar: false),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white24),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.open_with, size: 14, color: Colors.white),
-                                      SizedBox(width: 4),
-                                      Text('Reposition', style: TextStyle(color: Colors.white, fontSize: 11)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                            : _buildGradientCover(user),
                       ),
                     ),
                     // Action Buttons in Safe Area
@@ -132,40 +98,18 @@ class ProfileView extends ConsumerWidget {
                     Positioned(
                       top: 155,
                       left: 16,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: scaffoldColor, width: 4),
-                            ),
-                            child: ClipOval(
-                              child: SizedBox(
-                                width: 90,
-                                height: 90,
-                                child: _buildAvatarImage(profile, user, avatarAlignment),
-                              ),
-                            ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: scaffoldColor, width: 4),
+                        ),
+                        child: ClipOval(
+                          child: SizedBox(
+                            width: 90,
+                            height: 90,
+                            child: _buildAvatarImage(profile, user),
                           ),
-                          if ((profile?.photoUrl ?? user?.photoURL) != null)
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              child: GestureDetector(
-                                onTap: () => _openRepositionSheet(context, ref, isAvatar: true),
-                                child: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white24),
-                                  ),
-                                  child: const Icon(Icons.open_with, size: 13, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                        ],
+                        ),
                       ),
                     ),
                     // Action buttons to the right of avatar
@@ -286,10 +230,12 @@ class ProfileView extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                  child: user?.photoURL == null ? const Icon(Icons.person, size: 50) : null,
+                ClipOval(
+                  child: SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: _buildAvatarImage(profile, user),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -418,92 +364,38 @@ class ProfileView extends ConsumerWidget {
     );
   }
 
-  Widget _buildAvatarImage(dynamic profile, dynamic user, ImageTransform transform) {
+  Widget _buildAvatarImage(dynamic profile, dynamic user) {
     final photoUrl = (profile?.photoUrl as String?) ?? (user?.photoURL as String?);
     if (photoUrl != null && photoUrl.isNotEmpty) {
-      return Transform(
-        alignment: Alignment.center,
-        transform: Matrix4.identity()
-          ..translate(transform.offsetX, transform.offsetY)
-          ..scale(transform.scale),
-        child: FirebaseCachedNetworkImage(
-          imageUrl: photoUrl,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
-        ),
+      // Image is already framed at upload (baked crop), so just cover-fit it.
+      return FirebaseCachedNetworkImage(
+        imageUrl: photoUrl,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => const ColoredBox(color: Colors.black12),
+        errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
       );
     }
     return const Icon(Icons.person, size: 45);
   }
-
-  Future<void> _openRepositionSheet(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool isAvatar,
-  }) async {
-    final profile = ref.read(authStateProvider).profile;
-    final user = ref.read(authStateProvider).user;
-    final imageUrl = isAvatar
-        ? ((profile?.photoUrl as String?) ?? (user?.photoURL as String?))
-        : (profile?.backgroundUrl as String?);
-    if (imageUrl == null || imageUrl.isEmpty) return;
-
-    final currentAlignment = isAvatar
-        ? ref.read(avatarAlignmentProvider)
-        : ref.read(coverAlignmentProvider);
-
-    if (!context.mounted) return;
-    final result = await Navigator.of(context).push<ImageTransform>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => _RepositionSheet(
-          imageUrl: imageUrl,
-          initialTransform: currentAlignment,
-          isCircular: isAvatar,
-        ),
-      ),
-    );
-
-    if (result != null) {
-      if (isAvatar) {
-        ref.read(avatarAlignmentProvider.notifier).set(result);
-        await ref.read(authControllerProvider.notifier).updateProfile(avatarTransform: result);
-      } else {
-        ref.read(coverAlignmentProvider.notifier).set(result);
-        await ref.read(authControllerProvider.notifier).updateProfile(coverTransform: result);
-      }
-    }
-  }
 }
 
-class _RepositionSheet extends StatefulWidget {
-  final String imageUrl;
-  final ImageTransform initialTransform;
-  final bool isCircular;
+// ---------------------------------------------------------------------------
+// Skeleton loading
+// ---------------------------------------------------------------------------
 
-  const _RepositionSheet({
-    required this.imageUrl,
-    required this.initialTransform,
-    this.isCircular = false,
-  });
+/// Animated shimmer wrapper — sweeps a highlight across any opaque child.
+class _Shimmer extends StatefulWidget {
+  final Widget child;
+  const _Shimmer({required this.child});
 
   @override
-  State<_RepositionSheet> createState() => _RepositionSheetState();
+  State<_Shimmer> createState() => _ShimmerState();
 }
 
-class _RepositionSheetState extends State<_RepositionSheet> {
-  late final TransformationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TransformationController(
-      Matrix4.identity()
-        ..translate(widget.initialTransform.offsetX, widget.initialTransform.offsetY)
-        ..scale(widget.initialTransform.scale),
-    );
-  }
+class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))
+        ..repeat();
 
   @override
   void dispose() {
@@ -513,113 +405,132 @@ class _RepositionSheetState extends State<_RepositionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-        ),
-        leadingWidth: 80,
-        title: const Text('Reposition', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: () {
-              final m = _controller.value;
-              final scale = m.getMaxScaleOnAxis();
-              final tx = m.getTranslation().x;
-              final ty = m.getTranslation().y;
-              Navigator.pop(context, ImageTransform(scale: scale, offsetX: tx, offsetY: ty));
-            },
-            child: const Text(
-              'Done',
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          InteractiveViewer(
-            transformationController: _controller,
-            minScale: 0.5,
-            maxScale: 5.0,
-            boundaryMargin: const EdgeInsets.all(double.infinity),
-            child: FirebaseCachedNetworkImage(
-              imageUrl: widget.imageUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-              errorWidget: (_, __, ___) => const Center(
-                child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
-              ),
-            ),
-          ),
-          CustomPaint(
-            painter: _ViewfinderPainter(isCircular: widget.isCircular),
-          ),
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                const Icon(Icons.pinch, color: Colors.white70, size: 28),
-                const SizedBox(height: 8),
-                Text(
-                  'Pinch to zoom, drag to pan',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-        ],
+    final base = Theme.of(context).colorScheme.surfaceContainerHighest;
+    final highlight = Color.lerp(base, Theme.of(context).colorScheme.onSurface, 0.10)!;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [base, highlight, base],
+              stops: const [0.30, 0.50, 0.70],
+              transform: _SlideGradient(_controller.value * 2 - 1),
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _SlideGradient extends GradientTransform {
+  final double slidePercent;
+  const _SlideGradient(this.slidePercent);
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(bounds.width * slidePercent, 0, 0);
+}
+
+class _SkeletonBox extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double radius;
+  final bool circle;
+
+  const _SkeletonBox({
+    this.width,
+    required this.height,
+    this.radius = 8,
+    this.circle = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: circle ? height : width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: circle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: circle ? null : BorderRadius.circular(radius),
       ),
     );
   }
 }
 
-class _ViewfinderPainter extends CustomPainter {
-  final bool isCircular;
-
-  const _ViewfinderPainter({required this.isCircular});
+class _ProfileSkeleton extends StatelessWidget {
+  const _ProfileSkeleton();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final overlay = Paint()..color = Colors.black.withValues(alpha: 0.55);
-    final border = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    if (isCircular) {
-      final diameter = size.width * 0.72;
-      final center = Offset(size.width / 2, size.height / 2);
-      final path = Path()
-        ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-        ..addOval(Rect.fromCenter(center: center, width: diameter, height: diameter))
-        ..fillType = PathFillType.evenOdd;
-      canvas.drawPath(path, overlay);
-      canvas.drawCircle(center, diameter / 2, border);
-    } else {
-      const viewH = 200.0;
-      final topH = (size.height - viewH) / 2;
-      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, topH), overlay);
-      canvas.drawRect(Rect.fromLTWH(0, topH + viewH, size.width, size.height - topH - viewH), overlay);
-      canvas.drawRect(Rect.fromLTWH(0, topH, size.width, viewH), border);
-    }
+  Widget build(BuildContext context) {
+    final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+    final cellColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+    return _Shimmer(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover + overlapping avatar
+            SizedBox(
+              height: 260,
+              child: Stack(
+                children: [
+                  const _SkeletonBox(height: 200, width: double.infinity, radius: 0),
+                  Positioned(
+                    top: 155,
+                    left: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: scaffoldColor, width: 4),
+                      ),
+                      child: const _SkeletonBox(height: 90, circle: true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 12),
+                  _SkeletonBox(height: 26, width: 200),
+                  SizedBox(height: 10),
+                  _SkeletonBox(height: 14, width: 120),
+                  SizedBox(height: 18),
+                  _SkeletonBox(height: 14, width: double.infinity),
+                  SizedBox(height: 8),
+                  _SkeletonBox(height: 14, width: 220),
+                  SizedBox(height: 22),
+                  _SkeletonBox(height: 72, width: double.infinity, radius: 16),
+                  SizedBox(height: 24),
+                ],
+              ),
+            ),
+            // Posts grid
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+              children: List.generate(6, (_) => ColoredBox(color: cellColor)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _ViewfinderPainter old) => old.isCircular != isCircular;
 }
 
 class _StatColumn extends StatelessWidget {

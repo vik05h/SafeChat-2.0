@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../features/auth/domain/models/auth_models.dart';
 
 class AmbientModeNotifier extends Notifier<bool> {
   @override
@@ -236,68 +235,6 @@ final ambientPhysicsProvider =
     NotifierProvider<AmbientPhysicsNotifier, AmbientPhysicsMode>(() {
       return AmbientPhysicsNotifier();
     });
-
-class CoverAlignmentNotifier extends Notifier<ImageTransform> {
-  @override
-  ImageTransform build() {
-    try {
-      final box = Hive.box('settings');
-      final scale = (box.get('cover_scale', defaultValue: 1.0) as num).toDouble();
-      final x = (box.get('cover_align_x', defaultValue: 0.0) as num).toDouble();
-      final y = (box.get('cover_align_y', defaultValue: 0.0) as num).toDouble();
-      return ImageTransform(scale: scale, offsetX: x, offsetY: y);
-    } catch (e) {
-      return ImageTransform(scale: 1.0, offsetX: 0.0, offsetY: 0.0);
-    }
-  }
-
-  void set(ImageTransform transform) {
-    try {
-      final box = Hive.box('settings');
-      box.put('cover_scale', transform.scale);
-      box.put('cover_align_x', transform.offsetX);
-      box.put('cover_align_y', transform.offsetY);
-      state = transform;
-    } catch (e) {
-      state = transform;
-    }
-  }
-}
-
-final coverAlignmentProvider = NotifierProvider<CoverAlignmentNotifier, ImageTransform>(
-  () => CoverAlignmentNotifier(),
-);
-
-class AvatarAlignmentNotifier extends Notifier<ImageTransform> {
-  @override
-  ImageTransform build() {
-    try {
-      final box = Hive.box('settings');
-      final scale = (box.get('avatar_scale', defaultValue: 1.0) as num).toDouble();
-      final x = (box.get('avatar_align_x', defaultValue: 0.0) as num).toDouble();
-      final y = (box.get('avatar_align_y', defaultValue: 0.0) as num).toDouble();
-      return ImageTransform(scale: scale, offsetX: x, offsetY: y);
-    } catch (e) {
-      return ImageTransform(scale: 1.0, offsetX: 0.0, offsetY: 0.0);
-    }
-  }
-
-  void set(ImageTransform transform) {
-    try {
-      final box = Hive.box('settings');
-      box.put('avatar_scale', transform.scale);
-      box.put('avatar_align_x', transform.offsetX);
-      box.put('avatar_align_y', transform.offsetY);
-      state = transform;
-    } catch (e) {
-      state = transform;
-    }
-  }
-}
-
-final avatarAlignmentProvider = NotifierProvider<AvatarAlignmentNotifier, ImageTransform>(
-  () => AvatarAlignmentNotifier(),
-);
 
 enum PostImageLayoutStyle { edgeToEdge, padded }
 
