@@ -44,6 +44,8 @@ def _serialize_post(post: Post) -> dict[str, Any]:
         data["media_urls"] = [
             storage_service.sign_media_url(url) for url in data["media_urls"]
         ]
+    if data.get("author_photo_url"):
+        data["author_photo_url"] = storage_service.sign_media_url(data["author_photo_url"])
     return data
 
 
