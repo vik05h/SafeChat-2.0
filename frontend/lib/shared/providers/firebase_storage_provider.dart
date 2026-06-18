@@ -11,18 +11,28 @@ final firebaseImageUrlProvider = FutureProvider.family<String, String>((ref, raw
     return rawUrl;
   }
   
-  String gsUrl = rawUrl;
-  if (rawUrl.startsWith('https://storage.googleapis.com/')) {
-    gsUrl = rawUrl.replaceFirst('https://storage.googleapis.com/', 'gs://');
-  }
-
   try {
-    final ref = FirebaseStorage.instance.refFromURL(gsUrl);
-    final downloadUrl = await ref.getDownloadURL();
+    if (rawUrl.startsWith('https://storage.googleapis.com/')) {
+      final withoutDomain = rawUrl.replaceFirst('https://storage.googleapis.com/', '');
+      final parts = withoutDomain.split('/');
+      if (parts.length > 1) {
+        // Skip bucket name
+        final path = parts.skip(1).join('/');
+        return await FirebaseStorage.instance.ref().child(path).getDownloadURL();
+      }
+    }
+
+    String gsUrl = rawUrl;
+    if (rawUrl.startsWith('https://storage.googleapis.com/')) {
+      gsUrl = rawUrl.replaceFirst('https://storage.googleapis.com/', 'gs://');
+    }
+
+    final storageRef = FirebaseStorage.instance.refFromURL(gsUrl);
+    final downloadUrl = await storageRef.getDownloadURL();
     return downloadUrl;
   } catch (e) {
-    // If it fails (e.g. object not found), return original URL to let CachedNetworkImage
-    // handle the error or fallback.
-    return rawUrl;
+    // If it fails (e.g. object not found), throw so the errorWidget can handle it gracefully.
+    // Returning the raw URL for private buckets causes HTTP 403 exceptions in CachedNetworkImage.
+    throw Exception('Storage error: $e');
   }
 });

@@ -2,29 +2,40 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final followRepositoryProvider = Provider((ref) => FollowRepository());
+import 'package:dio/dio.dart';
+import '../../../../core/network/dio_client.dart';
+
+final followRepositoryProvider = Provider((ref) {
+  final dio = ref.watch(dioProvider);
+  return FollowRepository(dio: dio);
+});
 
 class FollowRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Dio dio;
+
+  FollowRepository({required this.dio});
 
   Future<void> followUser(String targetUid) async {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == null || currentUid == targetUid) return;
 
-    final followId = '${currentUid}_$targetUid';
-    await _firestore.collection('follows').doc(followId).set({
-      'follower_uid': currentUid,
-      'followee_uid': targetUid,
-      'created_at': FieldValue.serverTimestamp(),
-    });
+    try {
+      await dio.post('/users/$targetUid/follow');
+    } catch (e) {
+      // Ignore or handle
+    }
   }
 
   Future<void> unfollowUser(String targetUid) async {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == null) return;
 
-    final followId = '${currentUid}_$targetUid';
-    await _firestore.collection('follows').doc(followId).delete();
+    try {
+      await dio.delete('/users/$targetUid/follow');
+    } catch (e) {
+      // Ignore or handle
+    }
   }
 
   Stream<bool> isFollowing(String targetUid) {

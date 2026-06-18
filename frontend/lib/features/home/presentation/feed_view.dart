@@ -12,6 +12,7 @@ import '../../../shared/utils/markdown_extensions.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import '../../../shared/widgets/firebase_image.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../profile/presentation/follow_providers.dart';
 import '../../profile/data/follow_repository.dart';
 import '../data/feed_post_model.dart';
@@ -728,17 +729,38 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                         builder: (context, ref, child) {
                           final isLikedAsync = ref.watch(isLikedProvider(widget.post.id));
                           final isLiked = isLikedAsync.value ?? false;
-                          return _buildAction(
+                          
+                          // Optimistic like count
+                          // If we don't have the real-time count, we just guess based on initial state.
+                          int displayCount = widget.post.likeCount;
+                          
+                          Widget icon = Icon(
                             isLiked ? Icons.favorite : Icons.favorite_border,
-                            'Like',
-                            () {
-                              if (isLiked) {
-                                ref.read(postRepositoryProvider).unlikePost(widget.post.id);
-                              } else {
-                                ref.read(postRepositoryProvider).likePost(widget.post.id);
-                              }
-                            },
                             color: isLiked ? Colors.red : null,
+                          );
+                          
+                          if (isLiked) {
+                            icon = icon.animate(key: const ValueKey('liked')).scale(duration: 250.ms, curve: Curves.easeOutBack).tint(color: Colors.red);
+                          } else {
+                            icon = icon.animate(key: const ValueKey('unliked')).scale(duration: 200.ms);
+                          }
+
+                          return Column(
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () {
+                                  if (isLiked) {
+                                    ref.read(postRepositoryProvider).unlikePost(widget.post.id);
+                                  } else {
+                                    ref.read(postRepositoryProvider).likePost(widget.post.id);
+                                  }
+                                },
+                                icon: icon,
+                                iconSize: 28,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(displayCount > 0 ? '$displayCount' : 'Like', style: TextStyle(color: isLiked ? Colors.red : null)),
+                            ],
                           );
                         },
                       ),
@@ -833,7 +855,7 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundImage: comment.authorPhotoUrl.isNotEmpty 
-                                ? NetworkImage(comment.authorPhotoUrl)
+                                ? FirebaseImageProviderWrapper.getProvider(ref, comment.authorPhotoUrl) ?? const NetworkImage('https://i.pravatar.cc/150')
                                 : const NetworkImage('https://i.pravatar.cc/150'),
                             ),
                             title: Text(comment.authorDisplayName.isNotEmpty ? comment.authorDisplayName : 'User'),

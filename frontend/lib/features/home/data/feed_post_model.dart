@@ -92,8 +92,8 @@ class FeedPost {
 
   /// All displayable image/video URLs, falling back to image_url for backward compat.
   List<String> get displayUrls {
-    if (mediaUrls.isNotEmpty) return mediaUrls;
-    if (imageUrl != null) return [imageUrl!];
+    if (mediaUrls.isNotEmpty) return mediaUrls.where((e) => e.isNotEmpty).toList();
+    if (imageUrl != null && imageUrl!.isNotEmpty) return [imageUrl!];
     return [];
   }
 

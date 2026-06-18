@@ -200,10 +200,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ).animate().fadeIn(delay: 200.ms).moveY(begin: -20),
           const SizedBox(height: 40),
           Center(
-            child: CircleAvatar(
-              radius: 60,
-              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-              child: user?.photoURL == null ? const Icon(Icons.person, size: 60) : null,
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _displayNameController,
+              builder: (context, value, child) {
+                final text = value.text.trim();
+                final initial = text.isNotEmpty ? text[0].toUpperCase() : '?';
+                return CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                  child: user?.photoURL == null 
+                      ? Text(
+                          initial, 
+                          style: TextStyle(
+                            fontSize: 48, 
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ) 
+                      : null,
+                );
+              },
             ).animate().scale(delay: 400.ms, curve: Curves.bounceOut),
           ),
           const SizedBox(height: 40),

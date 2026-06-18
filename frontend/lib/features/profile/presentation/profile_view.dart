@@ -50,9 +50,27 @@ class ProfileView extends ConsumerWidget {
                       left: 0,
                       right: 0,
                       height: 200,
-                      child: Image.network(
-                        'https://picsum.photos/seed/cover/800/400',
-                        fit: BoxFit.cover,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            'https://picsum.photos/seed/cover/800/400',
+                            fit: BoxFit.cover,
+                          ),
+                          Positioned(
+                            bottom: 16,
+                            right: 16,
+                            child: IconButton.filledTonal(
+                              icon: const Icon(Icons.camera_alt),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Edit background image coming soon!')),
+                                );
+                              },
+                              tooltip: 'Edit Background',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     // Action Buttons in Safe Area
@@ -100,11 +118,6 @@ class ProfileView extends ConsumerWidget {
                       right: 16,
                       child: Row(
                         children: [
-                          FilledButton.tonal(
-                            onPressed: () {},
-                            child: const Text('Edit Profile'),
-                          ),
-                          const SizedBox(width: 8),
                           IconButton.filledTonal(
                             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NetworkGraphView())),
                             icon: const Icon(Icons.hub),
@@ -201,6 +214,10 @@ class ProfileView extends ConsumerWidget {
           centerTitle: true,
           actions: [
             IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileView())),
+            ),
+            IconButton(
               icon: const Icon(Icons.settings_outlined),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
             ),
@@ -257,11 +274,6 @@ class ProfileView extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    FilledButton.tonal(
-                      onPressed: () {},
-                      child: const Text('Edit Profile'),
-                    ),
-                    const SizedBox(width: 16),
                     IconButton.filledTonal(
                       onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NetworkGraphView())),
                       icon: const Icon(Icons.hub),

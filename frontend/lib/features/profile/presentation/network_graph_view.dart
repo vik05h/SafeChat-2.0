@@ -115,25 +115,27 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : InteractiveViewer(
-              constrained: false,
-              boundaryMargin: const EdgeInsets.all(100),
-              minScale: 0.1,
-              maxScale: 5.6,
-              child: GraphView(
-                graph: graph,
-                algorithm: FruchtermanReingoldAlgorithm(FruchtermanReingoldConfiguration()), // Force directed graph layout is better for networks
-                paint: Paint()
-                  ..color = Colors.blue
-                  ..strokeWidth = 1
-                  ..style = PaintingStyle.stroke,
-                builder: (Node node) {
-                  var nodeId = node.key?.value as String?;
-                  var data = userData[nodeId] ?? {};
-                  return _buildNodeWidget(data);
-                },
-              ),
-            ),
+          : graph.nodes.isEmpty
+              ? const Center(child: Text('No network connections found.'))
+              : InteractiveViewer(
+                  constrained: false,
+                  boundaryMargin: const EdgeInsets.all(100),
+                  minScale: 0.1,
+                  maxScale: 5.6,
+                  child: GraphView(
+                    graph: graph,
+                    algorithm: FruchtermanReingoldAlgorithm(FruchtermanReingoldConfiguration()), // Force directed graph layout is better for networks
+                    paint: Paint()
+                      ..color = Colors.blue
+                      ..strokeWidth = 1
+                      ..style = PaintingStyle.stroke,
+                    builder: (Node node) {
+                      var nodeId = node.key?.value as String?;
+                      var data = userData[nodeId] ?? {};
+                      return _buildNodeWidget(data);
+                    },
+                  ),
+                ),
     );
   }
 
