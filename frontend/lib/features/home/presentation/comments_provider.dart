@@ -48,4 +48,60 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
       rethrow;
     }
   }
+
+  Future<void> likeComment(String commentId) async {
+    if (!state.hasValue) return;
+    
+    // Optimistic update
+    final comments = state.value!;
+    final index = comments.indexWhere((c) => c.id == commentId);
+    if (index == -1) return;
+    
+    final oldComment = comments[index];
+    if (oldComment.isLiked) return;
+    
+    final newComments = List<Comment>.from(comments);
+    newComments[index] = oldComment.copyWith(
+      isLiked: true,
+      likeCount: oldComment.likeCount + 1,
+    );
+    state = AsyncValue.data(newComments);
+    
+    try {
+      await ref.read(postRepositoryProvider).likeComment(arg, commentId);
+    } catch (e) {
+      // Revert
+      newComments[index] = oldComment;
+      state = AsyncValue.data(newComments);
+      rethrow;
+    }
+  }
+
+  Future<void> unlikeComment(String commentId) async {
+    if (!state.hasValue) return;
+    
+    // Optimistic update
+    final comments = state.value!;
+    final index = comments.indexWhere((c) => c.id == commentId);
+    if (index == -1) return;
+    
+    final oldComment = comments[index];
+    if (!oldComment.isLiked) return;
+    
+    final newComments = List<Comment>.from(comments);
+    newComments[index] = oldComment.copyWith(
+      isLiked: false,
+      likeCount: (oldComment.likeCount - 1).clamp(0, 999999),
+    );
+    state = AsyncValue.data(newComments);
+    
+    try {
+      await ref.read(postRepositoryProvider).unlikeComment(arg, commentId);
+    } catch (e) {
+      // Revert
+      newComments[index] = oldComment;
+      state = AsyncValue.data(newComments);
+      rethrow;
+    }
+  }
 }

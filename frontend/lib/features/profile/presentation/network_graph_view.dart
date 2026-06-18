@@ -115,8 +115,8 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : graph.nodes.isEmpty
-              ? const Center(child: Text('No network connections found.'))
+          : graph.nodes.length <= 1
+              ? const Center(child: Text('Not enough network connections found.'))
               : InteractiveViewer(
                   constrained: false,
                   boundaryMargin: const EdgeInsets.all(100),

@@ -21,7 +21,7 @@ class FollowRepository {
     if (currentUid == null || currentUid == targetUid) return;
 
     try {
-      await dio.post('/users/$targetUid/follow');
+      await dio.post('/api/v1/users/$targetUid/follow');
     } catch (e) {
       // Ignore or handle
     }
@@ -32,7 +32,7 @@ class FollowRepository {
     if (currentUid == null) return;
 
     try {
-      await dio.delete('/users/$targetUid/follow');
+      await dio.delete('/api/v1/users/$targetUid/follow');
     } catch (e) {
       // Ignore or handle
     }

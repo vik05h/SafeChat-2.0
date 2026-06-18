@@ -276,10 +276,12 @@ class _GridPostCard extends ConsumerWidget {
             Container(
               height: height,
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: FirebaseImageProviderWrapper.getProvider(ref, thumb) ?? const AssetImage('assets/placeholder.png') as ImageProvider,
-                  fit: BoxFit.cover,
-                ),
+                image: FirebaseImageProviderWrapper.getProvider(ref, thumb) != null
+                    ? DecorationImage(
+                        image: FirebaseImageProviderWrapper.getProvider(ref, thumb)!,
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
             )
           else
@@ -571,6 +573,12 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: const Center(
+                                  child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -759,7 +767,23 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                 iconSize: 28,
                               ),
                               const SizedBox(height: 8),
-                              Text(displayCount > 0 ? '$displayCount' : 'Like', style: TextStyle(color: isLiked ? Colors.red : null)),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                transitionBuilder: (Widget child, Animation<double> animation) {
+                                  return SlideTransition(
+                                    position: Tween<Offset>(
+                                      begin: const Offset(0.0, 0.5),
+                                      end: Offset.zero,
+                                    ).animate(animation),
+                                    child: FadeTransition(opacity: animation, child: child),
+                                  );
+                                },
+                                child: Text(
+                                  displayCount > 0 ? '$displayCount' : 'Like',
+                                  key: ValueKey<int>(displayCount),
+                                  style: TextStyle(color: isLiked ? Colors.red : null),
+                                ),
+                              ),
                             ],
                           );
                         },
@@ -776,6 +800,11 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                               final shareText = 'Check out this post on SafeChat: https://safechat.com/post/${widget.post.id}';
                               Share.share(shareText);
                             },
+                          ),
+                          _buildAction(
+                            Icons.visibility_outlined,
+                            '${widget.post.viewCount > 0 ? widget.post.viewCount : "View"}',
+                            () {}, // View count is just a display
                           ),
                         ],
                       ),
@@ -854,17 +883,41 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                           final comment = comments[index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: comment.authorPhotoUrl.isNotEmpty 
-                                ? FirebaseImageProviderWrapper.getProvider(ref, comment.authorPhotoUrl) ?? const NetworkImage('https://i.pravatar.cc/150')
-                                : const NetworkImage('https://i.pravatar.cc/150'),
+                              backgroundImage: comment.authorPhotoUrl.isNotEmpty
+                                  ? FirebaseImageProviderWrapper.getProvider(ref, comment.authorPhotoUrl)
+                                  : null,
+                              child: (comment.authorPhotoUrl.isEmpty || FirebaseImageProviderWrapper.getProvider(ref, comment.authorPhotoUrl) == null)
+                                  ? const Icon(Icons.person)
+                                  : null,
                             ),
                             title: Text(comment.authorDisplayName.isNotEmpty ? comment.authorDisplayName : 'User'),
                             subtitle: Text(comment.text),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.reply, size: 16),
-                              onPressed: () {
-                                // Reply logic
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                                    size: 16,
+                                    color: comment.isLiked ? Colors.red : null,
+                                  ),
+                                  onPressed: () {
+                                    if (comment.isLiked) {
+                                      ref.read(commentsProvider(postId).notifier).unlikeComment(comment.id);
+                                    } else {
+                                      ref.read(commentsProvider(postId).notifier).likeComment(comment.id);
+                                    }
+                                  },
+                                ),
+                                if (comment.likeCount > 0)
+                                  Text('${comment.likeCount}', style: const TextStyle(fontSize: 12)),
+                                IconButton(
+                                  icon: const Icon(Icons.reply, size: 16),
+                                  onPressed: () {
+                                    // Reply logic
+                                  },
+                                ),
+                              ],
                             ),
                           );
                         },

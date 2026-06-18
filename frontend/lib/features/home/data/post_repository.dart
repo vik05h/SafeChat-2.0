@@ -109,6 +109,14 @@ class PostRepository {
     await _apiService.deleteComment(postId, commentId);
   }
 
+  Future<void> likeComment(String postId, String commentId) async {
+    await _apiService.likeComment(postId, commentId);
+  }
+
+  Future<void> unlikeComment(String postId, String commentId) async {
+    await _apiService.unlikeComment(postId, commentId);
+  }
+
   String _getContentType(String path) {
     final lower = path.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';

@@ -181,6 +181,32 @@ async def delete_comment(
     return Response(status_code=204)
 
 
+@router.post("/{post_id}/comments/{comment_id}/like", status_code=204)
+async def like_comment(
+    post_id: str,
+    comment_id: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Like a comment."""
+    if await comments_service.get_comment(post_id, comment_id) is None:
+        raise _comment_not_found(comment_id)
+    await comments_service.like_comment(claims["uid"], post_id, comment_id)
+    return Response(status_code=204)
+
+
+@router.delete("/{post_id}/comments/{comment_id}/like", status_code=204)
+async def unlike_comment(
+    post_id: str,
+    comment_id: str,
+    claims: dict[str, Any] = Depends(get_current_user_claims),
+) -> Response:
+    """Unlike a comment."""
+    if await comments_service.get_comment(post_id, comment_id) is None:
+        raise _comment_not_found(comment_id)
+    await comments_service.unlike_comment(claims["uid"], post_id, comment_id)
+    return Response(status_code=204)
+
+
 @router.post("/{post_id}/comments", status_code=201)
 async def create_comment(
     post_id: str,
@@ -227,9 +253,23 @@ async def get_comments(
         limit=cap,
         before_created_at=before,
     )
+
+    viewer_uid = claims["uid"]
+    
+    import asyncio
+    
+    # We need to map `is_liked` for each comment
+    async def _resolve_is_liked(c):
+        liked = await comments_service.is_comment_liked(viewer_uid, post_id, c.id)
+        data = c.model_dump(mode="json")
+        data["is_liked"] = liked
+        return data
+
+    resolved_comments = await asyncio.gather(*[_resolve_is_liked(c) for c in comment_list])
+
     return JSONResponse(
         content={
-            "data": {"comments": [c.model_dump(mode="json") for c in comment_list]},
+            "data": {"comments": resolved_comments},
             "meta": _meta(),
         }
     )

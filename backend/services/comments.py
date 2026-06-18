@@ -171,3 +171,49 @@ async def delete_comment(
         batch.commit()
 
     await asyncio.to_thread(_delete)
+
+
+async def get_comment(post_id: str, comment_id: str) -> Comment | None:
+    """Fetch a single comment by ID."""
+    snap = await asyncio.to_thread(_comment_ref(post_id, comment_id).get)
+    if not snap.exists:
+        return None
+    return Comment.model_validate(snap.to_dict())
+
+
+async def like_comment(uid: str, post_id: str, comment_id: str) -> None:
+    """Like a comment. Idempotent."""
+    likes_ref = _comment_ref(post_id, comment_id).collection("likes").document(uid)
+
+    def _like() -> None:
+        if likes_ref.get().exists:
+            return
+        batch = db.batch()
+        batch.set(likes_ref, {"uid": uid, "created_at": firestore.SERVER_TIMESTAMP})
+        batch.update(_comment_ref(post_id, comment_id), {"like_count": firestore.Increment(1)})
+        batch.commit()
+
+    await asyncio.to_thread(_like)
+
+
+async def unlike_comment(uid: str, post_id: str, comment_id: str) -> None:
+    """Unlike a comment. Idempotent."""
+    likes_ref = _comment_ref(post_id, comment_id).collection("likes").document(uid)
+
+    def _unlike() -> None:
+        if not likes_ref.get().exists:
+            return
+        batch = db.batch()
+        batch.delete(likes_ref)
+        batch.update(_comment_ref(post_id, comment_id), {"like_count": firestore.Increment(-1)})
+        batch.commit()
+
+    await asyncio.to_thread(_unlike)
+
+
+async def is_comment_liked(uid: str, post_id: str, comment_id: str) -> bool:
+    """Check if a user liked a comment."""
+    snap = await asyncio.to_thread(
+        _comment_ref(post_id, comment_id).collection("likes").document(uid).get
+    )
+    return snap.exists

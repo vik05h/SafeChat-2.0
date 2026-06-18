@@ -182,6 +182,17 @@ Feed display requires author name and photo. Without denormalization, every post
 }
 ```
 
+### `posts/{postId}/comments/{commentId}/likes/{uid}`
+
+Document ID = liker's UID.
+
+```typescript
+{
+  uid: string,
+  created_at: Timestamp,
+}
+```
+
 ### `posts/{postId}/likes/{uid}`
 
 Document ID = liker's UID.

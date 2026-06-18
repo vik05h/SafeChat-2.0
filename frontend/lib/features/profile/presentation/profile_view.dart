@@ -8,6 +8,8 @@ import 'edit_profile_view.dart';
 import 'follow_providers.dart';
 import 'network_graph_view.dart';
 import 'content_status_view.dart';
+import '../../../shared/widgets/firebase_image.dart';
+import 'user_posts_provider.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -19,13 +21,14 @@ class ProfileView extends ConsumerWidget {
 
     return Scaffold(
       body: layout == ProfileLayoutStyle.modernCover
-          ? _buildModernCover(context, user)
-          : _buildCenteredMinimalist(context, user),
+          ? _buildModernCover(context, user, ref)
+          : _buildCenteredMinimalist(context, user, ref),
     );
   }
 
-  Widget _buildModernCover(BuildContext context, dynamic user) {
+  Widget _buildModernCover(BuildContext context, dynamic user, WidgetRef ref) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+    final profile = ref.watch(authStateProvider).profile;
 
     return Stack(
       children: [
@@ -151,13 +154,13 @@ class ProfileView extends ConsumerWidget {
                     const SizedBox(height: 12),
                     // Profile Info
                     Text(
-                      user?.displayName ?? 'SafeChat User',
+                      profile?.displayName ?? user?.displayName ?? 'SafeChat User',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text('@${user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}'),
+                    Text('@${profile?.username ?? user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}'),
                     const SizedBox(height: 16),
-                    const Text('Creating a safer social space 🛡️\n#flutter #dev'),
+                    Text(profile?.bio?.isNotEmpty == true ? profile!.bio! : 'Creating a safer social space 🛡️\n#flutter #dev'),
                     const SizedBox(height: 24),
                     // Stats Card
                     Container(
@@ -199,14 +202,15 @@ class ProfileView extends ConsumerWidget {
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            _buildGrid(),
+            _buildGrid(ref, user?.uid ?? ''),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildCenteredMinimalist(BuildContext context, dynamic user) {
+  Widget _buildCenteredMinimalist(BuildContext context, dynamic user, WidgetRef ref) {
+    final profile = ref.watch(authStateProvider).profile;
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -236,11 +240,11 @@ class ProfileView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  user?.displayName ?? 'SafeChat User',
+                  profile?.displayName ?? user?.displayName ?? 'SafeChat User',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                const Text('Creating a safer social space 🛡️\n#flutter #dev', textAlign: TextAlign.center),
+                Text(profile?.bio?.isNotEmpty == true ? profile!.bio! : 'Creating a safer social space 🛡️\n#flutter #dev', textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 Consumer(
                   builder: (context, ref, _) {
@@ -298,29 +302,51 @@ class ProfileView extends ConsumerWidget {
             ),
           ),
         ),
-        _buildGrid(),
+        _buildGrid(ref, user?.uid ?? ''),
       ],
     );
   }
 
-  Widget _buildGrid() {
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-      ),
-      delegate: SliverChildBuilderDelegate((context, index) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            image: DecorationImage(
-              image: NetworkImage('https://picsum.photos/seed/${index + 50}/300/300'),
-              fit: BoxFit.cover,
+  Widget _buildGrid(WidgetRef ref, String uid) {
+    final userPostsAsync = ref.watch(userPostsProvider(uid));
+    
+    return userPostsAsync.when(
+      loading: () => const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))),
+      error: (e, _) => SliverToBoxAdapter(child: Center(child: Text('Error: $e'))),
+      data: (posts) {
+        if (posts.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Center(child: Text('No posts yet')),
             ),
+          );
+        }
+        return SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 2,
+            crossAxisSpacing: 2,
           ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final post = posts[index];
+            final thumb = post.displayUrls.isNotEmpty ? post.displayUrls.first : '';
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+              child: thumb.isNotEmpty
+                  ? FirebaseCachedNetworkImage(
+                      imageUrl: thumb,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                      errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined)),
+                    )
+                  : const Center(child: Icon(Icons.article_outlined)),
+            );
+          }, childCount: posts.length),
         );
-      }, childCount: 15),
+      },
     );
   }
 }

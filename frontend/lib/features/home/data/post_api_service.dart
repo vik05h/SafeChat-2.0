@@ -106,4 +106,12 @@ class PostApiService {
   Future<void> deleteComment(String postId, String commentId) async {
     await _dio.delete('/api/v1/posts/$postId/comments/$commentId');
   }
+
+  Future<void> likeComment(String postId, String commentId) async {
+    await _dio.post('/api/v1/posts/$postId/comments/$commentId/like');
+  }
+
+  Future<void> unlikeComment(String postId, String commentId) async {
+    await _dio.delete('/api/v1/posts/$postId/comments/$commentId/like');
+  }
 }
