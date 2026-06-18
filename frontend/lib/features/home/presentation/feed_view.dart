@@ -16,67 +16,92 @@ import 'feed_provider.dart';
 // Feed root
 // ─────────────────────────────────────────────────────────────────────────────
 
-class FeedView extends ConsumerWidget {
+class FeedView extends StatelessWidget {
   const FeedView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final feedAsync = ref.watch(feedPostsProvider);
-    final layoutMode = ref.watch(feedLayoutProvider);
-
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            flexibleSpace: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              flexibleSpace: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+                  ),
                 ),
               ),
-            ),
-            title: Text(
-              'SafeChat',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-                color: Theme.of(context).colorScheme.primary,
+              title: Text(
+                'SafeChat',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              bottom: const TabBar(
+                tabs: [
+                  Tab(text: 'For You'),
+                  Tab(text: 'Following'),
+                ],
               ),
             ),
+          ],
+          body: const TabBarView(
+            children: [
+              _FeedTab(feedType: 'global'),
+              _FeedTab(feedType: 'following'),
+            ],
           ),
-          feedAsync.when(
-            loading: () => const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (e, _) => SliverFillRemaining(
-              child: _ErrorView(
-                message: e.toString(),
-                onRetry: () => ref.invalidate(feedPostsProvider),
-              ),
-            ),
-            data: (posts) {
-              if (posts.isEmpty) {
-                return SliverFillRemaining(
-                  child: _EmptyFeed(
-                    onRetry: () => ref.invalidate(feedPostsProvider),
-                  ),
-                );
-              }
-              return SliverPadding(
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedTab extends ConsumerWidget {
+  final String feedType;
+  const _FeedTab({required this.feedType});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(feedPostsProvider(feedType));
+    final layoutMode = ref.watch(feedLayoutProvider);
+
+    return feedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _ErrorView(
+        message: e.toString(),
+        onRetry: () => ref.invalidate(feedPostsProvider(feedType)),
+      ),
+      data: (posts) {
+        if (posts.isEmpty) {
+          return _EmptyFeed(
+            onRetry: () => ref.invalidate(feedPostsProvider(feedType)),
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: () => ref.read(feedPostsProvider(feedType).notifier).refresh(),
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
                 padding: const EdgeInsets.all(12),
                 sliver: layoutMode == FeedLayoutMode.grid
                     ? _buildGridView(context, posts)
                     : _buildCardView(context, posts),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

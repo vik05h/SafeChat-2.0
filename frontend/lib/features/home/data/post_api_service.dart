@@ -59,10 +59,10 @@ class PostApiService {
   }
 
   /// Fetch the public feed. Returns a list of post maps.
-  Future<List<Map<String, dynamic>>> getFeed({int limit = 20}) async {
+  Future<List<Map<String, dynamic>>> getFeed({int limit = 20, String type = 'following'}) async {
     final response = await _dio.get(
       '/api/v1/posts/feed',
-      queryParameters: {'limit': limit},
+      queryParameters: {'limit': limit, 'type': type},
     );
     final data = response.data as Map<String, dynamic>;
     final posts = (data['data']?['posts'] as List<dynamic>?) ?? [];

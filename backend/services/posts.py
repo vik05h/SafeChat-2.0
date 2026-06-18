@@ -193,16 +193,14 @@ async def delete_post(
 
 async def get_feed(
     viewer_uid: str,
+    feed_type: str = "following",
     limit: int = 20,
     before_created_at: str | None = None,
 ) -> list[Post]:
-    """Pull feed: approved posts from followed users, newest first.
+    """Pull feed: approved posts based on feed_type ('global' or 'following'), newest first.
 
     Uses cursor pagination via `before_created_at` (ISO-format datetime string).
-    Returns an empty list when the viewer follows nobody.
     Limit is capped at 20. Firestore `in` queries are chunked at 30 values.
-
-    # TODO: filter out posts from users the viewer has blocked (Step 2 block system)
     """
     following = await follows_service.get_following(viewer_uid)
     # Always include the user's own posts in their feed
@@ -218,26 +216,41 @@ async def get_feed(
             before_dt = None
 
     def _query() -> list[Post]:
-        chunks = [following[i : i + 30] for i in range(0, len(following), 30)]
         all_posts: list[Post] = []
 
-        for chunk in chunks:
+        if feed_type == "global":
             q = (
                 db.collection(POSTS_COLLECTION)
-                .where(filter=FieldFilter("author_uid", "in", chunk))
                 .where(filter=FieldFilter("status", "==", "approved"))
                 .order_by("created_at", direction=firestore.Query.DESCENDING)
             )
             if before_dt is not None:
                 q = q.where(filter=FieldFilter("created_at", "<", before_dt))
-
-            for snap in q.stream():
+            
+            for snap in q.limit(cap).stream():
                 d = snap.to_dict() or {}
                 all_posts.append(Post.model_validate(d))
+        else:
+            chunks = [following[i : i + 30] for i in range(0, len(following), 30)]
+            for chunk in chunks:
+                q = (
+                    db.collection(POSTS_COLLECTION)
+                    .where(filter=FieldFilter("author_uid", "in", chunk))
+                    .where(filter=FieldFilter("status", "==", "approved"))
+                    .order_by("created_at", direction=firestore.Query.DESCENDING)
+                )
+                if before_dt is not None:
+                    q = q.where(filter=FieldFilter("created_at", "<", before_dt))
 
-        # Merge chunk results, re-sort globally, then cap to limit.
-        all_posts.sort(key=lambda p: p.created_at, reverse=True)
-        return all_posts[:cap]
+                for snap in q.stream():
+                    d = snap.to_dict() or {}
+                    all_posts.append(Post.model_validate(d))
+
+            # Merge chunk results, re-sort globally, then cap to limit.
+            all_posts.sort(key=lambda p: p.created_at, reverse=True)
+            all_posts = all_posts[:cap]
+
+        return all_posts
 
     return await asyncio.to_thread(_query)
 

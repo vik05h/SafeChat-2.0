@@ -8,17 +8,21 @@ import '../data/post_repository.dart';
 ///
 /// Call `ref.invalidate(feedPostsProvider)` to trigger a refresh (e.g. after
 /// creating a new post).
-final feedPostsProvider = AsyncNotifierProvider<FeedPostsNotifier, List<FeedPost>>(
-  FeedPostsNotifier.new,
+final feedPostsProvider = AsyncNotifierProvider.family<FeedPostsNotifier, List<FeedPost>, String>(
+  (arg) => FeedPostsNotifier(arg),
 );
 
 class FeedPostsNotifier extends AsyncNotifier<List<FeedPost>> {
+  final String arg;
+  
+  FeedPostsNotifier(this.arg);
+
   @override
   Future<List<FeedPost>> build() => _fetch();
 
   Future<List<FeedPost>> _fetch() {
     final repo = ref.read(postRepositoryProvider);
-    return repo.getFeed();
+    return repo.getFeed(type: arg);
   }
 
   /// Pull-to-refresh: reload the feed from scratch.

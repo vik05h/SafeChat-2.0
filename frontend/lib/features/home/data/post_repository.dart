@@ -75,9 +75,9 @@ class PostRepository {
         : PostSubmitResult.approved;
   }
 
-  /// Fetch the public feed (approved posts from followed users).
-  Future<List<FeedPost>> getFeed({int limit = 20}) async {
-    final maps = await _apiService.getFeed(limit: limit);
+  /// Fetch the public feed (approved posts). Type can be 'global' or 'following'.
+  Future<List<FeedPost>> getFeed({int limit = 20, String type = 'following'}) async {
+    final maps = await _apiService.getFeed(limit: limit, type: type);
     return maps.map(FeedPost.fromJson).toList();
   }
 

@@ -64,14 +64,16 @@ def _comment_not_found(comment_id: str) -> HTTPException:
 # NOTE: /feed is declared before /{post_id} so the literal path wins.
 @router.get("/feed")
 async def get_feed(
+    type: str = "following",
     limit: int = _FEED_LIMIT_DEFAULT,
     before: str | None = None,
     claims: dict[str, Any] = Depends(get_current_user_claims),
 ) -> JSONResponse:
-    """Paginated feed of approved posts from followed users, newest first."""
+    """Paginated feed of approved posts, newest first."""
     cap = max(1, min(limit, _FEED_LIMIT_MAX))
     posts = await posts_service.get_feed(
         viewer_uid=claims["uid"],
+        feed_type=type,
         limit=cap,
         before_created_at=before,
     )
