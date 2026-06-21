@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio();
-  final baseUrl = dotenv.isInitialized 
+  final baseUrl = dotenv.isInitialized
       ? (dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8000')
       : 'http://10.0.2.2:8000';
   dio.options.baseUrl = baseUrl;

@@ -33,9 +33,9 @@ class _ContentStatusViewState extends ConsumerState<ContentStatusView> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // close dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit appeal: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to submit appeal: $e')));
       }
     }
   }
@@ -101,8 +101,8 @@ class _ContentStatusViewState extends ConsumerState<ContentStatusView> {
         stream: query.snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-             // Firestore composite index might be needed if orderBy is used with whereIn.
-             return Center(child: Text('Error: ${snapshot.error}'));
+            // Firestore composite index might be needed if orderBy is used with whereIn.
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -128,7 +128,7 @@ class _ContentStatusViewState extends ConsumerState<ContentStatusView> {
               final data = doc.data() as Map<String, dynamic>;
               final status = data['status'] as String? ?? 'unknown';
               final text = data['text'] ?? data['caption'] ?? 'No text';
-              
+
               final isBlocked = status == 'blocked';
 
               return Card(

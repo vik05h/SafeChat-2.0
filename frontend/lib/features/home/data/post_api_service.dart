@@ -11,11 +11,14 @@ class PostApiService {
     required int sizeBytes,
     required String purpose,
   }) async {
-    final response = await _dio.post('/api/v1/uploads/sign', data: {
-      'content_type': contentType,
-      'size_bytes': sizeBytes,
-      'purpose': purpose,
-    });
+    final response = await _dio.post(
+      '/api/v1/uploads/sign',
+      data: {
+        'content_type': contentType,
+        'size_bytes': sizeBytes,
+        'purpose': purpose,
+      },
+    );
     return response.data;
   }
 
@@ -47,18 +50,20 @@ class PostApiService {
   }) async {
     final response = await _dio.post(
       '/api/v1/posts',
-      data: {
-        'text': caption,
-        'media_urls': mediaUrls,
-        'media_type': mediaType,
-      },
+      data: {'text': caption, 'media_urls': mediaUrls, 'media_type': mediaType},
       // Accept 201 and 202 without throwing.
       options: Options(validateStatus: (s) => s != null && s >= 200 && s < 300),
     );
-    return (statusCode: response.statusCode ?? 200, data: response.data as Map<String, dynamic>);
+    return (
+      statusCode: response.statusCode ?? 200,
+      data: response.data as Map<String, dynamic>,
+    );
   }
 
-  Future<List<Map<String, dynamic>>> getFeed({int limit = 20, String type = 'following'}) async {
+  Future<List<Map<String, dynamic>>> getFeed({
+    int limit = 20,
+    String type = 'following',
+  }) async {
     final response = await _dio.get(
       '/api/v1/posts/feed',
       queryParameters: {'limit': limit, 'type': type},
@@ -69,7 +74,10 @@ class PostApiService {
   }
 
   /// Fetch posts authored by a specific user.
-  Future<List<Map<String, dynamic>>> getUserPosts(String uid, {int limit = 20}) async {
+  Future<List<Map<String, dynamic>>> getUserPosts(
+    String uid, {
+    int limit = 20,
+  }) async {
     final response = await _dio.get(
       '/api/v1/users/$uid/posts',
       queryParameters: {'limit': limit},
@@ -91,7 +99,10 @@ class PostApiService {
     await _dio.delete('/api/v1/posts/$postId/like');
   }
 
-  Future<List<Map<String, dynamic>>> getComments(String postId, {int limit = 20}) async {
+  Future<List<Map<String, dynamic>>> getComments(
+    String postId, {
+    int limit = 20,
+  }) async {
     final response = await _dio.get(
       '/api/v1/posts/$postId/comments',
       queryParameters: {'limit': limit},
@@ -101,7 +112,11 @@ class PostApiService {
     return comments.cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> createComment(String postId, String text, {String? parentCommentId}) async {
+  Future<Map<String, dynamic>> createComment(
+    String postId,
+    String text, {
+    String? parentCommentId,
+  }) async {
     final response = await _dio.post(
       '/api/v1/posts/$postId/comments',
       data: {

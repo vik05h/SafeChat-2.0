@@ -82,7 +82,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: NavigationBar(
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainer.withOpacity(0.6),
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainer.withOpacity(0.6),
           elevation: 0,
           selectedIndex: _currentIndex,
           onDestinationSelected: _onTabSelected,

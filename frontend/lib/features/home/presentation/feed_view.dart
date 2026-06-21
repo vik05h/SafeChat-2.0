@@ -48,7 +48,9 @@ class FeedView extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: Container(
-                    color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withOpacity(0.6),
                   ),
                 ),
               ),
@@ -102,7 +104,8 @@ class _FeedTab extends ConsumerWidget {
           );
         }
         return RefreshIndicator(
-          onRefresh: () => ref.read(feedPostsProvider(feedType).notifier).refresh(),
+          onRefresh: () =>
+              ref.read(feedPostsProvider(feedType).notifier).refresh(),
           child: CustomScrollView(
             slivers: [
               SliverPadding(
@@ -241,7 +244,11 @@ class _PostOpenContainer extends StatelessWidget {
   final FeedPost post;
   final Widget child;
 
-  const _PostOpenContainer({super.key, required this.post, required this.child});
+  const _PostOpenContainer({
+    super.key,
+    required this.post,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -280,9 +287,13 @@ class _GridPostCard extends ConsumerWidget {
             Container(
               height: height,
               decoration: BoxDecoration(
-                image: FirebaseImageProviderWrapper.getProvider(ref, thumb) != null
+                image:
+                    FirebaseImageProviderWrapper.getProvider(ref, thumb) != null
                     ? DecorationImage(
-                        image: FirebaseImageProviderWrapper.getProvider(ref, thumb)!,
+                        image: FirebaseImageProviderWrapper.getProvider(
+                          ref,
+                          thumb,
+                        )!,
                         fit: BoxFit.cover,
                       )
                     : null,
@@ -316,7 +327,10 @@ class _GridPostCard extends ConsumerWidget {
                     CircleAvatar(
                       radius: 12,
                       backgroundImage: post.authorPhotoUrl.isNotEmpty
-                          ? FirebaseImageProviderWrapper.getProvider(ref, post.authorPhotoUrl)
+                          ? FirebaseImageProviderWrapper.getProvider(
+                              ref,
+                              post.authorPhotoUrl,
+                            )
                           : null,
                       child: post.authorPhotoUrl.isEmpty
                           ? const Icon(Icons.person, size: 14)
@@ -365,7 +379,10 @@ class _ListPostCard extends ConsumerWidget {
           ListTile(
             leading: CircleAvatar(
               backgroundImage: post.authorPhotoUrl.isNotEmpty
-                  ? FirebaseImageProviderWrapper.getProvider(ref, post.authorPhotoUrl)
+                  ? FirebaseImageProviderWrapper.getProvider(
+                      ref,
+                      post.authorPhotoUrl,
+                    )
                   : null,
               child: post.authorPhotoUrl.isEmpty
                   ? const Icon(Icons.person)
@@ -452,29 +469,48 @@ class _ListPostCard extends ConsumerWidget {
                   children: [
                     Consumer(
                       builder: (context, ref, child) {
-                        final isLikedAsync = ref.watch(isLikedProvider(post.id));
+                        final isLikedAsync = ref.watch(
+                          isLikedProvider(post.id),
+                        );
                         final isLiked = isLikedAsync.value ?? false;
                         return FloatingActionButton.small(
                           heroTag: 'like_${post.id}',
                           onPressed: () {
                             if (isLiked) {
-                              ref.read(postRepositoryProvider).unlikePost(post.id);
+                              ref
+                                  .read(postRepositoryProvider)
+                                  .unlikePost(post.id);
                             } else {
-                              ref.read(postRepositoryProvider).likePost(post.id);
+                              ref
+                                  .read(postRepositoryProvider)
+                                  .likePost(post.id);
                             }
                           },
-                          backgroundColor: isLiked ? Colors.red.withValues(alpha: 0.1) : null,
-                          child: Icon(
-                            isLiked ? Icons.favorite : Icons.favorite_border,
-                            color: isLiked ? Colors.red : null,
-                          ).animate(key: ValueKey(isLiked)).scaleXY(begin: 0.8, end: 1.0, duration: 200.ms, curve: Curves.easeOutBack),
+                          backgroundColor: isLiked
+                              ? Colors.red.withValues(alpha: 0.1)
+                              : null,
+                          child:
+                              Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isLiked ? Colors.red : null,
+                                  )
+                                  .animate(key: ValueKey(isLiked))
+                                  .scaleXY(
+                                    begin: 0.8,
+                                    end: 1.0,
+                                    duration: 200.ms,
+                                    curve: Curves.easeOutBack,
+                                  ),
                         );
                       },
                     ),
                     const SizedBox(width: 8),
                     FloatingActionButton.small(
                       heroTag: 'comment_${post.id}',
-                      onPressed: () => showCommentsBottomSheet(context, post.id),
+                      onPressed: () =>
+                          showCommentsBottomSheet(context, post.id),
                       child: const Icon(Icons.chat_bubble_outline),
                     ),
                   ],
@@ -518,7 +554,10 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
     super.initState();
     // Fire and forget view recording
     Future.microtask(() {
-      ref.read(postRepositoryProvider).viewPost(widget.post.id).catchError((_) {});
+      ref
+          .read(postRepositoryProvider)
+          .viewPost(widget.post.id)
+          .catchError((_) {});
     });
   }
 
@@ -592,17 +631,17 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                     ),
                                     errorWidget: (context, url, error) =>
                                         Container(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.broken_image_outlined,
-                                          size: 48,
-                                          color: Colors.grey,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHighest,
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              size: 48,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
                                   ),
                                   // Fullscreen affordance icon
                                   Positioned(
@@ -670,7 +709,10 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       GestureDetector(
                         onTap: widget.post.authorPhotoUrl.isNotEmpty
                             ? () => showDpViewer(
-                                context, ref, widget.post.authorPhotoUrl)
+                                context,
+                                ref,
+                                widget.post.authorPhotoUrl,
+                              )
                             : null,
                         child: CircleAvatar(
                           radius: 24,
@@ -703,8 +745,10 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                 '@${widget.post.authorUsername}',
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -714,30 +758,51 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       ),
                       Builder(
                         builder: (context) {
-                          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                          final currentUid =
+                              FirebaseAuth.instance.currentUser?.uid;
                           if (currentUid == widget.post.authorUid) {
                             return const SizedBox.shrink();
                           }
-                          
-                          final isFollowingAsync = ref.watch(isFollowingProvider(widget.post.authorUid));
+
+                          final isFollowingAsync = ref.watch(
+                            isFollowingProvider(widget.post.authorUid),
+                          );
                           return isFollowingAsync.when(
-                            data: (isFollowing) => FilledButton.tonal(
-                              onPressed: () async {
-                                final repo = ref.read(followRepositoryProvider);
-                                if (isFollowing) {
-                                  await repo.unfollowUser(widget.post.authorUid);
-                                } else {
-                                  await repo.followUser(widget.post.authorUid);
-                                }
-                              },
-                              child: Text(isFollowing ? 'Following' : 'Follow'),
-                            ).animate(key: ValueKey(isFollowing)).scaleXY(begin: 0.8, end: 1.0, duration: 200.ms, curve: Curves.easeOutBack),
+                            data: (isFollowing) =>
+                                FilledButton.tonal(
+                                      onPressed: () async {
+                                        final repo = ref.read(
+                                          followRepositoryProvider,
+                                        );
+                                        if (isFollowing) {
+                                          await repo.unfollowUser(
+                                            widget.post.authorUid,
+                                          );
+                                        } else {
+                                          await repo.followUser(
+                                            widget.post.authorUid,
+                                          );
+                                        }
+                                      },
+                                      child: Text(
+                                        isFollowing ? 'Following' : 'Follow',
+                                      ),
+                                    )
+                                    .animate(key: ValueKey(isFollowing))
+                                    .scaleXY(
+                                      begin: 0.8,
+                                      end: 1.0,
+                                      duration: 200.ms,
+                                      curve: Curves.easeOutBack,
+                                    ),
                             loading: () => const FilledButton.tonal(
                               onPressed: null,
                               child: SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             ),
                             error: (_, __) => const SizedBox.shrink(),
@@ -788,22 +853,20 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                      _LikeActionWidget(
-                        post: widget.post,
-                      ),
-                      _buildAction(
-                        Icons.chat_bubble_outline,
-                        '${widget.post.commentCount}',
-                        () => showCommentsBottomSheet(context, widget.post.id),
-                      ),
+                          _LikeActionWidget(post: widget.post),
                           _buildAction(
-                            Icons.share_outlined,
-                            'Share',
-                            () {
-                              final shareText = 'Check out this post on SafeChat: https://safechat.com/post/${widget.post.id}';
-                              Share.share(shareText);
-                            },
+                            Icons.chat_bubble_outline,
+                            '${widget.post.commentCount}',
+                            () => showCommentsBottomSheet(
+                              context,
+                              widget.post.id,
+                            ),
                           ),
+                          _buildAction(Icons.share_outlined, 'Share', () {
+                            final shareText =
+                                'Check out this post on SafeChat: https://safechat.com/post/${widget.post.id}';
+                            Share.share(shareText);
+                          }),
                           _buildAction(
                             Icons.visibility_outlined,
                             '${widget.post.viewCount}',
@@ -836,7 +899,12 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
     );
   }
 
-  Widget _buildAction(IconData icon, String label, VoidCallback onTap, {Color? color}) {
+  Widget _buildAction(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    Color? color,
+  }) {
     return Column(
       children: [
         IconButton.filledTonal(
@@ -900,33 +968,59 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundImage: comment.authorPhotoUrl.isNotEmpty
-                                  ? FirebaseImageProviderWrapper.getProvider(ref, comment.authorPhotoUrl)
+                                  ? FirebaseImageProviderWrapper.getProvider(
+                                      ref,
+                                      comment.authorPhotoUrl,
+                                    )
                                   : null,
-                              child: (comment.authorPhotoUrl.isEmpty || FirebaseImageProviderWrapper.getProvider(ref, comment.authorPhotoUrl) == null)
+                              child:
+                                  (comment.authorPhotoUrl.isEmpty ||
+                                      FirebaseImageProviderWrapper.getProvider(
+                                            ref,
+                                            comment.authorPhotoUrl,
+                                          ) ==
+                                          null)
                                   ? const Icon(Icons.person)
                                   : null,
                             ),
-                            title: Text(comment.authorDisplayName.isNotEmpty ? comment.authorDisplayName : 'User'),
+                            title: Text(
+                              comment.authorDisplayName.isNotEmpty
+                                  ? comment.authorDisplayName
+                                  : 'User',
+                            ),
                             subtitle: Text(comment.text),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
                                   icon: Icon(
-                                    comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                                    comment.isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
                                     size: 16,
                                     color: comment.isLiked ? Colors.red : null,
                                   ),
                                   onPressed: () {
                                     if (comment.isLiked) {
-                                      ref.read(commentsProvider(postId).notifier).unlikeComment(comment.id);
+                                      ref
+                                          .read(
+                                            commentsProvider(postId).notifier,
+                                          )
+                                          .unlikeComment(comment.id);
                                     } else {
-                                      ref.read(commentsProvider(postId).notifier).likeComment(comment.id);
+                                      ref
+                                          .read(
+                                            commentsProvider(postId).notifier,
+                                          )
+                                          .likeComment(comment.id);
                                     }
                                   },
                                 ),
                                 if (comment.likeCount > 0)
-                                  Text('${comment.likeCount}', style: const TextStyle(fontSize: 12)),
+                                  Text(
+                                    '${comment.likeCount}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                 IconButton(
                                   icon: const Icon(Icons.reply, size: 16),
                                   onPressed: () {
@@ -939,7 +1033,8 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                         },
                       );
                     },
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (err, st) => Center(child: Text('Error: $err')),
                   );
                 },
@@ -959,9 +1054,14 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                           decoration: const InputDecoration(
                             hintText: 'Add a comment...',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(24)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(24),
+                              ),
                             ),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                       ),
@@ -970,7 +1070,9 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                         icon: const Icon(Icons.send),
                         onPressed: () {
                           if (controller.text.trim().isNotEmpty) {
-                            ref.read(commentsProvider(postId).notifier).createComment(controller.text.trim());
+                            ref
+                                .read(commentsProvider(postId).notifier)
+                                .createComment(controller.text.trim());
                             controller.clear();
                             FocusScope.of(context).unfocus();
                           }
@@ -987,7 +1089,6 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
     },
   );
 }
-
 
 class _LikeActionWidget extends ConsumerStatefulWidget {
   final FeedPost post;
@@ -1030,9 +1131,14 @@ class _LikeActionWidgetState extends ConsumerState<_LikeActionWidget> {
     );
 
     if (isLiked) {
-      icon = icon.animate(key: const ValueKey('liked')).scale(duration: 250.ms, curve: Curves.easeOutBack).tint(color: Colors.red);
+      icon = icon
+          .animate(key: const ValueKey('liked'))
+          .scale(duration: 250.ms, curve: Curves.easeOutBack)
+          .tint(color: Colors.red);
     } else {
-      icon = icon.animate(key: const ValueKey('unliked')).scale(duration: 200.ms);
+      icon = icon
+          .animate(key: const ValueKey('unliked'))
+          .scale(duration: 200.ms);
     }
 
     return Column(

@@ -18,7 +18,7 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
-  
+
   RouterNotifier(this._ref) {
     _ref.listen(authStateProvider, (_, _) {
       notifyListeners();
@@ -28,7 +28,9 @@ class RouterNotifier extends ChangeNotifier {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
-  final isCachedAuth = Hive.box('settings').get('isAuthenticated', defaultValue: false);
+  final isCachedAuth = Hive.box(
+    'settings',
+  ).get('isAuthenticated', defaultValue: false);
 
   return GoRouter(
     initialLocation: isCachedAuth ? '/home' : '/splash',
@@ -47,7 +49,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isAuth = authState.isAuthenticated;
       final needsOnboard = authState.needsOnboarding;
-      final isEmailVerified = FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+      final isEmailVerified =
+          FirebaseAuth.instance.currentUser?.emailVerified ?? false;
 
       if (!isAuth) {
         if (isLoggingIn || isSignUp) return null;
@@ -85,10 +88,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ),
     routes: [
-      GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-      GoRoute(path: '/signup', builder: (context, state) => const SignUpScreen()),
-      GoRoute(path: '/verify-email', builder: (context, state) => const VerifyEmailScreen()),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => const VerifyEmailScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),

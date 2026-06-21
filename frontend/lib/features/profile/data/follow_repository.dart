@@ -43,7 +43,11 @@ class FollowRepository {
     if (currentUid == null) return Stream.value(false);
 
     final followId = '${currentUid}_$targetUid';
-    return _firestore.collection('follows').doc(followId).snapshots().map((doc) => doc.exists);
+    return _firestore
+        .collection('follows')
+        .doc(followId)
+        .snapshots()
+        .map((doc) => doc.exists);
   }
 
   Stream<int> getFollowersCount(String uid) {

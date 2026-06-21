@@ -42,7 +42,8 @@ class FeedPost {
       authorPhotoUrl: json['author_photo_url'] as String? ?? '',
       text: json['text'] as String? ?? '',
       imageUrl: json['image_url'] as String?,
-      mediaUrls: (json['media_urls'] as List<dynamic>?)
+      mediaUrls:
+          (json['media_urls'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -62,10 +63,10 @@ class FeedPost {
     DateTime? parsedDate;
     if (createdAtData != null) {
       if (createdAtData.runtimeType.toString() == 'Timestamp') {
-         // Hack to avoid importing cloud_firestore if we don't want to couple the model
-         parsedDate = createdAtData.toDate();
+        // Hack to avoid importing cloud_firestore if we don't want to couple the model
+        parsedDate = createdAtData.toDate();
       } else {
-         parsedDate = DateTime.tryParse(createdAtData.toString());
+        parsedDate = DateTime.tryParse(createdAtData.toString());
       }
     }
 
@@ -77,7 +78,8 @@ class FeedPost {
       authorPhotoUrl: data['author_photo_url'] as String? ?? '',
       text: data['text'] as String? ?? data['caption'] as String? ?? '',
       imageUrl: data['image_url'] as String?,
-      mediaUrls: (data['media_urls'] as List<dynamic>?)
+      mediaUrls:
+          (data['media_urls'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -92,7 +94,8 @@ class FeedPost {
 
   /// All displayable image/video URLs, falling back to image_url for backward compat.
   List<String> get displayUrls {
-    if (mediaUrls.isNotEmpty) return mediaUrls.where((e) => e.isNotEmpty).toList();
+    if (mediaUrls.isNotEmpty)
+      return mediaUrls.where((e) => e.isNotEmpty).toList();
     if (imageUrl != null && imageUrl!.isNotEmpty) return [imageUrl!];
     return [];
   }

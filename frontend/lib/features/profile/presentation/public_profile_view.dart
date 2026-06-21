@@ -11,10 +11,10 @@ import 'user_posts_provider.dart';
 
 final publicProfileProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, username) async {
-  final dio = ref.watch(dioProvider);
-  final response = await dio.get('/api/v1/users/$username');
-  return response.data['data'] as Map<String, dynamic>;
-});
+      final dio = ref.watch(dioProvider);
+      final response = await dio.get('/api/v1/users/$username');
+      return response.data['data'] as Map<String, dynamic>;
+    });
 
 class PublicProfileView extends ConsumerWidget {
   final String uid;
@@ -46,7 +46,8 @@ class PublicProfileView extends ConsumerWidget {
               const Text('Could not load profile'),
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () => ref.invalidate(publicProfileProvider(username)),
+                onPressed: () =>
+                    ref.invalidate(publicProfileProvider(username)),
                 child: const Text('Retry'),
               ),
             ],
@@ -120,11 +121,14 @@ class _ProfileBody extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).colorScheme.surfaceContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainer,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Theme.of(context).scaffoldBackgroundColor,
+                                color: Theme.of(
+                                  context,
+                                ).scaffoldBackgroundColor,
                                 width: 2,
                               ),
                             ),
@@ -143,16 +147,16 @@ class _ProfileBody extends ConsumerWidget {
                   Text(
                     displayName,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '@$username',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
 
                   if (bio.isNotEmpty) ...[
@@ -237,39 +241,32 @@ class _ProfileBody extends ConsumerWidget {
                 );
               }
               return SliverGrid(
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   mainAxisSpacing: 2,
                   crossAxisSpacing: 2,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final FeedPost post = posts[index];
-                    final thumb = post.displayUrls.isNotEmpty
-                        ? post.displayUrls.first
-                        : '';
-                    return Container(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      child: thumb.isNotEmpty
-                          ? FirebaseCachedNetworkImage(
-                              imageUrl: thumb,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) =>
-                                  const SizedBox.shrink(),
-                              errorWidget: (_, __, ___) => const Center(
-                                child: Icon(Icons.broken_image_outlined),
-                              ),
-                            )
-                          : const Center(
-                              child: Icon(Icons.article_outlined),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final FeedPost post = posts[index];
+                  final thumb = post.displayUrls.isNotEmpty
+                      ? post.displayUrls.first
+                      : '';
+                  return Container(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: thumb.isNotEmpty
+                        ? FirebaseCachedNetworkImage(
+                            imageUrl: thumb,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => const SizedBox.shrink(),
+                            errorWidget: (_, __, ___) => const Center(
+                              child: Icon(Icons.broken_image_outlined),
                             ),
-                    );
-                  },
-                  childCount: posts.length,
-                ),
+                          )
+                        : const Center(child: Icon(Icons.article_outlined)),
+                  );
+                }, childCount: posts.length),
               );
             },
           ),

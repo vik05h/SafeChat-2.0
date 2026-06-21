@@ -7,9 +7,10 @@ import '../data/post_repository.dart';
 /// Fetches the feed via the backend API so media URLs are signed before
 /// reaching the client. Reading directly from Firestore returns raw GCS URLs
 /// that the private bucket will reject with 403.
-final feedPostsProvider = AsyncNotifierProvider.family<FeedPostsNotifier, List<FeedPost>, String>(
-  (arg) => FeedPostsNotifier(arg),
-);
+final feedPostsProvider =
+    AsyncNotifierProvider.family<FeedPostsNotifier, List<FeedPost>, String>(
+      (arg) => FeedPostsNotifier(arg),
+    );
 
 class FeedPostsNotifier extends AsyncNotifier<List<FeedPost>> {
   final String arg;

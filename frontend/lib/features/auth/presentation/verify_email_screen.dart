@@ -63,9 +63,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       if (mounted) setState(() => canResendEmail = true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -74,15 +74,11 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
   Widget build(BuildContext context) {
     if (isEmailVerified) {
       // Just a fallback if it mounts briefly while true
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify Email'),
-      ),
+      appBar: AppBar(title: const Text('Verify Email')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -98,8 +94,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               Text(
                 'Verify your email',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
@@ -120,7 +116,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                   if (mounted) context.go('/login');
                 },
                 child: const Text('Cancel & Sign Out'),
-              )
+              ),
             ],
           ),
         ),

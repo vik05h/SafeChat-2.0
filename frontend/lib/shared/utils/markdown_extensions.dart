@@ -27,7 +27,9 @@ class HighlightBuilder extends MarkdownElementBuilder {
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Text(
         element.textContent,
-        style: preferredStyle?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+        style: preferredStyle?.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }

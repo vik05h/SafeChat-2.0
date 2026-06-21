@@ -30,17 +30,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      await ref.read(authControllerProvider.notifier).signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      await ref
+          .read(authControllerProvider.notifier)
+          .signInWithEmailAndPassword(email: email, password: password);
 
       if (mounted) {
         final authState = ref.read(authControllerProvider);
         if (authState.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(authState.error!)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(authState.error!)));
         } else if (authState.isAuthenticated) {
           if (authState.needsOnboarding) {
             context.go('/onboarding');
@@ -55,8 +54,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final brightness = ref.watch(brightnessProvider);
-    final isDark = brightness == ThemeMode.dark || 
-        (brightness == ThemeMode.system && MediaQuery.of(context).platformBrightness == Brightness.dark);
+    final isDark =
+        brightness == ThemeMode.dark ||
+        (brightness == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
 
     return Scaffold(
       appBar: AppBar(
@@ -74,186 +75,249 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(
-                    Icons.chat_bubble_rounded,
-                    size: 64,
-                    color: Colors.blueAccent, 
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Welcome Back',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Login to continue to SafeChat',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                  ),
-                  const SizedBox(height: 48),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      hintText: 'Enter your email',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      hintText: 'Enter your password',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to forgot password screen
-                      },
-                      child: const Text('Forgot Password?'),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final authState = ref.watch(authControllerProvider);
-                      final isLoading = authState.isLoading;
-                      return ElevatedButton(
-                        onPressed: isLoading ? null : _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text(
-                                'Sign In',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                            fontWeight: FontWeight.bold,
+                children:
+                    [
+                          const Icon(
+                            Icons.chat_bubble_rounded,
+                            size: 64,
+                            color: Colors.blueAccent,
                           ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2))),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Consumer(builder: (context, ref, child) {
-                    final authState = ref.watch(authControllerProvider);
-                    final isLoading = authState.isLoading;
-                    return OutlinedButton.icon(
-                      onPressed: isLoading ? null : () async {
-                        await ref.read(authControllerProvider.notifier).signInWithGoogle();
-                        if (mounted) {
-                          final newAuthState = ref.read(authControllerProvider);
-                          if (newAuthState.error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(authState.error!)),
-                            );
-                          } else if (newAuthState.isAuthenticated) {
-                            if (newAuthState.needsOnboarding) {
-                              context.go('/onboarding');
-                            } else {
-                              context.go('/home');
-                            }
-                          }
-                        }
-                      },
-                      icon: isLoading 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text(
-                              'G',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                          const SizedBox(height: 24),
+                          Text(
+                            'Welcome Back',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Login to continue to SafeChat',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
+                                ),
+                          ),
+                          const SizedBox(height: 48),
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
+                              hintText: 'Enter your email',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              hintText: 'Enter your password',
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
                             ),
-                      label: Text(
-                        isLoading ? 'Signing in...' : 'Sign in with Google',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Don't have an account?",
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          context.push('/signup');
-                        },
-                        child: const Text(
-                          'Sign Up',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ].animate(interval: 50.ms).fade(duration: 400.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOut),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                // TODO: Navigate to forgot password screen
+                              },
+                              child: const Text('Forgot Password?'),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final authState = ref.watch(
+                                authControllerProvider,
+                              );
+                              final isLoading = authState.isLoading;
+                              return ElevatedButton(
+                                onPressed: isLoading ? null : _handleLogin,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                ),
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Sign In',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.2),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Text(
+                                  'OR',
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.2),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final authState = ref.watch(
+                                authControllerProvider,
+                              );
+                              final isLoading = authState.isLoading;
+                              return OutlinedButton.icon(
+                                onPressed: isLoading
+                                    ? null
+                                    : () async {
+                                        await ref
+                                            .read(
+                                              authControllerProvider.notifier,
+                                            )
+                                            .signInWithGoogle();
+                                        if (mounted) {
+                                          final newAuthState = ref.read(
+                                            authControllerProvider,
+                                          );
+                                          if (newAuthState.error != null) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(authState.error!),
+                                              ),
+                                            );
+                                          } else if (newAuthState
+                                              .isAuthenticated) {
+                                            if (newAuthState.needsOnboarding) {
+                                              context.go('/onboarding');
+                                            } else {
+                                              context.go('/home');
+                                            }
+                                          }
+                                        }
+                                      },
+                                icon: isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'G',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                label: Text(
+                                  isLoading
+                                      ? 'Signing in...'
+                                      : 'Sign in with Google',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Don't have an account?",
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  context.push('/signup');
+                                },
+                                child: const Text(
+                                  'Sign Up',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ]
+                        .animate(interval: 50.ms)
+                        .fade(duration: 400.ms)
+                        .slideY(begin: 0.1, end: 0, curve: Curves.easeOut),
               ),
             ),
           ),

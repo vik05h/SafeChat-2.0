@@ -12,10 +12,11 @@ class AuthRepository {
     firebase.FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
     required this._apiService,
-  })  : _firebaseAuth = firebaseAuth ?? firebase.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+  }) : _firebaseAuth = firebaseAuth ?? firebase.FirebaseAuth.instance,
+       _googleSignIn = googleSignIn ?? GoogleSignIn();
 
-  Stream<firebase.User?> get authStateChanges => _firebaseAuth.authStateChanges();
+  Stream<firebase.User?> get authStateChanges =>
+      _firebaseAuth.authStateChanges();
 
   firebase.User? get currentUser => _firebaseAuth.currentUser;
 
@@ -38,7 +39,11 @@ class AuthRepository {
       final userProfile = UserProfile.fromJson(
         data['profile'] as Map<String, dynamic>,
       );
-      return AuthState(user: user, profile: userProfile, needsOnboarding: false);
+      return AuthState(
+        user: user,
+        profile: userProfile,
+        needsOnboarding: false,
+      );
     } catch (e) {
       return AuthState(
         user: user,
@@ -48,22 +53,22 @@ class AuthRepository {
     }
   }
 
-  Future<AuthState> signUpWithEmailAndPassword(String email, String password) async {
+  Future<AuthState> signUpWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       final user = credential.user;
       if (user != null && !user.emailVerified) {
         await user.sendEmailVerification();
       }
 
-      return AuthState(
-        user: user,
-        needsOnboarding: true,
-      );
+      return AuthState(user: user, needsOnboarding: true);
     } on firebase.FirebaseAuthException catch (e) {
       return AuthState(error: e.message ?? 'Sign up failed');
     } catch (e) {
@@ -71,13 +76,16 @@ class AuthRepository {
     }
   }
 
-  Future<AuthState> signInWithEmailAndPassword(String email, String password) async {
+  Future<AuthState> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       final user = credential.user;
       if (user == null) {
         return AuthState(error: 'User not found');
@@ -110,16 +118,19 @@ class AuthRepository {
       }
 
       // 2. Obtain the auth details
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 3. Create a new credential
-      final firebase.OAuthCredential credential = firebase.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+      final firebase.OAuthCredential credential =
+          firebase.GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
 
       // 4. Sign in to Firebase
-      final firebase.UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
+      final firebase.UserCredential userCredential = await _firebaseAuth
+          .signInWithCredential(credential);
       final firebase.User? user = userCredential.user;
 
       if (user == null) {
@@ -156,9 +167,9 @@ class AuthRepository {
 
       final response = await _apiService.onboard(request);
       final profileData = response.data['data']['profile'];
-      
+
       final userProfile = UserProfile.fromJson(profileData);
-      
+
       return AuthState(
         user: user,
         profile: userProfile,
@@ -194,9 +205,9 @@ class AuthRepository {
 
       final response = await _apiService.updateProfile(request);
       final profileData = response.data['data']['profile'];
-      
+
       final userProfile = UserProfile.fromJson(profileData);
-      
+
       return AuthState(
         user: user,
         profile: userProfile,

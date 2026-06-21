@@ -95,7 +95,8 @@ class _ImageCropSheetState extends State<ImageCropSheet> {
     setState(() => _saving = true);
     try {
       final boundary =
-          _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          _repaintKey.currentContext!.findRenderObject()
+              as RenderRepaintBoundary;
       final pixelRatio = (widget.targetWidth / frameWidth).clamp(1.0, 4.0);
       final image = await boundary.toImage(pixelRatio: pixelRatio.toDouble());
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -112,8 +113,9 @@ class _ImageCropSheetState extends State<ImageCropSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not crop image: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not crop image: $e')));
       }
     }
   }
@@ -142,17 +144,22 @@ class _ImageCropSheetState extends State<ImageCropSheet> {
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                 )
               : Builder(
                   builder: (context) => TextButton(
                     onPressed: () =>
                         _confirm(MediaQuery.of(context).size.width - 32),
-                    child: const Text('Done',
-                        style: TextStyle(
-                            color: Colors.lightBlueAccent,
-                            fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Colors.lightBlueAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
         ],
@@ -186,7 +193,8 @@ class _ImageCropSheetState extends State<ImageCropSheet> {
                             key: _repaintKey,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(
-                                  widget.circle ? frameW : 12),
+                                widget.circle ? frameW : 12,
+                              ),
                               child: SizedBox(
                                 width: frameW,
                                 height: frameH,
@@ -217,7 +225,9 @@ class _ImageCropSheetState extends State<ImageCropSheet> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                      color: Colors.white70, width: 2),
+                                    color: Colors.white70,
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                             ),
@@ -231,7 +241,10 @@ class _ImageCropSheetState extends State<ImageCropSheet> {
                           SizedBox(width: 8),
                           Text(
                             'Pinch to zoom · drag to reposition',
-                            style: TextStyle(color: Colors.white54, fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),

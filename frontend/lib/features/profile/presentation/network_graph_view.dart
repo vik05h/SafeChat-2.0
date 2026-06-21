@@ -58,22 +58,22 @@ class _GraphNode {
   });
 
   Map<String, dynamic> toCache() => {
-        'uid': uid,
-        'name': name,
-        'username': username,
-        'photo': photoUrl,
-        'rel': rel.index,
-        'parent': parentUid,
-      };
+    'uid': uid,
+    'name': name,
+    'username': username,
+    'photo': photoUrl,
+    'rel': rel.index,
+    'parent': parentUid,
+  };
 
   factory _GraphNode.fromCache(Map<String, dynamic> m) => _GraphNode(
-        uid: m['uid'] as String,
-        name: m['name'] as String? ?? 'User',
-        username: m['username'] as String? ?? '',
-        photoUrl: m['photo'] as String? ?? '',
-        rel: _Rel.values[m['rel'] as int? ?? 0],
-        parentUid: m['parent'] as String?,
-      );
+    uid: m['uid'] as String,
+    name: m['name'] as String? ?? 'User',
+    username: m['username'] as String? ?? '',
+    photoUrl: m['photo'] as String? ?? '',
+    rel: _Rel.values[m['rel'] as int? ?? 0],
+    parentUid: m['parent'] as String?,
+  );
 }
 
 class _GraphData {
@@ -184,23 +184,30 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
     final self = nodes.firstWhere(
       (n) => n.uid == uid,
       orElse: () => _GraphNode(
-          uid: uid, name: 'You', username: '', photoUrl: '', rel: _Rel.self),
+        uid: uid,
+        name: 'You',
+        username: '',
+        photoUrl: '',
+        rel: _Rel.self,
+      ),
     );
     final friendNodes = <_GraphNode>[
       _GraphNode(
-          uid: self.uid,
-          name: self.name,
-          username: self.username,
-          photoUrl: self.photoUrl,
-          rel: _Rel.self),
+        uid: self.uid,
+        name: self.name,
+        username: self.username,
+        photoUrl: self.photoUrl,
+        rel: _Rel.self,
+      ),
       for (final n in nodes.where((n) => n.rel == _Rel.mutual))
         _GraphNode(
-            uid: n.uid,
-            name: n.name,
-            username: n.username,
-            photoUrl: n.photoUrl,
-            rel: _Rel.mutual,
-            parentUid: uid),
+          uid: n.uid,
+          name: n.name,
+          username: n.username,
+          photoUrl: n.photoUrl,
+          rel: _Rel.mutual,
+          parentUid: uid,
+        ),
     ];
     _friends = _GraphData(friendNodes);
   }
@@ -213,10 +220,12 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
       fs.collection('follows').where('follower_uid', isEqualTo: uid).get(),
       fs.collection('follows').where('followee_uid', isEqualTo: uid).get(),
     ]);
-    final followingUids =
-        results[0].docs.map((d) => d.data()['followee_uid'] as String).toSet();
-    final followerUids =
-        results[1].docs.map((d) => d.data()['follower_uid'] as String).toSet();
+    final followingUids = results[0].docs
+        .map((d) => d.data()['followee_uid'] as String)
+        .toSet();
+    final followerUids = results[1].docs
+        .map((d) => d.data()['follower_uid'] as String)
+        .toSet();
     final mutualUids = followingUids.intersection(followerUids);
 
     _Rel relOf(String id) {
@@ -276,7 +285,10 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
       for (final doc in snap.docs) {
         final a = doc.data()['follower_uid'] as String?;
         final b = doc.data()['followee_uid'] as String?;
-        if (a != null && b != null && allSet.contains(a) && allSet.contains(b)) {
+        if (a != null &&
+            b != null &&
+            allSet.contains(a) &&
+            allSet.contains(b)) {
           link(a, b);
         }
       }
@@ -305,13 +317,14 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
     // relationships attach nearer the root and the layout stays deterministic.
     int relRank(String id) => _relRing(relOf(id));
     List<String> sortedNeighbours(String u) {
-      final ns = (undirected[u] ?? const <String>{})
-          .where(nodeByUid.containsKey)
-          .toList()
-        ..sort((a, b) {
-          final r = relRank(a).compareTo(relRank(b));
-          return r != 0 ? r : a.compareTo(b);
-        });
+      final ns =
+          (undirected[u] ?? const <String>{})
+              .where(nodeByUid.containsKey)
+              .toList()
+            ..sort((a, b) {
+              final r = relRank(a).compareTo(relRank(b));
+              return r != 0 ? r : a.compareTo(b);
+            });
       return ns;
     }
 
@@ -368,45 +381,51 @@ class _NetworkGraphViewState extends State<NetworkGraphView> {
             ),
           ],
           bottom: const TabBar(
-            tabs: [Tab(text: 'Network'), Tab(text: 'Friends')],
+            tabs: [
+              Tab(text: 'Network'),
+              Tab(text: 'Friends'),
+            ],
           ),
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? _ErrorState(message: _error!, onRetry: () {
-                    setState(() {
-                      _isLoading = true;
-                      _error = null;
-                    });
-                    _load(forceRefresh: true);
-                  })
-                : Column(
-                    children: [
-                      const _Legend(),
-                      Expanded(
-                        child: TabBarView(
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            _GraphCanvas(
-                              key: const ValueKey('network'),
-                              data: _network,
-                              selfUid: _currentUid,
-                              showEdges: _network.nodes.length <= _edgeThreshold,
-                              emptyMessage: 'No network connections yet.',
-                            ),
-                            _GraphCanvas(
-                              key: const ValueKey('friends'),
-                              data: _friends,
-                              selfUid: _currentUid,
-                              showEdges: _friends.nodes.length <= _edgeThreshold,
-                              emptyMessage: 'No mutual friends yet.',
-                            ),
-                          ],
+            ? _ErrorState(
+                message: _error!,
+                onRetry: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _load(forceRefresh: true);
+                },
+              )
+            : Column(
+                children: [
+                  const _Legend(),
+                  Expanded(
+                    child: TabBarView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _GraphCanvas(
+                          key: const ValueKey('network'),
+                          data: _network,
+                          selfUid: _currentUid,
+                          showEdges: _network.nodes.length <= _edgeThreshold,
+                          emptyMessage: 'No network connections yet.',
                         ),
-                      ),
-                    ],
+                        _GraphCanvas(
+                          key: const ValueKey('friends'),
+                          data: _friends,
+                          selfUid: _currentUid,
+                          showEdges: _friends.nodes.length <= _edgeThreshold,
+                          emptyMessage: 'No mutual friends yet.',
+                        ),
+                      ],
+                    ),
                   ),
+                ],
+              ),
       ),
     );
   }
@@ -435,7 +454,8 @@ class _GraphCanvas extends StatefulWidget {
 class _GraphCanvasState extends State<_GraphCanvas> {
   static const double _baseRadius = 140;
   static const double _ringGap = 130;
-  static const double _nodeSpacing = 104; // min centre-to-centre, prevents overlap
+  static const double _nodeSpacing =
+      104; // min centre-to-centre, prevents overlap
   static const double _margin = 110;
   static const double _nodeBox = 84; // node widget footprint (for Positioned)
 
@@ -500,8 +520,9 @@ class _GraphCanvasState extends State<_GraphCanvas> {
     if (_didCenter) return;
     _didCenter = true;
     final viewport = constraints.biggest;
-    final scale =
-        (viewport.shortestSide / _canvasSize).clamp(0.3, 1.0).toDouble();
+    final scale = (viewport.shortestSide / _canvasSize)
+        .clamp(0.3, 1.0)
+        .toDouble();
     final tx = viewport.width / 2 - (_canvasSize / 2) * scale;
     final ty = viewport.height / 2 - (_canvasSize / 2) * scale;
     // Scale + translate matrix built directly (avoids deprecated translate/scale).
@@ -523,8 +544,10 @@ class _GraphCanvasState extends State<_GraphCanvas> {
           children: [
             Icon(Icons.hub_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text(widget.emptyMessage,
-                style: TextStyle(color: Colors.grey.shade500)),
+            Text(
+              widget.emptyMessage,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
           ],
         ),
       );
@@ -618,10 +641,8 @@ class _NodeWidget extends StatelessWidget {
     if (isSelf) return; // tapping yourself does nothing
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PublicProfileView(
-          uid: node.uid,
-          username: node.username,
-        ),
+        builder: (_) =>
+            PublicProfileView(uid: node.uid, username: node.username),
       ),
     );
   }
@@ -650,8 +671,9 @@ class _NodeWidget extends StatelessWidget {
             ),
             child: CircleAvatar(
               radius: radius,
-              backgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
               child: ClipOval(
                 child: node.photoUrl.isNotEmpty
                     ? CachedNetworkImage(
@@ -700,8 +722,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_rounded,
-                size: 48, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

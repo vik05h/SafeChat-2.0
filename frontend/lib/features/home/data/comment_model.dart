@@ -37,14 +37,13 @@ class Comment {
       parentCommentId: json['parent_comment_id'] as String?,
       likeCount: json['like_count'] as int? ?? 0,
       isLiked: json['is_liked'] as bool? ?? false,
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())
+          : null,
     );
   }
 
-  Comment copyWith({
-    int? likeCount,
-    bool? isLiked,
-  }) {
+  Comment copyWith({int? likeCount, bool? isLiked}) {
     return Comment(
       id: id,
       postId: postId,

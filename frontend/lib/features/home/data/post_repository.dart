@@ -59,7 +59,8 @@ class PostRepository {
       // Derive the public GCS URL from the signed URL's host + bucket segment.
       final uri = Uri.parse(uploadUrl);
       final bucketName = uri.pathSegments.first;
-      final publicUrl = 'https://storage.googleapis.com/$bucketName/$objectPath';
+      final publicUrl =
+          'https://storage.googleapis.com/$bucketName/$objectPath';
       mediaUrls.add(publicUrl);
     }
 
@@ -77,7 +78,10 @@ class PostRepository {
   }
 
   /// Fetch the public feed (approved posts). Type can be 'global' or 'following'.
-  Future<List<FeedPost>> getFeed({int limit = 20, String type = 'following'}) async {
+  Future<List<FeedPost>> getFeed({
+    int limit = 20,
+    String type = 'following',
+  }) async {
     final maps = await _apiService.getFeed(limit: limit, type: type);
     return maps.map(FeedPost.fromJson).toList();
   }
@@ -106,8 +110,16 @@ class PostRepository {
     return maps.map(Comment.fromJson).toList();
   }
 
-  Future<Comment> createComment(String postId, String text, {String? parentCommentId}) async {
-    final map = await _apiService.createComment(postId, text, parentCommentId: parentCommentId);
+  Future<Comment> createComment(
+    String postId,
+    String text, {
+    String? parentCommentId,
+  }) async {
+    final map = await _apiService.createComment(
+      postId,
+      text,
+      parentCommentId: parentCommentId,
+    );
     return Comment.fromJson(map);
   }
 

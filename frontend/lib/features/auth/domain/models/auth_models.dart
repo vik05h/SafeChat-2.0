@@ -35,7 +35,8 @@ class UserProfile {
     required this.updatedAt,
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) => _$UserProfileFromJson(json);
+  factory UserProfile.fromJson(Map<String, dynamic> json) =>
+      _$UserProfileFromJson(json);
   Map<String, dynamic> toJson() => _$UserProfileToJson(this);
 }
 
@@ -57,7 +58,8 @@ class OnboardRequest {
     this.bio,
   });
 
-  factory OnboardRequest.fromJson(Map<String, dynamic> json) => _$OnboardRequestFromJson(json);
+  factory OnboardRequest.fromJson(Map<String, dynamic> json) =>
+      _$OnboardRequestFromJson(json);
   Map<String, dynamic> toJson() => _$OnboardRequestToJson(this);
 }
 
@@ -80,7 +82,8 @@ class UpdateProfileRequest {
     this.backgroundUrl,
   });
 
-  factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) => _$UpdateProfileRequestFromJson(json);
+  factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpdateProfileRequestFromJson(json);
   Map<String, dynamic> toJson() => _$UpdateProfileRequestToJson(this);
 }
 
@@ -97,7 +100,8 @@ class AuthMeResponse {
     required this.needsOnboarding,
   });
 
-  factory AuthMeResponse.fromJson(Map<String, dynamic> json) => _$AuthMeResponseFromJson(json);
+  factory AuthMeResponse.fromJson(Map<String, dynamic> json) =>
+      _$AuthMeResponseFromJson(json);
   Map<String, dynamic> toJson() => _$AuthMeResponseToJson(this);
 }
 

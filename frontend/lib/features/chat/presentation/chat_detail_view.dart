@@ -34,23 +34,20 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
     if (text.isEmpty) return;
 
     _messageController.clear();
-    
+
     // According to ARCHITECTURE.md, all writes go through backend.
     final dio = ref.read(dioProvider);
-    
+
     try {
       await dio.post(
         '/messages',
-        data: {
-          'chat_id': widget.chatId,
-          'text': text,
-        },
+        data: {'chat_id': widget.chatId, 'text': text},
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     }
   }
@@ -59,12 +56,11 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    if (uid == null) return const Scaffold(body: Center(child: Text('Not logged in')));
+    if (uid == null)
+      return const Scaffold(body: Center(child: Text('Not logged in')));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.otherUserName),
-      ),
+      appBar: AppBar(title: Text(widget.otherUserName)),
       body: Column(
         children: [
           Expanded(
@@ -94,24 +90,44 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
                     final isMe = data['author_uid'] == uid;
                     final text = data['text'] ?? '';
                     final status = data['status'] ?? 'sent';
-                    
+
                     if (status == 'blocked' && !isMe) {
                       // Do not show blocked messages to the recipient
                       return const SizedBox.shrink();
                     }
 
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 8, top: 8, left: 16, right: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        margin: const EdgeInsets.only(
+                          bottom: 8,
+                          top: 8,
+                          left: 16,
+                          right: 16,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: status == 'blocked' 
-                              ? Colors.red.shade100 
-                              : (isMe ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.surfaceContainerHighest),
+                          color: status == 'blocked'
+                              ? Colors.red.shade100
+                              : (isMe
+                                    ? Theme.of(
+                                        context,
+                                      ).colorScheme.primaryContainer
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest),
                           borderRadius: BorderRadius.circular(16).copyWith(
-                            bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(16),
-                            bottomLeft: !isMe ? const Radius.circular(0) : const Radius.circular(16),
+                            bottomRight: isMe
+                                ? const Radius.circular(0)
+                                : const Radius.circular(16),
+                            bottomLeft: !isMe
+                                ? const Radius.circular(0)
+                                : const Radius.circular(16),
                           ),
                         ),
                         child: Column(
@@ -130,7 +146,10 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
                                 padding: EdgeInsets.only(top: 4.0),
                                 child: Text(
                                   'Message Blocked',
-                                  style: TextStyle(fontSize: 10, color: Colors.red),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ),
                           ],
@@ -154,7 +173,9 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),

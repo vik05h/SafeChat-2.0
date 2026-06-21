@@ -27,7 +27,9 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   void initState() {
     super.initState();
     final profile = ref.read(authStateProvider).profile;
-    _displayNameController = TextEditingController(text: profile?.displayName ?? '');
+    _displayNameController = TextEditingController(
+      text: profile?.displayName ?? '',
+    );
     _usernameController = TextEditingController(text: profile?.username ?? '');
     _bioController = TextEditingController(text: profile?.bio ?? '');
   }
@@ -42,7 +44,11 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
     if (pickedFile == null || !mounted) return;
     // Bake a square crop so the avatar is framed identically everywhere it shows.
     final cropped = await Navigator.of(context).push<File>(
@@ -61,7 +67,11 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
 
   Future<void> _pickBgImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, maxHeight: 1080);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+    );
     if (pickedFile == null || !mounted) return;
     // Bake a 2:1 banner crop to match the profile cover's display aspect.
     final cropped = await Navigator.of(context).push<File>(
@@ -80,13 +90,25 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    final profile = ref.read(authStateProvider).profile;
-    final String? updatedUsername = _usernameController.text.trim() != profile?.username ? _usernameController.text.trim() : null;
-    final String? updatedDisplayName = _displayNameController.text.trim() != profile?.displayName ? _displayNameController.text.trim() : null;
-    final String? updatedBio = _bioController.text.trim() != profile?.bio ? _bioController.text.trim() : null;
 
-    if (updatedUsername == null && updatedDisplayName == null && updatedBio == null && _selectedImage == null && _selectedBgImage == null) {
+    final profile = ref.read(authStateProvider).profile;
+    final String? updatedUsername =
+        _usernameController.text.trim() != profile?.username
+        ? _usernameController.text.trim()
+        : null;
+    final String? updatedDisplayName =
+        _displayNameController.text.trim() != profile?.displayName
+        ? _displayNameController.text.trim()
+        : null;
+    final String? updatedBio = _bioController.text.trim() != profile?.bio
+        ? _bioController.text.trim()
+        : null;
+
+    if (updatedUsername == null &&
+        updatedDisplayName == null &&
+        updatedBio == null &&
+        _selectedImage == null &&
+        _selectedBgImage == null) {
       if (mounted) Navigator.pop(context);
       return;
     }
@@ -95,13 +117,15 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       setState(() => _isUploading = true);
       String? photoUrl;
       String? backgroundUrl;
-      
+
       final apiService = ref.read(postApiServiceProvider);
 
       if (_selectedImage != null) {
         final file = _selectedImage!;
         final lower = file.path.toLowerCase();
-        final contentType = lower.endsWith('.png') ? 'image/png' : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+        final contentType = lower.endsWith('.png')
+            ? 'image/png'
+            : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
 
         final signResponse = await apiService.signUpload(
           contentType: contentType,
@@ -126,7 +150,9 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       if (_selectedBgImage != null) {
         final file = _selectedBgImage!;
         final lower = file.path.toLowerCase();
-        final contentType = lower.endsWith('.png') ? 'image/png' : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+        final contentType = lower.endsWith('.png')
+            ? 'image/png'
+            : (lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
 
         final signResponse = await apiService.signUpload(
           contentType: contentType,
@@ -145,28 +171,38 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
 
         final uri = Uri.parse(uploadUrl);
         final bucketName = uri.pathSegments.first;
-        backgroundUrl = 'https://storage.googleapis.com/$bucketName/$objectPath';
+        backgroundUrl =
+            'https://storage.googleapis.com/$bucketName/$objectPath';
       }
 
-      await ref.read(authControllerProvider.notifier).updateProfile(
-        displayName: updatedDisplayName,
-        username: updatedUsername,
-        bio: updatedBio,
-        photoUrl: photoUrl,
-        backgroundUrl: backgroundUrl,
-      );
-      
+      await ref
+          .read(authControllerProvider.notifier)
+          .updateProfile(
+            displayName: updatedDisplayName,
+            username: updatedUsername,
+            bio: updatedBio,
+            photoUrl: photoUrl,
+            backgroundUrl: backgroundUrl,
+          );
+
       if (mounted) {
         final error = ref.read(authStateProvider).error;
         if (error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error)));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully')),
+          );
           Navigator.pop(context);
         }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) {
         setState(() => _isUploading = false);
@@ -187,7 +223,11 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
           TextButton(
             onPressed: isBusy ? null : _saveProfile,
             child: isBusy
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Save'),
           ),
         ],
@@ -210,22 +250,47 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                           height: 120,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(16),
                             image: _selectedBgImage != null
                                 ? DecorationImage(
                                     image: FileImage(_selectedBgImage!),
                                     fit: BoxFit.cover,
                                   )
-                                : (ref.read(authStateProvider).profile?.backgroundUrl != null
-                                    ? DecorationImage(
-                                        image: FirebaseImageProviderWrapper.getProvider(ref, ref.read(authStateProvider).profile!.backgroundUrl!) ?? const NetworkImage(''),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null),
+                                : (ref
+                                              .read(authStateProvider)
+                                              .profile
+                                              ?.backgroundUrl !=
+                                          null
+                                      ? DecorationImage(
+                                          image:
+                                              FirebaseImageProviderWrapper.getProvider(
+                                                ref,
+                                                ref
+                                                    .read(authStateProvider)
+                                                    .profile!
+                                                    .backgroundUrl!,
+                                              ) ??
+                                              const NetworkImage(''),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null),
                           ),
-                          child: _selectedBgImage == null && ref.read(authStateProvider).profile?.backgroundUrl == null
-                              ? const Center(child: Icon(Icons.add_photo_alternate, size: 40))
+                          child:
+                              _selectedBgImage == null &&
+                                  ref
+                                          .read(authStateProvider)
+                                          .profile
+                                          ?.backgroundUrl ==
+                                      null
+                              ? const Center(
+                                  child: Icon(
+                                    Icons.add_photo_alternate,
+                                    size: 40,
+                                  ),
+                                )
                               : const Align(
                                   alignment: Alignment.bottomRight,
                                   child: Padding(
@@ -233,7 +298,11 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                                     child: CircleAvatar(
                                       radius: 16,
                                       backgroundColor: Colors.black54,
-                                      child: Icon(Icons.edit, size: 16, color: Colors.white),
+                                      child: Icon(
+                                        Icons.edit,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -247,10 +316,26 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                             radius: 50,
                             backgroundImage: _selectedImage != null
                                 ? FileImage(_selectedImage!) as ImageProvider
-                                : (ref.read(authStateProvider).profile?.photoUrl != null
-                                    ? FirebaseImageProviderWrapper.getProvider(ref, ref.read(authStateProvider).profile!.photoUrl!)
-                                    : null),
-                            child: _selectedImage == null && ref.read(authStateProvider).profile?.photoUrl == null
+                                : (ref
+                                              .read(authStateProvider)
+                                              .profile
+                                              ?.photoUrl !=
+                                          null
+                                      ? FirebaseImageProviderWrapper.getProvider(
+                                          ref,
+                                          ref
+                                              .read(authStateProvider)
+                                              .profile!
+                                              .photoUrl!,
+                                        )
+                                      : null),
+                            child:
+                                _selectedImage == null &&
+                                    ref
+                                            .read(authStateProvider)
+                                            .profile
+                                            ?.photoUrl ==
+                                        null
                                 ? const Icon(Icons.person, size: 50)
                                 : null,
                           ),
@@ -261,11 +346,15 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                               onTap: _pickImage,
                               child: CircleAvatar(
                                 radius: 18,
-                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
                                 child: Icon(
                                   Icons.camera_alt,
                                   size: 20,
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
                                 ),
                               ),
                             ),
@@ -282,7 +371,8 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                     labelText: 'Display Name',
                     hintText: 'What should we call you?',
                   ),
-                  validator: (v) => v!.trim().isEmpty ? 'Display name is required' : null,
+                  validator: (v) =>
+                      v!.trim().isEmpty ? 'Display name is required' : null,
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
@@ -293,7 +383,8 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                     prefixText: '@',
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Username is required';
+                    if (v == null || v.trim().isEmpty)
+                      return 'Username is required';
                     if (!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(v.trim())) {
                       return '3-30 chars, lowercase, numbers, underscores only';
                     }

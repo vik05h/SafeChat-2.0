@@ -12,7 +12,8 @@ class ChatListView extends ConsumerStatefulWidget {
   ConsumerState<ChatListView> createState() => _ChatListViewState();
 }
 
-class _ChatListViewState extends ConsumerState<ChatListView> with SingleTickerProviderStateMixin {
+class _ChatListViewState extends ConsumerState<ChatListView>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -30,11 +31,15 @@ class _ChatListViewState extends ConsumerState<ChatListView> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const Scaffold(body: Center(child: Text('Not logged in')));
+    if (uid == null)
+      return const Scaffold(body: Center(child: Text('Not logged in')));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Messages',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -70,23 +75,29 @@ class _ChatListViewState extends ConsumerState<ChatListView> with SingleTickerPr
           stream: query.snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return Center(child: Text('Error loading chats: ${snapshot.error}'));
+              return Center(
+                child: Text('Error loading chats: ${snapshot.error}'),
+              );
             }
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
             final allChats = snapshot.data?.docs ?? [];
-            
+
             // Filter chats based on whether the other participant is a mutual friend or not
             final filteredChats = allChats.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              final participants = List<String>.from(data['participants'] ?? []);
+              final participants = List<String>.from(
+                data['participants'] ?? [],
+              );
               participants.remove(uid);
-              final otherUid = participants.isNotEmpty ? participants.first : null;
-              
+              final otherUid = participants.isNotEmpty
+                  ? participants.first
+                  : null;
+
               if (otherUid == null) return false;
-              
+
               final isMutual = friendsList.contains(otherUid);
               return isFriends ? isMutual : !isMutual;
             }).toList();
@@ -94,7 +105,9 @@ class _ChatListViewState extends ConsumerState<ChatListView> with SingleTickerPr
             if (filteredChats.isEmpty) {
               return Center(
                 child: Text(
-                  isFriends ? 'No friend conversations yet.' : 'No message requests.',
+                  isFriends
+                      ? 'No friend conversations yet.'
+                      : 'No message requests.',
                   style: const TextStyle(color: Colors.grey),
                 ),
               );
@@ -105,18 +118,27 @@ class _ChatListViewState extends ConsumerState<ChatListView> with SingleTickerPr
               itemBuilder: (context, index) {
                 final doc = filteredChats[index];
                 final data = doc.data() as Map<String, dynamic>;
-                
-                final participants = List<String>.from(data['participants'] ?? []);
+
+                final participants = List<String>.from(
+                  data['participants'] ?? [],
+                );
                 participants.remove(uid);
-                final otherUid = participants.isNotEmpty ? participants.first : '';
+                final otherUid = participants.isNotEmpty
+                    ? participants.first
+                    : '';
                 final lastMessage = data['last_message'] as String? ?? '';
                 final unreadCount = data['unread_count']?[uid] ?? 0;
 
                 return FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance.collection('users').doc(otherUid).get(),
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(otherUid)
+                      .get(),
                   builder: (context, userSnap) {
-                    if (!userSnap.hasData) return const ListTile(title: Text('Loading...'));
-                    final userData = userSnap.data!.data() as Map<String, dynamic>?;
+                    if (!userSnap.hasData)
+                      return const ListTile(title: Text('Loading...'));
+                    final userData =
+                        userSnap.data!.data() as Map<String, dynamic>?;
                     if (userData == null) return const SizedBox();
 
                     final displayName = userData['display_name'] ?? 'User';
@@ -124,18 +146,32 @@ class _ChatListViewState extends ConsumerState<ChatListView> with SingleTickerPr
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-                        child: photoUrl == null ? const Icon(Icons.person) : null,
+                        backgroundImage: photoUrl != null
+                            ? NetworkImage(photoUrl)
+                            : null,
+                        child: photoUrl == null
+                            ? const Icon(Icons.person)
+                            : null,
                       ),
-                      title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      title: Text(
+                        displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        lastMessage,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       trailing: unreadCount > 0
                           ? CircleAvatar(
                               radius: 12,
                               backgroundColor: Colors.blueAccent,
                               child: Text(
                                 unreadCount.toString(),
-                                style: const TextStyle(fontSize: 12, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
                               ),
                             )
                           : null,

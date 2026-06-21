@@ -15,10 +15,13 @@ class AnimatedAmbientBackground extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AnimatedAmbientBackground> createState() => _AnimatedAmbientBackgroundState();
+  ConsumerState<AnimatedAmbientBackground> createState() =>
+      _AnimatedAmbientBackgroundState();
 }
 
-class _AnimatedAmbientBackgroundState extends ConsumerState<AnimatedAmbientBackground> with SingleTickerProviderStateMixin {
+class _AnimatedAmbientBackgroundState
+    extends ConsumerState<AnimatedAmbientBackground>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -41,11 +44,9 @@ class _AnimatedAmbientBackgroundState extends ConsumerState<AnimatedAmbientBackg
       animation: _controller,
       builder: (context, child) {
         // Pulse scales up and down smoothly
-        final scale = 1.0 + 0.15 * math.sin(_controller.value * math.pi * 2).abs();
-        return Transform.scale(
-          scale: scale,
-          child: child,
-        );
+        final scale =
+            1.0 + 0.15 * math.sin(_controller.value * math.pi * 2).abs();
+        return Transform.scale(scale: scale, child: child);
       },
       child: baseImage,
     );
@@ -116,10 +117,7 @@ class _AnimatedAmbientBackgroundState extends ConsumerState<AnimatedAmbientBackg
     final baseImage = RepaintBoundary(
       child: ImageFiltered(
         imageFilter: dart_ui.ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-        child: Image.network(
-          widget.imageUrl,
-          fit: BoxFit.cover,
-        ),
+        child: Image.network(widget.imageUrl, fit: BoxFit.cover),
       ),
     );
 

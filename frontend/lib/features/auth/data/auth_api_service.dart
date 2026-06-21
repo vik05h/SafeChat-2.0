@@ -16,5 +16,7 @@ abstract class AuthApiService {
   Future<HttpResponse<dynamic>> onboard(@Body() OnboardRequest request);
 
   @PATCH("/api/v1/auth/profile")
-  Future<HttpResponse<dynamic>> updateProfile(@Body() UpdateProfileRequest request);
+  Future<HttpResponse<dynamic>> updateProfile(
+    @Body() UpdateProfileRequest request,
+  );
 }

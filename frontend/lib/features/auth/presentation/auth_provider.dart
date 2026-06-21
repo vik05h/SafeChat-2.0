@@ -18,7 +18,9 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
-    final isCachedAuth = Hive.box('settings').get('isAuthenticated', defaultValue: false);
+    final isCachedAuth = Hive.box(
+      'settings',
+    ).get('isAuthenticated', defaultValue: false);
     if (isCachedAuth) {
       // Trigger background verification but start as loading to skip splash & redirect
       Future.microtask(() => checkAuthStatus());
@@ -31,14 +33,14 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.checkAuthStatus();
-    
+
     // Cache auth state
     if (result.isAuthenticated && !result.needsOnboarding) {
       Hive.box('settings').put('isAuthenticated', true);
     } else {
       Hive.box('settings').put('isAuthenticated', false);
     }
-    
+
     state = result.copyWith(isLoading: false);
   }
 
@@ -59,24 +61,24 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.signInWithEmailAndPassword(email, password);
-    
+
     if (result.isAuthenticated && !result.needsOnboarding) {
       Hive.box('settings').put('isAuthenticated', true);
     }
-    
+
     state = result.copyWith(isLoading: false);
   }
 
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.signInWithGoogle();
-    
+
     if (result.isAuthenticated && !result.needsOnboarding) {
       Hive.box('settings').put('isAuthenticated', true);
     }
-    
+
     state = result.copyWith(isLoading: false);
   }
 
@@ -88,7 +90,7 @@ class AuthController extends Notifier<AuthState> {
     String? bio,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.onboard(
       username: username,
@@ -97,11 +99,11 @@ class AuthController extends Notifier<AuthState> {
       dob: dob,
       bio: bio,
     );
-    
+
     if (result.isAuthenticated && !result.needsOnboarding) {
       Hive.box('settings').put('isAuthenticated', true);
     }
-    
+
     state = result.copyWith(isLoading: false);
   }
 

@@ -96,22 +96,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
 
     try {
-      await ref.read(authControllerProvider.notifier).onboard(
+      await ref
+          .read(authControllerProvider.notifier)
+          .onboard(
             username: _usernameController.text.trim().toLowerCase(),
             displayName: _displayNameController.text.trim(),
-            phoneNumber: _completePhoneNumber.isEmpty ? null : _completePhoneNumber,
+            phoneNumber: _completePhoneNumber.isEmpty
+                ? null
+                : _completePhoneNumber,
             dob: _dobController.text.trim(),
             bio: _bioController.text.trim(),
           );
-      
+
       final authState = ref.read(authStateProvider);
       if (mounted) Navigator.of(context).pop(); // dismiss loading
 
       if (authState.error != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(authState.error!)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(authState.error!)));
         }
       } else {
         if (mounted) context.go('/home');
@@ -119,9 +123,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       if (mounted) Navigator.of(context).pop(); // dismiss loading
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -147,9 +151,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   onPageChanged: (idx) => setState(() => _currentPage = idx),
                   children: [
-                    _buildStep1(isDark).animate().fade().slideX(begin: 0.1, curve: Curves.easeOutBack),
-                    _buildStep2(isDark).animate().fade().slideX(begin: 0.1, curve: Curves.easeOutBack),
-                    _buildStep3(isDark).animate().fade().slideX(begin: 0.1, curve: Curves.easeOutBack),
+                    _buildStep1(isDark).animate().fade().slideX(
+                      begin: 0.1,
+                      curve: Curves.easeOutBack,
+                    ),
+                    _buildStep2(isDark).animate().fade().slideX(
+                      begin: 0.1,
+                      curve: Curves.easeOutBack,
+                    ),
+                    _buildStep3(isDark).animate().fade().slideX(
+                      begin: 0.1,
+                      curve: Curves.easeOutBack,
+                    ),
                   ],
                 ),
               ),
@@ -172,8 +185,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 4.0),
               height: 8,
               decoration: BoxDecoration(
-                color: index <= _currentPage 
-                    ? AppColors.m3SeedColor 
+                color: index <= _currentPage
+                    ? AppColors.m3SeedColor
                     : Colors.grey.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
@@ -194,9 +207,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           Text(
             "Let's get to know you!",
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
           ).animate().fadeIn(delay: 200.ms).moveY(begin: -20),
           const SizedBox(height: 40),
           Center(
@@ -207,17 +220,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 final initial = text.isNotEmpty ? text[0].toUpperCase() : '?';
                 return CircleAvatar(
                   radius: 60,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                  child: user?.photoURL == null 
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  backgroundImage: user?.photoURL != null
+                      ? NetworkImage(user!.photoURL!)
+                      : null,
+                  child: user?.photoURL == null
                       ? Text(
-                          initial, 
+                          initial,
                           style: TextStyle(
-                            fontSize: 48, 
+                            fontSize: 48,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
                           ),
-                        ) 
+                        )
                       : null,
                 );
               },
@@ -246,9 +265,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           Text(
             "Secure your account",
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 40),
           TextFormField(
@@ -267,17 +286,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             },
           ),
           const SizedBox(height: 24),
-            IntlPhoneField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number (Optional)',
-                hintText: '1234567890',
-              ),
-              initialCountryCode: 'IN', // Default to India based on your example
-              onChanged: (phone) {
-                _completePhoneNumber = phone.completeNumber;
-              },
+          IntlPhoneField(
+            controller: _phoneController,
+            decoration: const InputDecoration(
+              labelText: 'Phone Number (Optional)',
+              hintText: '1234567890',
             ),
+            initialCountryCode: 'IN', // Default to India based on your example
+            onChanged: (phone) {
+              _completePhoneNumber = phone.completeNumber;
+            },
+          ),
         ],
       ),
     );
@@ -292,9 +311,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           Text(
             "Final touches ✨",
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 40),
           TextFormField(
@@ -303,22 +322,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onTap: () async {
               final date = await showDatePicker(
                 context: context,
-                initialDate: DateTime.now().subtract(const Duration(days: 365 * 13)), // Default to 13 years old
+                initialDate: DateTime.now().subtract(
+                  const Duration(days: 365 * 13),
+                ), // Default to 13 years old
                 firstDate: DateTime(1900),
                 lastDate: DateTime.now(),
                 builder: (context, child) {
                   return Theme(
                     data: Theme.of(context).copyWith(
-                      colorScheme: Theme.of(context).colorScheme.copyWith(
-                        primary: AppColors.m3SeedColor,
-                      ),
+                      colorScheme: Theme.of(
+                        context,
+                      ).colorScheme.copyWith(primary: AppColors.m3SeedColor),
                     ),
                     child: child!,
                   );
                 },
               );
               if (date != null) {
-                _dobController.text = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+                _dobController.text =
+                    "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
               }
             },
             decoration: const InputDecoration(
@@ -365,19 +387,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ? null
                   : () async {
                       try {
-                        await firebase.FirebaseAuth.instance.currentUser?.delete();
+                        await firebase.FirebaseAuth.instance.currentUser
+                            ?.delete();
                         if (mounted) context.go('/signup');
                       } on firebase.FirebaseAuthException catch (e) {
                         if (e.code == 'requires-recent-login') {
-                           // If it fails due to old login, just sign them out instead so they can log back in or use a different account
-                           await ref.read(authControllerProvider.notifier).signOut();
-                           if (mounted) context.go('/signup');
+                          // If it fails due to old login, just sign them out instead so they can log back in or use a different account
+                          await ref
+                              .read(authControllerProvider.notifier)
+                              .signOut();
+                          if (mounted) context.go('/signup');
                         } else {
-                           if (mounted) {
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               SnackBar(content: Text('Failed to cancel onboarding: ${e.message}')),
-                             );
-                           }
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Failed to cancel onboarding: ${e.message}',
+                                ),
+                              ),
+                            );
+                          }
                         }
                       } catch (e) {
                         if (mounted) {
@@ -389,7 +418,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     },
               child: const Text('Cancel & Restart'),
             ),
-          
+
           FilledButton(
             onPressed: isLoading ? null : _nextPage,
             style: FilledButton.styleFrom(
@@ -399,7 +428,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : Text(_currentPage == _totalPages - 1 ? 'Finish' : 'Next'),
           ),

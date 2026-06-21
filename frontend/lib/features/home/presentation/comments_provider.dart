@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/comment_model.dart';
 import '../data/post_repository.dart';
 
-final commentsProvider = AsyncNotifierProvider.family<CommentsNotifier, List<Comment>, String>(
-  (arg) => CommentsNotifier(arg),
-);
+final commentsProvider =
+    AsyncNotifierProvider.family<CommentsNotifier, List<Comment>, String>(
+      (arg) => CommentsNotifier(arg),
+    );
 
 class CommentsNotifier extends AsyncNotifier<List<Comment>> {
   final String arg;
@@ -21,8 +22,12 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
     final repo = ref.read(postRepositoryProvider);
 
     try {
-      final newComment = await repo.createComment(arg, text, parentCommentId: parentCommentId);
-      
+      final newComment = await repo.createComment(
+        arg,
+        text,
+        parentCommentId: parentCommentId,
+      );
+
       if (state.hasValue) {
         state = AsyncValue.data([...state.value!, newComment]);
       }
@@ -51,22 +56,22 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
 
   Future<void> likeComment(String commentId) async {
     if (!state.hasValue) return;
-    
+
     // Optimistic update
     final comments = state.value!;
     final index = comments.indexWhere((c) => c.id == commentId);
     if (index == -1) return;
-    
+
     final oldComment = comments[index];
     if (oldComment.isLiked) return;
-    
+
     final newComments = List<Comment>.from(comments);
     newComments[index] = oldComment.copyWith(
       isLiked: true,
       likeCount: oldComment.likeCount + 1,
     );
     state = AsyncValue.data(newComments);
-    
+
     try {
       await ref.read(postRepositoryProvider).likeComment(arg, commentId);
     } catch (e) {
@@ -79,22 +84,22 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
 
   Future<void> unlikeComment(String commentId) async {
     if (!state.hasValue) return;
-    
+
     // Optimistic update
     final comments = state.value!;
     final index = comments.indexWhere((c) => c.id == commentId);
     if (index == -1) return;
-    
+
     final oldComment = comments[index];
     if (!oldComment.isLiked) return;
-    
+
     final newComments = List<Comment>.from(comments);
     newComments[index] = oldComment.copyWith(
       isLiked: false,
       likeCount: (oldComment.likeCount - 1).clamp(0, 999999),
     );
     state = AsyncValue.data(newComments);
-    
+
     try {
       await ref.read(postRepositoryProvider).unlikeComment(arg, commentId);
     } catch (e) {
