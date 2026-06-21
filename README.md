@@ -136,7 +136,7 @@ flutter run -d android
 |---|---|
 | [Architecture](docs/ARCHITECTURE.md) | System design, hosting, scaling decisions |
 | [Moderation Engine](docs/MODERATION.md) | Full AI moderation cascade specification |
-| [Design System](docs/UI_DESIGN_SYSTEM.md) | Material 3 & Softer Neobrutalism dual-theme guide |
+| [Design System](docs/UI_DESIGN_SYSTEM.md) | Material 3 single-theme guide |
 | [API Contracts](docs/API_CONTRACTS.md) | REST endpoint specifications |
 | [Database Schema](docs/DATABASE_SCHEMA.md) | Firestore collections, indexes, security rules |
 | [Roadmap](docs/ROADMAP.md) | Phased build plan and feature timeline |

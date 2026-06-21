@@ -8,9 +8,7 @@ SafeChat is a social platform with AI-powered real-time content moderation, spec
 **Target Platforms:** Android (Play Store) and Web.
 
 ## Design System
-SafeChat implements a multi-theme design system supporting exactly two distinct switchable designs:
-1. **Material 3 (Standard):** Clean, standard Material 3 components following conventional guidelines.
-2. **Softer Neobrutalism (Custom):** A distinctive neo-brutalist style featuring muted/pastel colors, prominent dark grey borders, and sharp offset shadows.
+SafeChat implements a clean, professional design system based on Material 3.
 *(See `docs/UI_DESIGN_SYSTEM.md` for full details).*
 
 ## 🧠 How to Use This File
@@ -71,7 +69,7 @@ Moderation:  Keyword detection (TF-IDF based). OpenAI, Gemini, and Vision are up
 ## Testing
 - **Backend:** pytest, mock external APIs, use Firestore emulator for integration tests.
 - **Frontend Unit:** Use cases, repositories (mock Dio/Firebase).
-- **Frontend Widget:** Golden tests for critical screens, checking both themes.
+- **Frontend Widget:** Golden tests for critical screens.
 - **Integration:** Auth flow, post creation, DM send.
 
 ## Phase Awareness

@@ -48,7 +48,7 @@ Every endpoint that accepts user-generated content (messages, posts, comments, s
 ### Flutter (Frontend)
 - **Formatting:** We strictly use `dart format` (line length 100) and `flutter_lints`.
 - **Architecture:** We use Riverpod for state management and GoRouter for declarative routing.
-- **Design:** Ensure your UI components support our dual-theme system (Material 3 & Softer Neobrutalism) as outlined in [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md).
+- **Design:** Ensure your UI components support our design system (Material 3) as outlined in [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md).
 
 ### Python (Backend)
 - **Formatting:** We strictly use `Black` (line length 100) and `Ruff` for linting.
@@ -60,7 +60,7 @@ Every endpoint that accepts user-generated content (messages, posts, comments, s
 Your pull request will not be merged unless it includes appropriate tests:
 
 - **Backend:** Write `pytest` tests for any new API routes. Mock the Firebase Admin SDK and Moderation APIs.
-- **Frontend:** Write Flutter Widget tests for new UI components. Ensure you test both the Material 3 and Neobrutalism themes.
+- **Frontend:** Write Flutter Widget tests for new UI components.
 - **Do not write tests for trivial wrappers or third-party SDKs.** Focus on business logic and moderation flows.
 
 ## Pull Request Process
