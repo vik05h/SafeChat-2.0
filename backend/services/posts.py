@@ -20,6 +20,7 @@ from core.firebase import db
 from models.post import Post
 from moderation.engine import moderate_image, moderate_text
 from services import follows as follows_service
+from services import users as users_service
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +108,14 @@ async def create_post(
 
     post_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
+    user = await users_service.get_user_profile(author_uid)
+    
     post_data: dict[str, Any] = {
         "id": post_id,
         "author_uid": author_uid,
+        "author_username": user.username if user else "unknown",
+        "author_display_name": user.display_name if user else "Anonymous",
+        "author_photo_url": user.photo_url if user and user.photo_url else "",
         "text": text,
         "image_url": media_urls[0] if media_urls else None,
         "media_urls": media_urls or [],
@@ -118,6 +124,7 @@ async def create_post(
         **moderation_meta,
         "like_count": 0,
         "comment_count": 0,
+        "view_count": 0,
         "created_at": now,
         "updated_at": now,
         "schema_version": 1,
@@ -187,16 +194,14 @@ async def delete_post(
 
 async def get_feed(
     viewer_uid: str,
+    feed_type: str = "following",
     limit: int = 20,
     before_created_at: str | None = None,
 ) -> list[Post]:
-    """Pull feed: approved posts from followed users, newest first.
+    """Pull feed: approved posts based on feed_type ('global' or 'following'), newest first.
 
     Uses cursor pagination via `before_created_at` (ISO-format datetime string).
-    Returns an empty list when the viewer follows nobody.
     Limit is capped at 20. Firestore `in` queries are chunked at 30 values.
-
-    # TODO: filter out posts from users the viewer has blocked (Step 2 block system)
     """
     following = await follows_service.get_following(viewer_uid)
     # Always include the user's own posts in their feed
@@ -212,26 +217,41 @@ async def get_feed(
             before_dt = None
 
     def _query() -> list[Post]:
-        chunks = [following[i : i + 30] for i in range(0, len(following), 30)]
         all_posts: list[Post] = []
 
-        for chunk in chunks:
+        if feed_type == "global":
             q = (
                 db.collection(POSTS_COLLECTION)
-                .where(filter=FieldFilter("author_uid", "in", chunk))
                 .where(filter=FieldFilter("status", "==", "approved"))
                 .order_by("created_at", direction=firestore.Query.DESCENDING)
             )
             if before_dt is not None:
                 q = q.where(filter=FieldFilter("created_at", "<", before_dt))
-
-            for snap in q.stream():
+            
+            for snap in q.limit(cap).stream():
                 d = snap.to_dict() or {}
                 all_posts.append(Post.model_validate(d))
+        else:
+            chunks = [following[i : i + 30] for i in range(0, len(following), 30)]
+            for chunk in chunks:
+                q = (
+                    db.collection(POSTS_COLLECTION)
+                    .where(filter=FieldFilter("author_uid", "in", chunk))
+                    .where(filter=FieldFilter("status", "==", "approved"))
+                    .order_by("created_at", direction=firestore.Query.DESCENDING)
+                )
+                if before_dt is not None:
+                    q = q.where(filter=FieldFilter("created_at", "<", before_dt))
 
-        # Merge chunk results, re-sort globally, then cap to limit.
-        all_posts.sort(key=lambda p: p.created_at, reverse=True)
-        return all_posts[:cap]
+                for snap in q.stream():
+                    d = snap.to_dict() or {}
+                    all_posts.append(Post.model_validate(d))
+
+            # Merge chunk results, re-sort globally, then cap to limit.
+            all_posts.sort(key=lambda p: p.created_at, reverse=True)
+            all_posts = all_posts[:cap]
+
+        return all_posts
 
     return await asyncio.to_thread(_query)
 
@@ -247,18 +267,43 @@ async def get_posts_by_author(
     cap = min(limit, 50)
     
     def _query() -> list[Post]:
+        # Single equality filter avoids requiring a composite index.
+        # Status filter and sort happen in Python.
         q = (
             db.collection(POSTS_COLLECTION)
             .where(filter=FieldFilter("author_uid", "==", author_uid))
-            .where(filter=FieldFilter("status", "==", "approved"))
-            .order_by("created_at", direction=firestore.Query.DESCENDING)
-            .limit(cap)
+            .limit(200)
         )
-        
         results: list[Post] = []
         for snap in q.stream():
             d = snap.to_dict() or {}
-            results.append(Post.model_validate(d))
-        return results
+            post = Post.model_validate(d)
+            if post.status == "approved":
+                results.append(post)
+        results.sort(key=lambda p: p.created_at, reverse=True)
+        return results[:cap]
         
     return await asyncio.to_thread(_query)
+
+async def record_post_view(post_id: str, viewer_uid: str) -> None:
+    """Record a view for a post, incrementing the view_count if the user hasn't viewed it yet."""
+    def _record_view() -> None:
+        view_ref = _post_ref(post_id).collection("views").document(viewer_uid)
+        
+        @firestore.transactional
+        def update_in_transaction(transaction: firestore.Transaction, post_ref: DocumentReference, view_ref: DocumentReference) -> None:
+            view_snap = view_ref.get(transaction=transaction)
+            if view_snap.exists:
+                return  # Already viewed
+            
+            post_snap = post_ref.get(transaction=transaction)
+            if not post_snap.exists:
+                raise PostNotFound(post_id)
+                
+            transaction.set(view_ref, {"viewed_at": firestore.SERVER_TIMESTAMP})
+            transaction.update(post_ref, {"view_count": firestore.Increment(1)})
+
+        transaction = db.transaction()
+        update_in_transaction(transaction, _post_ref(post_id), view_ref)
+
+    await asyncio.to_thread(_record_view)

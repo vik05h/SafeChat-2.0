@@ -121,15 +121,15 @@ Phase 0 — Foundation. GCP project created, Firebase services enabled, credenti
 
 ---
 
-## Phase 5 — Frontend Foundation (Expo)
+## Phase 5 — Frontend Foundation (Flutter)
 
 **Estimated time:** 2 weeks
 
-**Goal:** Expo app running on both Android and web with auth.
+**Goal:** Flutter app running on both Android and web with auth.
 
 ### Deliverables
 
-- Expo project initialized with React Native Web
+- Flutter project initialized with Riverpod and GoRouter
 - Navigation structure (React Navigation)
 - Firebase Auth integration (Google + Email)
 - API client with auth token injection
@@ -247,7 +247,7 @@ Phase 0 — Foundation. GCP project created, Firebase services enabled, credenti
 
 ### Deliverables
 
-- Agora SDK integration in Expo
+- Agora SDK integration in Flutter
 - Call signaling backend (FCM-based)
 - Call screen UI
 - Mute, camera flip, end call controls
@@ -266,7 +266,7 @@ Ongoing. Features prioritized based on user feedback and metrics.
 
 ### Likely candidates
 
-- iOS support (Expo build for iOS, App Store submission)
+- iOS support (Flutter build for iOS, App Store submission)
 - Group chats with moderation
 - Verified accounts
 - Algorithmic feed (engagement-based ranking)

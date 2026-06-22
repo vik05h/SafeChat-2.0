@@ -17,7 +17,7 @@ class OnboardRequest(BaseModel):
 
     username: str = Field(description="Lowercase letters, digits, and underscores. 3-30 chars.")
     display_name: str = Field(min_length=1, max_length=50)
-    phone_number: str = Field(description="E.164 formatted phone number", min_length=10, max_length=15)
+    phone_number: str | None = Field(default=None, description="E.164 formatted phone number")
     dob: str = Field(description="Date of birth in YYYY-MM-DD format")
     bio: str = Field(default="", max_length=200)
 
@@ -37,8 +37,10 @@ class UpdateProfileRequest(BaseModel):
     """Partial update for PATCH /users/me. All fields optional."""
 
     display_name: str | None = Field(default=None, min_length=1, max_length=50)
+    username: str | None = Field(default=None, min_length=3, max_length=30)
     bio: str | None = Field(default=None, max_length=200)
     photo_url: str | None = None
+    background_url: str | None = None
     private_account: bool | None = None
     allow_messages_from: Literal["everyone", "followers", "none"] | None = None
 
@@ -48,12 +50,13 @@ class UserProfile(BaseModel):
 
     uid: str
     email: str
-    phone_number: str
+    phone_number: str | None = None
     username: str
     display_name: str
     dob: str
     bio: str
     photo_url: str | None = None
+    background_url: str | None = None
 
     follower_count: int
     following_count: int
@@ -61,6 +64,9 @@ class UserProfile(BaseModel):
 
     is_verified: bool
     is_suspended: bool
+    
+    username_changed_at: datetime | None = None
+    username_change_count: int = 0
 
     created_at: datetime
     updated_at: datetime

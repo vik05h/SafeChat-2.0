@@ -1,60 +1,132 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
+import 'package:share_plus/share_plus.dart';
+import '../../../shared/utils/markdown_extensions.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
+import '../../../shared/widgets/rolling_counter.dart';
+import '../../../shared/widgets/firebase_image.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../profile/presentation/follow_providers.dart';
+import '../../profile/data/follow_repository.dart';
+import '../../profile/presentation/public_profile_view.dart';
+import '../../../shared/widgets/dp_viewer.dart';
+import '../../../shared/widgets/fullscreen_media_viewer.dart';
 import '../data/feed_post_model.dart';
+import '../data/post_repository.dart';
+import 'comments_provider.dart';
 import 'feed_provider.dart';
+import 'like_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Feed root
 // ─────────────────────────────────────────────────────────────────────────────
 
-class FeedView extends ConsumerWidget {
+class FeedView extends StatelessWidget {
   const FeedView({super.key});
 
   @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              flexibleSpace: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withOpacity(0.6),
+                  ),
+                ),
+              ),
+              title: Text(
+                'SafeChat',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              bottom: const TabBar(
+                tabs: [
+                  Tab(text: 'For You'),
+                  Tab(text: 'Following'),
+                ],
+              ),
+            ),
+          ],
+          body: const TabBarView(
+            children: [
+              _FeedTab(feedType: 'global'),
+              _FeedTab(feedType: 'following'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedTab extends ConsumerWidget {
+  final String feedType;
+  const _FeedTab({required this.feedType});
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feedAsync = ref.watch(feedPostsProvider);
+    final feedAsync = ref.watch(feedPostsProvider(feedType));
     final layoutMode = ref.watch(feedLayoutProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'SafeChat',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-        ),
+    return feedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _ErrorView(
+        message: e.toString(),
+        onRetry: () => ref.invalidate(feedPostsProvider(feedType)),
       ),
-      body: feedAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(
-          message: e.toString(),
-          onRetry: () => ref.invalidate(feedPostsProvider),
-        ),
-        data: (posts) {
-          if (posts.isEmpty) {
-            return _EmptyFeed(onRetry: () => ref.invalidate(feedPostsProvider));
-          }
-          return RefreshIndicator(
-            onRefresh: () => ref.read(feedPostsProvider.notifier).refresh(),
-            child: layoutMode == FeedLayoutMode.grid
-                ? _buildGridView(context, posts)
-                : _buildCardView(context, posts),
+      data: (posts) {
+        if (posts.isEmpty) {
+          return _EmptyFeed(
+            onRetry: () => ref.invalidate(feedPostsProvider(feedType)),
           );
-        },
-      ),
+        }
+        return RefreshIndicator(
+          onRefresh: () =>
+              ref.read(feedPostsProvider(feedType).notifier).refresh(),
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(12),
+                sliver: layoutMode == FeedLayoutMode.grid
+                    ? _buildGridView(context, posts)
+                    : _buildCardView(context, posts),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildGridView(BuildContext context, List<FeedPost> posts) {
-    return MasonryGridView.count(
-      padding: const EdgeInsets.all(12),
+    return SliverMasonryGrid.count(
       crossAxisCount: 2,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      itemCount: posts.length,
+      childCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
         return _PostOpenContainer(
@@ -66,10 +138,9 @@ class FeedView extends ConsumerWidget {
   }
 
   Widget _buildCardView(BuildContext context, List<FeedPost> posts) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
+    return SliverList.separated(
       itemCount: posts.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 24),
+      separatorBuilder: (_, __) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         final post = posts[index];
         return _PostOpenContainer(
@@ -95,17 +166,20 @@ class _EmptyFeed extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.photo_library_outlined,
-              size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+          Icon(
+            Icons.photo_library_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           const SizedBox(height: 16),
-          Text('No posts yet',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('No posts yet', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          Text('Follow people or create your first post!',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Theme.of(context).colorScheme.outline)),
+          Text(
+            'Follow people or create your first post!',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: onRetry,
@@ -131,17 +205,24 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off_rounded,
-                size: 64, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
-            Text('Couldn\'t load feed',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Couldn\'t load feed',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
-            Text(message,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onRetry,
@@ -163,7 +244,11 @@ class _PostOpenContainer extends StatelessWidget {
   final FeedPost post;
   final Widget child;
 
-  const _PostOpenContainer({required this.post, required this.child});
+  const _PostOpenContainer({
+    super.key,
+    required this.post,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -183,12 +268,12 @@ class _PostOpenContainer extends StatelessWidget {
 // Grid card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _GridPostCard extends StatelessWidget {
+class _GridPostCard extends ConsumerWidget {
   final FeedPost post;
-  const _GridPostCard({required this.post});
+  const _GridPostCard({super.key, required this.post});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final thumb = post.displayUrls.isNotEmpty ? post.displayUrls.first : null;
     final height = 150.0 + (post.id.hashCode.abs() % 4) * 50.0;
 
@@ -202,17 +287,25 @@ class _GridPostCard extends StatelessWidget {
             Container(
               height: height,
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: CachedNetworkImageProvider(thumb),
-                  fit: BoxFit.cover,
-                ),
+                image:
+                    FirebaseImageProviderWrapper.getProvider(ref, thumb) != null
+                    ? DecorationImage(
+                        image: FirebaseImageProviderWrapper.getProvider(
+                          ref,
+                          thumb,
+                        )!,
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
             )
           else
             Container(
               height: height,
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Center(child: Icon(Icons.article_outlined, size: 40)),
+              child: const Center(
+                child: Icon(Icons.article_outlined, size: 40),
+              ),
             ),
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -221,22 +314,41 @@ class _GridPostCard extends StatelessWidget {
               children: [
                 Text(
                   post.text,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
-                Row(children: [
-                  const CircleAvatar(radius: 12, child: Icon(Icons.person, size: 14)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      post.authorUid,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundImage: post.authorPhotoUrl.isNotEmpty
+                          ? FirebaseImageProviderWrapper.getProvider(
+                              ref,
+                              post.authorPhotoUrl,
+                            )
+                          : null,
+                      child: post.authorPhotoUrl.isEmpty
+                          ? const Icon(Icons.person, size: 14)
+                          : null,
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        post.authorDisplayName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -250,12 +362,12 @@ class _GridPostCard extends StatelessWidget {
 // List card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ListPostCard extends StatelessWidget {
+class _ListPostCard extends ConsumerWidget {
   final FeedPost post;
-  const _ListPostCard({required this.post});
+  const _ListPostCard({super.key, required this.post});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final thumb = post.displayUrls.isNotEmpty ? post.displayUrls.first : null;
 
     return Card(
@@ -265,31 +377,39 @@ class _ListPostCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person)),
+            leading: CircleAvatar(
+              backgroundImage: post.authorPhotoUrl.isNotEmpty
+                  ? FirebaseImageProviderWrapper.getProvider(
+                      ref,
+                      post.authorPhotoUrl,
+                    )
+                  : null,
+              child: post.authorPhotoUrl.isEmpty
+                  ? const Icon(Icons.person)
+                  : null,
+            ),
             title: Text(
-              post.authorUid,
+              post.authorDisplayName,
               style: const TextStyle(fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              post.createdAt != null
-                  ? _timeAgo(post.createdAt!)
-                  : 'Just now',
+              post.createdAt != null ? _timeAgo(post.createdAt!) : 'Just now',
             ),
           ),
           if (thumb != null)
             SizedBox(
               height: 300,
               width: double.infinity,
-              child: CachedNetworkImage(
+              child: FirebaseCachedNetworkImage(
                 imageUrl: thumb,
                 fit: BoxFit.cover,
-                placeholder: (_, _) => Container(
+                placeholder: (_, __) => Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: const Center(child: CircularProgressIndicator()),
                 ),
-                errorWidget: (_, _, _) => Container(
+                errorWidget: (_, __, ___) => Container(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: const Center(child: Icon(Icons.broken_image_outlined)),
                 ),
@@ -297,35 +417,104 @@ class _ListPostCard extends StatelessWidget {
             ),
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(post.text),
+            child: MarkdownBody(
+              data: post.text,
+              extensionSet: md.ExtensionSet.gitHubFlavored,
+              inlineSyntaxes: [HighlightSyntax()],
+              builders: {'highlight': HighlightBuilder(context)},
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(children: [
-                  const Icon(Icons.favorite_border, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text('${post.likeCount}', style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text('${post.commentCount}', style: const TextStyle(color: Colors.grey)),
-                ]),
-                Row(children: [
-                  FloatingActionButton.small(
-                    heroTag: 'like_${post.id}',
-                    onPressed: () {},
-                    child: const Icon(Icons.favorite_border),
-                  ),
-                  const SizedBox(width: 8),
-                  FloatingActionButton.small(
-                    heroTag: 'comment_${post.id}',
-                    onPressed: () => showCommentsBottomSheet(context),
-                    child: const Icon(Icons.chat_bubble_outline),
-                  ),
-                ]),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.favorite_border,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.likeCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.commentCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.remove_red_eye_outlined,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.viewCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final isLikedAsync = ref.watch(
+                          isLikedProvider(post.id),
+                        );
+                        final isLiked = isLikedAsync.value ?? false;
+                        return FloatingActionButton.small(
+                          heroTag: 'like_${post.id}',
+                          onPressed: () {
+                            if (isLiked) {
+                              ref
+                                  .read(postRepositoryProvider)
+                                  .unlikePost(post.id);
+                            } else {
+                              ref
+                                  .read(postRepositoryProvider)
+                                  .likePost(post.id);
+                            }
+                          },
+                          backgroundColor: isLiked
+                              ? Colors.red.withValues(alpha: 0.1)
+                              : null,
+                          child:
+                              Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isLiked ? Colors.red : null,
+                                  )
+                                  .animate(key: ValueKey(isLiked))
+                                  .scaleXY(
+                                    begin: 0.8,
+                                    end: 1.0,
+                                    duration: 200.ms,
+                                    curve: Curves.easeOutBack,
+                                  ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    FloatingActionButton.small(
+                      heroTag: 'comment_${post.id}',
+                      onPressed: () =>
+                          showCommentsBottomSheet(context, post.id),
+                      child: const Icon(Icons.chat_bubble_outline),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -347,154 +536,342 @@ class _ListPostCard extends StatelessWidget {
 // Post detail screen (full-screen with ambient + image carousel)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostDetailScreen extends StatefulWidget {
+class _PostDetailScreen extends ConsumerStatefulWidget {
   final FeedPost post;
   const _PostDetailScreen({required this.post});
 
   @override
-  State<_PostDetailScreen> createState() => _PostDetailScreenState();
+  ConsumerState<_PostDetailScreen> createState() => _PostDetailScreenState();
 }
 
-class _PostDetailScreenState extends State<_PostDetailScreen> {
+class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
   int _currentPage = 0;
 
-  List<String> get _mediaUrls => widget.post.displayUrls.isNotEmpty
-      ? widget.post.displayUrls
-      : ['https://picsum.photos/seed/${widget.post.id}/300/400'];
+  List<String> get _mediaUrls => widget.post.displayUrls;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fire and forget view recording
+    Future.microtask(() {
+      ref
+          .read(postRepositoryProvider)
+          .viewPost(widget.post.id)
+          .catchError((_) {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+    final layoutStyle = ref.watch(postImageLayoutProvider);
+    final isEdgeToEdge = layoutStyle == PostImageLayoutStyle.edgeToEdge;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: isEdgeToEdge,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-          shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
+        iconTheme: IconThemeData(
+          color: isEdgeToEdge
+              ? Colors.white
+              : Theme.of(context).iconTheme.color,
+          shadows: isEdgeToEdge
+              ? const [Shadow(color: Colors.black45, blurRadius: 10)]
+              : null,
         ),
       ),
       body: Stack(
         children: [
-          // Dynamic ambient background synced to current page image.
-          AnimatedAmbientBackground(
-            key: ValueKey(_mediaUrls[_currentPage]),
-            imageUrl: _mediaUrls[_currentPage],
-            height: 800,
-          ),
+          if (_mediaUrls.isNotEmpty)
+            AnimatedAmbientBackground(
+              key: ValueKey(_mediaUrls[_currentPage]),
+              imageUrl: _mediaUrls[_currentPage],
+              height: 800,
+            ),
 
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image carousel + overlapping avatar.
-                SizedBox(
-                  height: 440,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: 0, left: 0, right: 0, height: 400,
-                        child: PageView.builder(
-                          itemCount: _mediaUrls.length,
-                          onPageChanged: (i) => setState(() => _currentPage = i),
-                          itemBuilder: (context, i) => CachedNetworkImage(
-                            imageUrl: _mediaUrls[i],
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => Container(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              child: const Center(child: CircularProgressIndicator()),
+                // Image carousel
+                if (_mediaUrls.isNotEmpty)
+                  SizedBox(
+                    height: 400,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: PageView.builder(
+                            itemCount: _mediaUrls.length,
+                            onPageChanged: (i) =>
+                                setState(() => _currentPage = i),
+                            itemBuilder: (context, i) => GestureDetector(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  fullscreenDialog: true,
+                                  builder: (_) => FullscreenMediaViewer(
+                                    urls: _mediaUrls,
+                                    initialIndex: i,
+                                  ),
+                                ),
+                              ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  FirebaseCachedNetworkImage(
+                                    imageUrl: _mediaUrls[i],
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHighest,
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              size: 48,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                  ),
+                                  // Fullscreen affordance icon
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black45,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.fullscreen,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
+                        // Dot indicators.
+                        if (_mediaUrls.length > 1)
+                          Positioned(
+                            bottom: 16,
+                            left: 0,
+                            right: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(_mediaUrls.length, (i) {
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  width: _currentPage == i ? 12 : 8,
+                                  height: _currentPage == i ? 12 : 8,
+                                  decoration: BoxDecoration(
+                                    color: _currentPage == i
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.5),
+                                    shape: BoxShape.circle,
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black45,
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                // User Info Row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: widget.post.authorPhotoUrl.isNotEmpty
+                            ? () => showDpViewer(
+                                context,
+                                ref,
+                                widget.post.authorPhotoUrl,
+                              )
+                            : null,
+                        child: CircleAvatar(
+                          radius: 24,
+                          backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
+                              ? FirebaseImageProviderWrapper.getProvider(
+                                  ref,
+                                  widget.post.authorPhotoUrl,
+                                )
+                              : null,
+                          child: widget.post.authorPhotoUrl.isEmpty
+                              ? const Icon(Icons.person, size: 28)
+                              : null,
+                        ),
                       ),
-                      // Dot indicators.
-                      if (_mediaUrls.length > 1)
-                        Positioned(
-                          bottom: 48, left: 0, right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(_mediaUrls.length, (i) {
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                width: _currentPage == i ? 12 : 8,
-                                height: _currentPage == i ? 12 : 8,
-                                decoration: BoxDecoration(
-                                  color: _currentPage == i
-                                      ? Colors.white
-                                      : Colors.white.withValues(alpha: 0.5),
-                                  shape: BoxShape.circle,
-                                  boxShadow: const [
-                                    BoxShadow(color: Colors.black45, blurRadius: 4)
-                                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _navigateToProfile,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.post.authorDisplayName,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '@${widget.post.authorUsername}',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Builder(
+                        builder: (context) {
+                          final currentUid =
+                              FirebaseAuth.instance.currentUser?.uid;
+                          if (currentUid == widget.post.authorUid) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final isFollowingAsync = ref.watch(
+                            isFollowingProvider(widget.post.authorUid),
+                          );
+                          return isFollowingAsync.when(
+                            data: (isFollowing) =>
+                                FilledButton.tonal(
+                                      onPressed: () async {
+                                        final repo = ref.read(
+                                          followRepositoryProvider,
+                                        );
+                                        if (isFollowing) {
+                                          await repo.unfollowUser(
+                                            widget.post.authorUid,
+                                          );
+                                        } else {
+                                          await repo.followUser(
+                                            widget.post.authorUid,
+                                          );
+                                        }
+                                      },
+                                      child: Text(
+                                        isFollowing ? 'Following' : 'Follow',
+                                      ),
+                                    )
+                                    .animate(key: ValueKey(isFollowing))
+                                    .scaleXY(
+                                      begin: 0.8,
+                                      end: 1.0,
+                                      duration: 200.ms,
+                                      curve: Curves.easeOutBack,
+                                    ),
+                            loading: () => const FilledButton.tonal(
+                              onPressed: null,
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                 ),
-                              );
-                            }),
-                          ),
-                        ),
-                      // Author avatar overlapping bottom-left.
-                      Positioned(
-                        bottom: 0, left: 24,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: scaffoldColor, width: 4),
-                          ),
-                          child: const CircleAvatar(
-                            radius: 35,
-                            child: Icon(Icons.person, size: 32),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 12, right: 24,
-                        child: FilledButton.tonal(
-                          onPressed: () {},
-                          child: const Text('Follow'),
-                        ),
+                              ),
+                            ),
+                            error: (_, __) => const SizedBox.shrink(),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
+
+                // Post Content
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.post.authorUid,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
                         widget.post.createdAt != null
                             ? _timeAgo(widget.post.createdAt!)
                             : 'Just now',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: Colors.grey),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.grey),
                       ),
-                      const SizedBox(height: 24),
-                      Text(
-                        widget.post.text,
-                        style: Theme.of(context).textTheme.bodyLarge,
+                      const SizedBox(height: 24), // Pushes content downward
+                      MarkdownBody(
+                        data: widget.post.text,
+                        extensionSet: md.ExtensionSet.gitHubFlavored,
+                        inlineSyntaxes: [HighlightSyntax()],
+                        builders: {'highlight': HighlightBuilder(context)},
+                        styleSheet: MarkdownStyleSheet(
+                          p: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(height: 1.5),
+                          h1: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          h2: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          h3: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 32),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildAction(Icons.favorite_border, 'Like', () {}),
+                          _LikeActionWidget(post: widget.post),
                           _buildAction(
                             Icons.chat_bubble_outline,
-                            'Comment',
-                            () => showCommentsBottomSheet(context),
+                            '${widget.post.commentCount}',
+                            () => showCommentsBottomSheet(
+                              context,
+                              widget.post.id,
+                            ),
                           ),
-                          _buildAction(Icons.share_outlined, 'Share', () {}),
+                          _buildAction(Icons.share_outlined, 'Share', () {
+                            final shareText =
+                                'Check out this post on SafeChat: https://safechat.com/post/${widget.post.id}';
+                            Share.share(shareText);
+                          }),
+                          _buildAction(
+                            Icons.visibility_outlined,
+                            '${widget.post.viewCount}',
+                            () {}, // View count is just a display
+                          ),
                         ],
                       ),
                       const SizedBox(height: 48),
@@ -509,12 +886,34 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
     );
   }
 
-  Widget _buildAction(IconData icon, String label, VoidCallback onTap) {
+  void _navigateToProfile() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (widget.post.authorUid == currentUid) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfileView(
+          uid: widget.post.authorUid,
+          username: widget.post.authorUsername,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAction(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    Color? color,
+  }) {
     return Column(
       children: [
-        IconButton.filledTonal(onPressed: onTap, icon: Icon(icon), iconSize: 28),
+        IconButton.filledTonal(
+          onPressed: onTap,
+          icon: Icon(icon, color: color),
+          iconSize: 28,
+        ),
         const SizedBox(height: 8),
-        Text(label),
+        Text(label, style: TextStyle(color: color)),
       ],
     );
   }
@@ -532,86 +931,235 @@ class _PostDetailScreenState extends State<_PostDetailScreen> {
 // Comments bottom sheet (reusable)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void showCommentsBottomSheet(BuildContext context) {
+void showCommentsBottomSheet(BuildContext context, String postId) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (_, controller) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    useSafeArea: true,
+    builder: (context) {
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: const Text('Comments'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
               ),
-              const SizedBox(height: 16),
-              const Text('Comments',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const Divider(),
-              Expanded(
-                child: ListView.builder(
-                  controller: controller,
-                  itemCount: 15,
-                  itemBuilder: (context, index) => ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: NetworkImage(
-                          'https://i.pravatar.cc/150?img=${index + 10}'),
-                    ),
-                    title: Text('Commenter $index',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    subtitle:
-                        Text('This is an awesome comment $index! Looks so good!'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.favorite_border, size: 16),
-                      onPressed: () {},
-                    ),
-                  ),
-                ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final commentsAsync = ref.watch(commentsProvider(postId));
+                  return commentsAsync.when(
+                    data: (comments) {
+                      if (comments.isEmpty) {
+                        return const Center(child: Text('No comments yet.'));
+                      }
+                      return ListView.builder(
+                        itemCount: comments.length,
+                        itemBuilder: (context, index) {
+                          final comment = comments[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: comment.authorPhotoUrl.isNotEmpty
+                                  ? FirebaseImageProviderWrapper.getProvider(
+                                      ref,
+                                      comment.authorPhotoUrl,
+                                    )
+                                  : null,
+                              child:
+                                  (comment.authorPhotoUrl.isEmpty ||
+                                      FirebaseImageProviderWrapper.getProvider(
+                                            ref,
+                                            comment.authorPhotoUrl,
+                                          ) ==
+                                          null)
+                                  ? const Icon(Icons.person)
+                                  : null,
+                            ),
+                            title: Text(
+                              comment.authorDisplayName.isNotEmpty
+                                  ? comment.authorDisplayName
+                                  : 'User',
+                            ),
+                            subtitle: Text(comment.text),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    comment.isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    size: 16,
+                                    color: comment.isLiked ? Colors.red : null,
+                                  ),
+                                  onPressed: () {
+                                    if (comment.isLiked) {
+                                      ref
+                                          .read(
+                                            commentsProvider(postId).notifier,
+                                          )
+                                          .unlikeComment(comment.id);
+                                    } else {
+                                      ref
+                                          .read(
+                                            commentsProvider(postId).notifier,
+                                          )
+                                          .likeComment(comment.id);
+                                    }
+                                  },
+                                ),
+                                if (comment.likeCount > 0)
+                                  Text(
+                                    '${comment.likeCount}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.reply, size: 16),
+                                  onPressed: () {
+                                    // Reply logic
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, st) => Center(child: Text('Error: $err')),
+                  );
+                },
               ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final controller = TextEditingController();
+                  return Row(
                     children: [
                       Expanded(
                         child: TextField(
-                          decoration: InputDecoration(
+                          controller: controller,
+                          decoration: const InputDecoration(
                             hintText: 'Add a comment...',
                             border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24)),
-                            contentPadding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(24),
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.send,
-                            color: Theme.of(context).colorScheme.primary),
-                        onPressed: () => Navigator.pop(context),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.send),
+                        onPressed: () {
+                          if (controller.text.trim().isNotEmpty) {
+                            ref
+                                .read(commentsProvider(postId).notifier)
+                                .createComment(controller.text.trim());
+                            controller.clear();
+                            FocusScope.of(context).unfocus();
+                          }
+                        },
                       ),
                     ],
-                  ),
-                ),
+                  );
+                },
               ),
-            ],
-          ),
-        );
-      },
-    ),
+            ),
+          ],
+        ),
+      );
+    },
   );
+}
+
+class _LikeActionWidget extends ConsumerStatefulWidget {
+  final FeedPost post;
+
+  const _LikeActionWidget({required this.post});
+
+  @override
+  ConsumerState<_LikeActionWidget> createState() => _LikeActionWidgetState();
+}
+
+class _LikeActionWidgetState extends ConsumerState<_LikeActionWidget> {
+  bool? _initialIsLiked;
+  int _offset = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLikedAsync = ref.watch(isLikedProvider(widget.post.id));
+    final isLiked = isLikedAsync.value ?? false;
+
+    if (!isLikedAsync.isLoading && _initialIsLiked == null) {
+      _initialIsLiked = isLiked;
+    }
+
+    if (_initialIsLiked != null) {
+      if (isLiked && !_initialIsLiked!) {
+        _offset = 1;
+      } else if (!isLiked && _initialIsLiked!) {
+        _offset = -1;
+      } else {
+        _offset = 0;
+      }
+    }
+
+    int displayCount = widget.post.likeCount + _offset;
+    if (displayCount < 0) displayCount = 0;
+
+    Widget icon = Icon(
+      isLiked ? Icons.favorite : Icons.favorite_border,
+      color: isLiked ? Colors.red : null,
+    );
+
+    if (isLiked) {
+      icon = icon
+          .animate(key: const ValueKey('liked'))
+          .scale(duration: 250.ms, curve: Curves.easeOutBack)
+          .tint(color: Colors.red);
+    } else {
+      icon = icon
+          .animate(key: const ValueKey('unliked'))
+          .scale(duration: 200.ms);
+    }
+
+    return Column(
+      children: [
+        IconButton.filledTonal(
+          onPressed: () {
+            if (isLiked) {
+              ref.read(postRepositoryProvider).unlikePost(widget.post.id);
+            } else {
+              ref.read(postRepositoryProvider).likePost(widget.post.id);
+            }
+          },
+          icon: icon,
+          iconSize: 28,
+        ),
+        const SizedBox(height: 8),
+        RollingCounter(
+          value: displayCount,
+          style: TextStyle(color: isLiked ? Colors.red : null),
+        ),
+      ],
+    );
+  }
 }

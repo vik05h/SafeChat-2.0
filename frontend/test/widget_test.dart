@@ -5,10 +5,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Placeholder test — replace with real SafeChat tests', (WidgetTester tester) async {
+  testWidgets('Placeholder test — replace with real SafeChat tests', (
+    WidgetTester tester,
+  ) async {
     // Placeholder: real tests will pump SafeChatApp with a ProviderScope
     // and mock Firebase dependencies.
     expect(true, isTrue);
   });
 }
-

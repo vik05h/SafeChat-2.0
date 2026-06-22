@@ -27,14 +27,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           options: DefaultFirebaseOptions.currentPlatform,
         );
       }
-      
+
       // Let the beautiful animation play for a moment
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
         await ref.read(authControllerProvider.notifier).checkAuthStatus();
         final authState = ref.read(authStateProvider);
-        
+
         if (mounted) {
           if (authState.isAuthenticated) {
             if (authState.needsOnboarding) {
@@ -69,30 +69,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ).animate().fade(duration: 500.ms).scale(curve: Curves.easeOutBack),
             const SizedBox(height: 16),
             const Text(
-              'SafeChat',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            )
+                  'SafeChat',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                )
                 .animate()
                 .fade(delay: 300.ms, duration: 500.ms)
                 .slideY(begin: 0.5, end: 0, curve: Curves.easeOut),
             const SizedBox(height: 8),
             const Text(
-              'A safe place to connect.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            )
+                  'A safe place to connect.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                )
                 .animate()
                 .fade(delay: 600.ms, duration: 500.ms)
                 .slideY(begin: 0.5, end: 0, curve: Curves.easeOut),
             const SizedBox(height: 48),
-            const CircularProgressIndicator()
-                .animate()
-                .fade(delay: 900.ms),
+            const CircularProgressIndicator().animate().fade(delay: 900.ms),
           ],
         ),
       ),

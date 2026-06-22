@@ -10,11 +10,13 @@ class UserProfile {
   @JsonKey(name: 'display_name')
   final String displayName;
   @JsonKey(name: 'phone_number')
-  final String phoneNumber;
+  final String? phoneNumber;
   final String dob;
   final String? bio;
-  @JsonKey(name: 'avatar_url')
-  final String? avatarUrl;
+  @JsonKey(name: 'photo_url')
+  final String? photoUrl;
+  @JsonKey(name: 'background_url')
+  final String? backgroundUrl;
   @JsonKey(name: 'created_at')
   final String createdAt;
   @JsonKey(name: 'updated_at')
@@ -24,15 +26,17 @@ class UserProfile {
     required this.uid,
     required this.username,
     required this.displayName,
-    required this.phoneNumber,
+    this.phoneNumber,
     required this.dob,
     this.bio,
-    this.avatarUrl,
+    this.photoUrl,
+    this.backgroundUrl,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) => _$UserProfileFromJson(json);
+  factory UserProfile.fromJson(Map<String, dynamic> json) =>
+      _$UserProfileFromJson(json);
   Map<String, dynamic> toJson() => _$UserProfileToJson(this);
 }
 
@@ -42,20 +46,45 @@ class OnboardRequest {
   @JsonKey(name: 'display_name')
   final String displayName;
   @JsonKey(name: 'phone_number')
-  final String phoneNumber;
+  final String? phoneNumber;
   final String dob;
   final String? bio;
 
   OnboardRequest({
     required this.username,
     required this.displayName,
-    required this.phoneNumber,
+    this.phoneNumber,
     required this.dob,
     this.bio,
   });
 
-  factory OnboardRequest.fromJson(Map<String, dynamic> json) => _$OnboardRequestFromJson(json);
+  factory OnboardRequest.fromJson(Map<String, dynamic> json) =>
+      _$OnboardRequestFromJson(json);
   Map<String, dynamic> toJson() => _$OnboardRequestToJson(this);
+}
+
+@JsonSerializable(includeIfNull: false)
+class UpdateProfileRequest {
+  @JsonKey(name: 'display_name')
+  final String? displayName;
+  final String? username;
+  final String? bio;
+  @JsonKey(name: 'photo_url')
+  final String? photoUrl;
+  @JsonKey(name: 'background_url')
+  final String? backgroundUrl;
+
+  UpdateProfileRequest({
+    this.displayName,
+    this.username,
+    this.bio,
+    this.photoUrl,
+    this.backgroundUrl,
+  });
+
+  factory UpdateProfileRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpdateProfileRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$UpdateProfileRequestToJson(this);
 }
 
 @JsonSerializable()
@@ -71,7 +100,8 @@ class AuthMeResponse {
     required this.needsOnboarding,
   });
 
-  factory AuthMeResponse.fromJson(Map<String, dynamic> json) => _$AuthMeResponseFromJson(json);
+  factory AuthMeResponse.fromJson(Map<String, dynamic> json) =>
+      _$AuthMeResponseFromJson(json);
   Map<String, dynamic> toJson() => _$AuthMeResponseToJson(this);
 }
 

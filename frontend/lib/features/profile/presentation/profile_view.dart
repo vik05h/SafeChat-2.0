@@ -1,35 +1,49 @@
-// removed dart:ui
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
+import 'edit_profile_view.dart';
+import 'follow_providers.dart';
+import 'network_graph_view.dart';
+import 'content_status_view.dart';
+import '../../../shared/widgets/firebase_image.dart';
+import 'user_posts_provider.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).user;
+    final authState = ref.watch(authStateProvider);
+    final user = authState.user;
     final layout = ref.watch(profileLayoutProvider);
+
+    // Authenticated but the profile is still being fetched from the backend —
+    // show a skeleton instead of fallback text + spinners.
+    if (authState.profile == null && authState.isLoading) {
+      return const Scaffold(body: _ProfileSkeleton());
+    }
 
     return Scaffold(
       body: layout == ProfileLayoutStyle.modernCover
-          ? _buildModernCover(context, user)
-          : _buildCenteredMinimalist(context, user),
+          ? _buildModernCover(context, user, ref)
+          : _buildCenteredMinimalist(context, user, ref),
     );
   }
 
-  Widget _buildModernCover(BuildContext context, dynamic user) {
+  Widget _buildModernCover(BuildContext context, dynamic user, WidgetRef ref) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+    final profile = ref.watch(authStateProvider).profile;
 
     return Stack(
       children: [
         // 1. Dynamic Animated Ambient Background
-        const AnimatedAmbientBackground(
-          imageUrl: 'https://picsum.photos/seed/cover/800/400',
-          height: 800, // Covers most of the screen
-        ),
+        if (profile?.backgroundUrl != null)
+          AnimatedAmbientBackground(
+            imageUrl: profile!.backgroundUrl!,
+            height: 800,
+          ),
 
         // 2. Scrolling Content
         CustomScrollView(
@@ -46,38 +60,65 @@ class ProfileView extends ConsumerWidget {
                       left: 0,
                       right: 0,
                       height: 200,
-                      child: Image.network(
-                        'https://picsum.photos/seed/cover/800/400',
-                        fit: BoxFit.cover,
+                      child: ClipRect(
+                        child: profile?.backgroundUrl != null
+                            ? FirebaseCachedNetworkImage(
+                                imageUrl: profile!.backgroundUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) =>
+                                    _buildGradientCover(user),
+                                errorWidget: (_, __, ___) =>
+                                    _buildGradientCover(user),
+                              )
+                            : _buildGradientCover(user),
                       ),
                     ),
-                    // Settings Button in Safe Area
+                    // Action Buttons in Safe Area
                     Positioned(
                       top: 0,
                       right: 0,
                       child: SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: IconButton.filledTonal(
-                            icon: const Icon(Icons.settings),
-                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+                          child: Row(
+                            children: [
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.edit),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const EditProfileView(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.settings),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const SettingsView(),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
                     // Avatar perfectly overlapping the bottom edge
                     Positioned(
-                      top: 155, // 200 - 45 (radius) = 155
+                      top: 155,
                       left: 16,
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: scaffoldColor, width: 4),
                         ),
-                        child: CircleAvatar(
-                          radius: 45,
-                          backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                          child: user?.photoURL == null ? const Icon(Icons.person, size: 45) : null,
+                        child: ClipOval(
+                          child: SizedBox(
+                            width: 90,
+                            height: 90,
+                            child: _buildAvatarImage(profile, user),
+                          ),
                         ),
                       ),
                     ),
@@ -87,9 +128,24 @@ class ProfileView extends ConsumerWidget {
                       right: 16,
                       child: Row(
                         children: [
-                          FilledButton.tonal(
-                            onPressed: () {},
-                            child: const Text('Edit Profile'),
+                          IconButton.filledTonal(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const NetworkGraphView(),
+                              ),
+                            ),
+                            icon: const Icon(Icons.hub),
+                            tooltip: 'Network Graph',
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ContentStatusView(),
+                              ),
+                            ),
+                            icon: const Icon(Icons.gavel),
+                            tooltip: 'Content Status / Appeals',
                           ),
                           const SizedBox(width: 8),
                           IconButton.filledTonal(
@@ -113,29 +169,68 @@ class ProfileView extends ConsumerWidget {
                     const SizedBox(height: 12),
                     // Profile Info
                     Text(
-                      user?.displayName ?? 'SafeChat User',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                      profile?.displayName ??
+                          user?.displayName ??
+                          'SafeChat User',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
-                    Text('@${user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}'),
+                    Text(
+                      '@${profile?.username ?? user?.displayName?.toLowerCase().replaceAll(' ', '') ?? 'user'}',
+                    ),
                     const SizedBox(height: 16),
-                    const Text('Creating a safer social space 🛡️\n#flutter #dev'),
+                    Text(
+                      profile?.bio?.isNotEmpty == true
+                          ? profile!.bio!
+                          : 'Creating a safer social space 🛡️\n#flutter #dev',
+                    ),
                     const SizedBox(height: 24),
                     // Stats Card
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.5),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainer.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _StatColumn(label: 'Posts', count: '12'),
-                          _StatColumn(label: 'Followers', count: '1.2k'),
-                          _StatColumn(label: 'Following', count: '450'),
-                        ],
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final uid = user?.uid ?? '';
+                          final followersAsync = ref.watch(
+                            followersCountProvider(uid),
+                          );
+                          final followingAsync = ref.watch(
+                            followingCountProvider(uid),
+                          );
+                          final friendsAsync = ref.watch(friendsProvider(uid));
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _StatColumn(
+                                label: 'Followers',
+                                count: followersAsync.value?.toString() ?? '-',
+                              ),
+                              _StatColumn(
+                                label: 'Following',
+                                count: followingAsync.value?.toString() ?? '-',
+                              ),
+                              _StatColumn(
+                                label: 'Friends',
+                                count:
+                                    friendsAsync.value?.length.toString() ??
+                                    '-',
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -143,14 +238,19 @@ class ProfileView extends ConsumerWidget {
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            _buildGrid(),
+            _buildGrid(ref, user?.uid ?? ''),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildCenteredMinimalist(BuildContext context, dynamic user) {
+  Widget _buildCenteredMinimalist(
+    BuildContext context,
+    dynamic user,
+    WidgetRef ref,
+  ) {
+    final profile = ref.watch(authStateProvider).profile;
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -158,8 +258,16 @@ class ProfileView extends ConsumerWidget {
           centerTitle: true,
           actions: [
             IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EditProfileView()),
+              ),
+            ),
+            IconButton(
               icon: const Icon(Icons.settings_outlined),
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsView())),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsView())),
             ),
           ],
         ),
@@ -169,36 +277,82 @@ class ProfileView extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                  child: user?.photoURL == null ? const Icon(Icons.person, size: 50) : null,
+                ClipOval(
+                  child: SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: _buildAvatarImage(profile, user),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  user?.displayName ?? 'SafeChat User',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                  profile?.displayName ?? user?.displayName ?? 'SafeChat User',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                const Text('Creating a safer social space 🛡️\n#flutter #dev', textAlign: TextAlign.center),
+                Text(
+                  profile?.bio?.isNotEmpty == true
+                      ? profile!.bio!
+                      : 'Creating a safer social space 🛡️\n#flutter #dev',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 24),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _StatColumn(label: 'Posts', count: '12'),
-                    SizedBox(width: 32),
-                    _StatColumn(label: 'Followers', count: '1.2k'),
-                    SizedBox(width: 32),
-                    _StatColumn(label: 'Following', count: '450'),
-                  ],
+                Consumer(
+                  builder: (context, ref, _) {
+                    final uid = user?.uid ?? '';
+                    final followersAsync = ref.watch(
+                      followersCountProvider(uid),
+                    );
+                    final followingAsync = ref.watch(
+                      followingCountProvider(uid),
+                    );
+                    final friendsAsync = ref.watch(friendsProvider(uid));
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _StatColumn(
+                          label: 'Followers',
+                          count: followersAsync.value?.toString() ?? '-',
+                        ),
+                        const SizedBox(width: 32),
+                        _StatColumn(
+                          label: 'Following',
+                          count: followingAsync.value?.toString() ?? '-',
+                        ),
+                        const SizedBox(width: 32),
+                        _StatColumn(
+                          label: 'Friends',
+                          count: friendsAsync.value?.length.toString() ?? '-',
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    FilledButton.tonal(
-                      onPressed: () {},
-                      child: const Text('Edit Profile'),
+                    IconButton.filledTonal(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NetworkGraphView(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.hub),
+                      tooltip: 'Network Graph',
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton.filledTonal(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ContentStatusView(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.gavel),
+                      tooltip: 'Content Status / Appeals',
                     ),
                     const SizedBox(width: 16),
                     FilledButton.tonal(
@@ -213,29 +367,268 @@ class ProfileView extends ConsumerWidget {
             ),
           ),
         ),
-        _buildGrid(),
+        _buildGrid(ref, user?.uid ?? ''),
       ],
     );
   }
 
-  Widget _buildGrid() {
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-      ),
-      delegate: SliverChildBuilderDelegate((context, index) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            image: DecorationImage(
-              image: NetworkImage('https://picsum.photos/seed/${index + 50}/300/300'),
-              fit: BoxFit.cover,
-            ),
+  Widget _buildGrid(WidgetRef ref, String uid) {
+    final userPostsAsync = ref.watch(userPostsProvider(uid));
+
+    return userPostsAsync.when(
+      loading: () => const SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: CircularProgressIndicator(),
           ),
+        ),
+      ),
+      error: (e, _) =>
+          SliverToBoxAdapter(child: Center(child: Text('Error: $e'))),
+      data: (posts) {
+        if (posts.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Center(child: Text('No posts yet')),
+            ),
+          );
+        }
+        return SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 2,
+            crossAxisSpacing: 2,
+          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final post = posts[index];
+            final thumb = post.displayUrls.isNotEmpty
+                ? post.displayUrls.first
+                : '';
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+              child: thumb.isNotEmpty
+                  ? FirebaseCachedNetworkImage(
+                      imageUrl: thumb,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (_, __, ___) => const Center(
+                        child: Icon(Icons.broken_image_outlined),
+                      ),
+                    )
+                  : const Center(child: Icon(Icons.article_outlined)),
+            );
+          }, childCount: posts.length),
         );
-      }, childCount: 15),
+      },
+    );
+  }
+
+  Widget _buildGradientCover(dynamic user) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            HSLColor.fromAHSL(
+              1.0,
+              ((user?.uid ?? 'a').hashCode % 360).toDouble(),
+              0.7,
+              0.6,
+            ).toColor(),
+            HSLColor.fromAHSL(
+              1.0,
+              (((user?.uid ?? 'a').hashCode >> 8) % 360).toDouble(),
+              0.7,
+              0.6,
+            ).toColor(),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarImage(dynamic profile, dynamic user) {
+    final photoUrl =
+        (profile?.photoUrl as String?) ?? (user?.photoURL as String?);
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      // Image is already framed at upload (baked crop), so just cover-fit it.
+      return FirebaseCachedNetworkImage(
+        imageUrl: photoUrl,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => const ColoredBox(color: Colors.black12),
+        errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
+      );
+    }
+    return const Icon(Icons.person, size: 45);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton loading
+// ---------------------------------------------------------------------------
+
+/// Animated shimmer wrapper — sweeps a highlight across any opaque child.
+class _Shimmer extends StatefulWidget {
+  final Widget child;
+  const _Shimmer({required this.child});
+
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).colorScheme.surfaceContainerHighest;
+    final highlight = Color.lerp(
+      base,
+      Theme.of(context).colorScheme.onSurface,
+      0.10,
+    )!;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [base, highlight, base],
+              stops: const [0.30, 0.50, 0.70],
+              transform: _SlideGradient(_controller.value * 2 - 1),
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _SlideGradient extends GradientTransform {
+  final double slidePercent;
+  const _SlideGradient(this.slidePercent);
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(bounds.width * slidePercent, 0, 0);
+}
+
+class _SkeletonBox extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double radius;
+  final bool circle;
+
+  const _SkeletonBox({
+    this.width,
+    required this.height,
+    this.radius = 8,
+    this.circle = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: circle ? height : width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: circle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: circle ? null : BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+class _ProfileSkeleton extends StatelessWidget {
+  const _ProfileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
+    final cellColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+    return _Shimmer(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover + overlapping avatar
+            SizedBox(
+              height: 260,
+              child: Stack(
+                children: [
+                  const _SkeletonBox(
+                    height: 200,
+                    width: double.infinity,
+                    radius: 0,
+                  ),
+                  Positioned(
+                    top: 155,
+                    left: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: scaffoldColor, width: 4),
+                      ),
+                      child: const _SkeletonBox(height: 90, circle: true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 12),
+                  _SkeletonBox(height: 26, width: 200),
+                  SizedBox(height: 10),
+                  _SkeletonBox(height: 14, width: 120),
+                  SizedBox(height: 18),
+                  _SkeletonBox(height: 14, width: double.infinity),
+                  SizedBox(height: 8),
+                  _SkeletonBox(height: 14, width: 220),
+                  SizedBox(height: 22),
+                  _SkeletonBox(height: 72, width: double.infinity, radius: 16),
+                  SizedBox(height: 24),
+                ],
+              ),
+            ),
+            // Posts grid
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+              children: List.generate(6, (_) => ColoredBox(color: cellColor)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -286,7 +679,9 @@ class SettingsView extends ConsumerWidget {
                 icon: Icons.grid_view_rounded,
                 color: Theme.of(context).colorScheme.primary,
                 isSelected: currentLayout == FeedLayoutMode.grid,
-                onTap: () => ref.read(feedLayoutProvider.notifier).setLayout(FeedLayoutMode.grid),
+                onTap: () => ref
+                    .read(feedLayoutProvider.notifier)
+                    .setLayout(FeedLayoutMode.grid),
               ),
               const SizedBox(width: 16),
               _LayoutCard(
@@ -294,9 +689,42 @@ class SettingsView extends ConsumerWidget {
                 icon: Icons.view_agenda_rounded,
                 color: Theme.of(context).colorScheme.secondary,
                 isSelected: currentLayout == FeedLayoutMode.card,
-                onTap: () => ref.read(feedLayoutProvider.notifier).setLayout(FeedLayoutMode.card),
+                onTap: () => ref
+                    .read(feedLayoutProvider.notifier)
+                    .setLayout(FeedLayoutMode.card),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Post Image Layout',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          Consumer(
+            builder: (context, ref, _) {
+              final postLayout = ref.watch(postImageLayoutProvider);
+              return SegmentedButton<PostImageLayoutStyle>(
+                segments: const [
+                  ButtonSegment(
+                    value: PostImageLayoutStyle.edgeToEdge,
+                    label: Text('Edge-to-Edge', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.fullscreen),
+                  ),
+                  ButtonSegment(
+                    value: PostImageLayoutStyle.padded,
+                    label: Text('Padded', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.padding),
+                  ),
+                ],
+                selected: {postLayout},
+                onSelectionChanged: (Set<PostImageLayoutStyle> newSelection) {
+                  ref
+                      .read(postImageLayoutProvider.notifier)
+                      .setStyle(newSelection.first);
+                },
+              );
+            },
           ),
           const SizedBox(height: 24),
           const Text(
@@ -319,7 +747,9 @@ class SettingsView extends ConsumerWidget {
             ],
             selected: {profileLayout},
             onSelectionChanged: (Set<ProfileLayoutStyle> newSelection) {
-              ref.read(profileLayoutProvider.notifier).setStyle(newSelection.first);
+              ref
+                  .read(profileLayoutProvider.notifier)
+                  .setStyle(newSelection.first);
             },
           ),
           const SizedBox(height: 24),
@@ -348,7 +778,9 @@ class SettingsView extends ConsumerWidget {
             ],
             selected: {navbarStyle},
             onSelectionChanged: (Set<NavbarStyle> newSelection) {
-              ref.read(navbarStyleProvider.notifier).setStyle(newSelection.first);
+              ref
+                  .read(navbarStyleProvider.notifier)
+                  .setStyle(newSelection.first);
             },
           ),
           const SizedBox(height: 24),
@@ -357,111 +789,149 @@ class SettingsView extends ConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          Consumer(builder: (context, ref, _) {
-            final colorTheme = ref.watch(colorThemeProvider);
-            return SegmentedButton<ColorThemeStyle>(
-              segments: const [
-                ButtonSegment(
-                  value: ColorThemeStyle.pastelPop,
-                  label: Text('Pastel Pop', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.bubble_chart),
-                ),
-                ButtonSegment(
-                  value: ColorThemeStyle.cyberNeon,
-                  label: Text('Cyber Neon', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.bolt),
-                ),
-                ButtonSegment(
-                  value: ColorThemeStyle.ultraMinimalist,
-                  label: Text('Minimalist', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.architecture),
-                ),
-              ],
-              selected: {colorTheme},
-              onSelectionChanged: (Set<ColorThemeStyle> newSelection) {
-                ref.read(colorThemeProvider.notifier).setStyle(newSelection.first);
-              },
-            );
-          }),
+          Consumer(
+            builder: (context, ref, _) {
+              final colorTheme = ref.watch(colorThemeProvider);
+              return SegmentedButton<ColorThemeStyle>(
+                segments: const [
+                  ButtonSegment(
+                    value: ColorThemeStyle.pastelPop,
+                    label: Text('Pastel Pop', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.bubble_chart),
+                  ),
+                  ButtonSegment(
+                    value: ColorThemeStyle.cyberNeon,
+                    label: Text('Cyber Neon', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.bolt),
+                  ),
+                  ButtonSegment(
+                    value: ColorThemeStyle.ultraMinimalist,
+                    label: Text('Minimalist', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.architecture),
+                  ),
+                ],
+                selected: {colorTheme},
+                onSelectionChanged: (Set<ColorThemeStyle> newSelection) {
+                  ref
+                      .read(colorThemeProvider.notifier)
+                      .setStyle(newSelection.first);
+                },
+              );
+            },
+          ),
           const SizedBox(height: 24),
           const Text(
             'Dark Mode',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          Consumer(builder: (context, ref, _) {
-            final brightness = ref.watch(brightnessProvider);
-            return SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('System', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.settings_system_daydream),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Light', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.light_mode),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Dark', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.dark_mode),
-                ),
-              ],
-              selected: {brightness},
-              onSelectionChanged: (Set<ThemeMode> newSelection) {
-                ref.read(brightnessProvider.notifier).setBrightness(newSelection.first);
-              },
-            );
-          }),
+          Consumer(
+            builder: (context, ref, _) {
+              final brightness = ref.watch(brightnessProvider);
+              return SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text('System', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.settings_system_daydream),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Light', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.light_mode),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Dark', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.dark_mode),
+                  ),
+                ],
+                selected: {brightness},
+                onSelectionChanged: (Set<ThemeMode> newSelection) {
+                  ref
+                      .read(brightnessProvider.notifier)
+                      .setBrightness(newSelection.first);
+                },
+              );
+            },
+          ),
           const SizedBox(height: 24),
           const Text(
             'Ambient Mode',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          Consumer(builder: (context, ref, _) {
-            final isAmbientEnabled = ref.watch(ambientModeProvider);
-            return SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Dynamic Ambient Glow', style: TextStyle(fontSize: 14)),
-              subtitle: const Text('Creates a breathing light effect behind content', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              value: isAmbientEnabled,
-              onChanged: (value) {
-                ref.read(ambientModeProvider.notifier).toggleAmbientMode();
-              },
-            );
-          }),
+          Consumer(
+            builder: (context, ref, _) {
+              final isAmbientEnabled = ref.watch(ambientModeProvider);
+              return SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Dynamic Ambient Glow',
+                  style: TextStyle(fontSize: 14),
+                ),
+                subtitle: const Text(
+                  'Creates a breathing light effect behind content',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                value: isAmbientEnabled,
+                onChanged: (value) {
+                  ref.read(ambientModeProvider.notifier).toggleAmbientMode();
+                },
+              );
+            },
+          ),
           const SizedBox(height: 12),
-          Consumer(builder: (context, ref, _) {
-            final physicsMode = ref.watch(ambientPhysicsProvider);
-            return SegmentedButton<AmbientPhysicsMode>(
-              segments: const [
-                ButtonSegment(
-                  value: AmbientPhysicsMode.pulse,
-                  label: Text('Pulse', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.waves),
-                ),
-                ButtonSegment(
-                  value: AmbientPhysicsMode.aurora,
-                  label: Text('Aurora', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.blur_on),
-                ),
-                ButtonSegment(
-                  value: AmbientPhysicsMode.wave,
-                  label: Text('Wave', style: TextStyle(fontSize: 12)),
-                  icon: Icon(Icons.water),
-                ),
-              ],
-              selected: {physicsMode},
-              onSelectionChanged: (Set<AmbientPhysicsMode> newSelection) {
-                ref.read(ambientPhysicsProvider.notifier).setMode(newSelection.first);
-              },
-            );
-          }),
+          Consumer(
+            builder: (context, ref, _) {
+              final physicsMode = ref.watch(ambientPhysicsProvider);
+              return SegmentedButton<AmbientPhysicsMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: AmbientPhysicsMode.pulse,
+                    label: Text('Pulse', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.waves),
+                  ),
+                  ButtonSegment(
+                    value: AmbientPhysicsMode.aurora,
+                    label: Text('Aurora', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.blur_on),
+                  ),
+                  ButtonSegment(
+                    value: AmbientPhysicsMode.wave,
+                    label: Text('Wave', style: TextStyle(fontSize: 12)),
+                    icon: Icon(Icons.water),
+                  ),
+                ],
+                selected: {physicsMode},
+                onSelectionChanged: (Set<AmbientPhysicsMode> newSelection) {
+                  ref
+                      .read(ambientPhysicsProvider.notifier)
+                      .setMode(newSelection.first);
+                },
+              );
+            },
+          ),
           const SizedBox(height: 24),
           const Divider(),
+          ListTile(
+            leading: const Icon(Icons.phone_android),
+            title: const Text('Verify Phone Number'),
+            subtitle: const Text(
+              'Link your phone number to secure your account',
+            ),
+            onTap: () {
+              // Note: Implementation for phone verification in settings.
+              // We just show a snackbar for now to signify the entry point.
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Phone Verification flow will open here. Please make sure Phone Auth is enabled in Firebase.',
+                  ),
+                ),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Log Out', style: TextStyle(color: Colors.red)),
@@ -499,7 +969,9 @@ class _LayoutCard extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: isSelected ? color.withValues(alpha: 0.15) : Theme.of(context).cardColor,
+            color: isSelected
+                ? color.withValues(alpha: 0.15)
+                : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),

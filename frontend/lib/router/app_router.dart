@@ -8,13 +8,17 @@ import '../features/auth/presentation/onboarding_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/auth/presentation/auth_provider.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import '../features/auth/presentation/sign_up_screen.dart';
+import '../features/auth/presentation/verify_email_screen.dart';
+
 final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   return RouterNotifier(ref);
 });
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
-  
+
   RouterNotifier(this._ref) {
     _ref.listen(authStateProvider, (_, _) {
       notifyListeners();
@@ -24,7 +28,9 @@ class RouterNotifier extends ChangeNotifier {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
-  final isCachedAuth = Hive.box('settings').get('isAuthenticated', defaultValue: false);
+  final isCachedAuth = Hive.box(
+    'settings',
+  ).get('isAuthenticated', defaultValue: false);
 
   return GoRouter(
     initialLocation: isCachedAuth ? '/home' : '/splash',
@@ -33,6 +39,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       final isSplash = state.uri.path == '/splash';
       final isLoggingIn = state.uri.path == '/login';
+      final isSignUp = state.uri.path == '/signup';
+      final isVerifyEmail = state.uri.path == '/verify-email';
       final isOnboarding = state.uri.path == '/onboarding';
 
       // CRITICAL FIX: While auth is loading (or we're on the splash screen),
@@ -41,17 +49,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isAuth = authState.isAuthenticated;
       final needsOnboard = authState.needsOnboarding;
+      final isEmailVerified =
+          FirebaseAuth.instance.currentUser?.emailVerified ?? false;
 
       if (!isAuth) {
-        return isLoggingIn ? null : '/login';
+        if (isLoggingIn || isSignUp) return null;
+        return '/login';
       }
 
-      if (isAuth && needsOnboard) {
+      if (isAuth && !isEmailVerified) {
+        if (isVerifyEmail) return null;
+        return '/verify-email';
+      }
+
+      if (isAuth && isEmailVerified && needsOnboard) {
         return isOnboarding ? null : '/onboarding';
       }
 
-      if (isAuth && !needsOnboard) {
-        if (isLoggingIn || isOnboarding) {
+      if (isAuth && isEmailVerified && !needsOnboard) {
+        if (isLoggingIn || isOnboarding || isSignUp || isVerifyEmail) {
           return '/home';
         }
       }
@@ -72,8 +88,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ),
     routes: [
-      GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => const VerifyEmailScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),

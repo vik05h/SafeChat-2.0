@@ -65,7 +65,8 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
       state = state.copyWith(submissionState: const AsyncData(null));
 
       // Refresh the feed so the new post appears immediately.
-      ref.invalidate(feedPostsProvider);
+      ref.invalidate(feedPostsProvider('global'));
+      ref.invalidate(feedPostsProvider('following'));
 
       return result == PostSubmitResult.pendingReview
           ? SubmitOutcome.pendingReview
@@ -83,5 +84,5 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
 
 final createPostProvider =
     NotifierProvider<CreatePostNotifier, CreatePostState>(() {
-  return CreatePostNotifier();
-});
+      return CreatePostNotifier();
+    });

@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
+import '../../../shared/utils/markdown_extensions.dart';
 import 'create_post_provider.dart';
 
 class CreatePostView extends ConsumerStatefulWidget {
@@ -63,7 +66,9 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
         // pendingReview
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('📋 Post under review. It\'ll go live once approved!'),
+            content: Text(
+              '📋 Post under review. It\'ll go live once approved!',
+            ),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 5),
           ),
@@ -95,14 +100,20 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
   void _nextStep() {
     if (_currentStep < 2) {
       setState(() => _currentStep++);
-      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
   void _prevStep() {
     if (_currentStep > 0) {
       setState(() => _currentStep--);
-      _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -118,26 +129,34 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
               Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Create Post', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(
+                      'Create Post',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     if (!state.isSimpleMode || _currentStep == 2)
                       FilledButton(
                         onPressed: isLoading ? null : _submit,
@@ -147,7 +166,7 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                 ),
               ),
               const Divider(),
-              
+
               if (isLoading) ...[
                 const Padding(
                   padding: EdgeInsets.all(16.0),
@@ -155,14 +174,20 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                     children: [
                       LinearProgressIndicator(),
                       SizedBox(height: 8),
-                      Text('Verifying post with AI Moderation...', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(
+                        'Verifying post with AI Moderation...',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
                     ],
                   ),
                 ),
               ],
 
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: SegmentedButton<bool>(
                   segments: const [
                     ButtonSegment(value: false, label: Text('Advanced Canvas')),
@@ -170,15 +195,19 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                   ],
                   selected: {state.isSimpleMode},
                   onSelectionChanged: (Set<bool> selection) {
-                    ref.read(createPostProvider.notifier).setMode(selection.first);
+                    ref
+                        .read(createPostProvider.notifier)
+                        .setMode(selection.first);
                   },
                 ),
               ),
 
               Expanded(
-                child: state.isSimpleMode 
+                child: state.isSimpleMode
                     ? _buildSimpleWizard(state, isLoading)
-                    : SingleChildScrollView(child: _buildAdvancedCanvas(state, isLoading)),
+                    : SingleChildScrollView(
+                        child: _buildAdvancedCanvas(state, isLoading),
+                      ),
               ),
             ],
           ),
@@ -210,7 +239,9 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
               height: 8,
               width: _currentStep == index ? 24 : 8,
               decoration: BoxDecoration(
-                color: _currentStep == index ? Theme.of(context).colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
+                color: _currentStep == index
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
             );
@@ -227,7 +258,10 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Text('Step 1: Add Media', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Step 1: Add Media',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 16),
                     Expanded(child: _buildMediaSection(state)),
                     const SizedBox(height: 16),
@@ -235,7 +269,7 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                       onPressed: _nextStep,
                       icon: const Icon(Icons.arrow_forward),
                       label: const Text('Next: Write Caption'),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -244,17 +278,28 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Text('Step 2: Write a Caption', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Step 2: Write a Caption',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 16),
                     Expanded(child: _buildEditorSection(isLoading)),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        TextButton.icon(onPressed: _prevStep, icon: const Icon(Icons.arrow_back), label: const Text('Back')),
-                        FilledButton.icon(onPressed: _nextStep, icon: const Icon(Icons.arrow_forward), label: const Text('Next: Review')),
+                        TextButton.icon(
+                          onPressed: _prevStep,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Back'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _nextStep,
+                          icon: const Icon(Icons.arrow_forward),
+                          label: const Text('Next: Review'),
+                        ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -263,7 +308,10 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Text('Step 3: Review', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Step 3: Review',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 16),
                     Expanded(
                       child: SingleChildScrollView(
@@ -281,15 +329,27 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                                     width: 150,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
-                                      image: DecorationImage(image: FileImage(state.selectedMedia[index]), fit: BoxFit.cover),
+                                      image: DecorationImage(
+                                        image: FileImage(
+                                          state.selectedMedia[index],
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             const SizedBox(height: 16),
-                            const Text('Caption:', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Text(
+                              'Caption:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             const SizedBox(height: 8),
-                            Text(_captionController.text.isEmpty ? '(No caption)' : _captionController.text),
+                            Text(
+                              _captionController.text.isEmpty
+                                  ? '(No caption)'
+                                  : _captionController.text,
+                            ),
                           ],
                         ),
                       ),
@@ -297,10 +357,18 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        TextButton.icon(onPressed: _prevStep, icon: const Icon(Icons.arrow_back), label: const Text('Back')),
-                        FilledButton.icon(onPressed: isLoading ? null : _submit, icon: const Icon(Icons.check), label: const Text('Post Now')),
+                        TextButton.icon(
+                          onPressed: _prevStep,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Back'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: isLoading ? null : _submit,
+                          icon: const Icon(Icons.check),
+                          label: const Text('Post Now'),
+                        ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -321,13 +389,15 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
           itemCount: state.selectedMedia.length + 1,
           itemBuilder: (context, index) {
             if (index == state.selectedMedia.length) {
-              if (state.selectedMedia.length >= 5) return const SizedBox.shrink();
+              if (state.selectedMedia.length >= 5)
+                return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: InkWell(
                   onTap: _pickMedia,
                   child: Container(
-                    width: 100, height: 100,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(12),
@@ -342,18 +412,26 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
               children: [
                 Container(
                   margin: const EdgeInsets.only(right: 8),
-                  width: 100, height: 100,
+                  width: 100,
+                  height: 100,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
+                    image: DecorationImage(
+                      image: FileImage(file),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 Positioned(
-                  top: 4, right: 12,
+                  top: 4,
+                  right: 12,
                   child: GestureDetector(
-                    onTap: () => ref.read(createPostProvider.notifier).removeMedia(index),
+                    onTap: () => ref
+                        .read(createPostProvider.notifier)
+                        .removeMedia(index),
                     child: const CircleAvatar(
-                      radius: 12, backgroundColor: Colors.black54,
+                      radius: 12,
+                      backgroundColor: Colors.black54,
                       child: Icon(Icons.close, size: 16, color: Colors.white),
                     ),
                   ),
@@ -370,7 +448,8 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
           onTap: _pickMedia,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            height: 100, width: double.infinity,
+            height: 100,
+            width: double.infinity,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
@@ -389,43 +468,204 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
     }
   }
 
+  void _addFormat(String prefix, String suffix) {
+    final text = _captionController.text;
+    final selection = _captionController.selection;
+
+    if (!selection.isValid || selection.start == selection.end) {
+      final insertPos = selection.isValid ? selection.start : text.length;
+      final newText = text.replaceRange(insertPos, insertPos, '$prefix$suffix');
+      _captionController.value = _captionController.value.copyWith(
+        text: newText,
+        selection: TextSelection.collapsed(offset: insertPos + prefix.length),
+      );
+      return;
+    }
+
+    final selectedText = selection.textInside(text);
+    final newText = text.replaceRange(
+      selection.start,
+      selection.end,
+      '$prefix$selectedText$suffix',
+    );
+    _captionController.value = _captionController.value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: selection.end + prefix.length + suffix.length,
+      ),
+    );
+  }
+
   Widget _buildEditorSection(bool isLoading) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: TextField(
-        controller: _captionController,
-        maxLines: null, minLines: 5,
-        enabled: !isLoading,
-        onChanged: (val) => ref.read(createPostProvider.notifier).setCaption(val),
-        decoration: const InputDecoration(
-          hintText: 'What\'s on your mind? Select text to format it!',
-          border: OutlineInputBorder(), filled: false,
-        ),
-        contextMenuBuilder: (BuildContext context, EditableTextState editableTextState) {
-          final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
-          
-          void addFormat(String prefix, String suffix) {
-            final text = _captionController.text;
-            final selection = _captionController.selection;
-            final selectedText = selection.textInside(text);
-            final newText = text.replaceRange(selection.start, selection.end, '$prefix$selectedText$suffix');
-            _captionController.value = _captionController.value.copyWith(
-              text: newText,
-              selection: TextSelection.collapsed(offset: selection.end + prefix.length + suffix.length),
-            );
-            ContextMenuController.removeAny();
-          }
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 4,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.title),
+                  tooltip: 'Heading',
+                  onPressed: isLoading ? null : () => _addFormat('### ', ''),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_bold),
+                  tooltip: 'Bold',
+                  onPressed: isLoading ? null : () => _addFormat('**', '**'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_italic),
+                  tooltip: 'Italic',
+                  onPressed: isLoading ? null : () => _addFormat('_', '_'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.highlight),
+                  tooltip: 'Highlight',
+                  onPressed: isLoading ? null : () => _addFormat('==', '=='),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.format_strikethrough),
+                  tooltip: 'Strikethrough',
+                  onPressed: isLoading ? null : () => _addFormat('~~', '~~'),
+                ),
+              ],
+            ),
+          ),
+          TextField(
+            controller: _captionController,
+            maxLines: null,
+            minLines: 5,
+            enabled: !isLoading,
+            onChanged: (val) =>
+                ref.read(createPostProvider.notifier).setCaption(val),
+            decoration: const InputDecoration(
+              hintText:
+                  'What\'s on your mind? Select text or use the toolbar to format!',
+              border: OutlineInputBorder(),
+              filled: false,
+            ),
+            contextMenuBuilder:
+                (BuildContext context, EditableTextState editableTextState) {
+                  final List<ContextMenuButtonItem> buttonItems =
+                      editableTextState.contextMenuButtonItems;
 
-          buttonItems.insert(0, ContextMenuButtonItem(label: 'Bold', onPressed: () => addFormat('**', '**')));
-          buttonItems.insert(1, ContextMenuButtonItem(label: 'Italic', onPressed: () => addFormat('_', '_')));
-          buttonItems.insert(2, ContextMenuButtonItem(label: 'Highlight', onPressed: () => addFormat('==', '==')));
-          buttonItems.insert(3, ContextMenuButtonItem(label: 'Strike', onPressed: () => addFormat('~~', '~~')));
+                  buttonItems.insert(
+                    0,
+                    ContextMenuButtonItem(
+                      label: 'Heading',
+                      onPressed: () {
+                        _addFormat('### ', '');
+                        ContextMenuController.removeAny();
+                      },
+                    ),
+                  );
+                  buttonItems.insert(
+                    1,
+                    ContextMenuButtonItem(
+                      label: 'Bold',
+                      onPressed: () {
+                        _addFormat('**', '**');
+                        ContextMenuController.removeAny();
+                      },
+                    ),
+                  );
+                  buttonItems.insert(
+                    2,
+                    ContextMenuButtonItem(
+                      label: 'Italic',
+                      onPressed: () {
+                        _addFormat('_', '_');
+                        ContextMenuController.removeAny();
+                      },
+                    ),
+                  );
+                  buttonItems.insert(
+                    3,
+                    ContextMenuButtonItem(
+                      label: 'Highlight',
+                      onPressed: () {
+                        _addFormat('==', '==');
+                        ContextMenuController.removeAny();
+                      },
+                    ),
+                  );
+                  buttonItems.insert(
+                    4,
+                    ContextMenuButtonItem(
+                      label: 'Strike',
+                      onPressed: () {
+                        _addFormat('~~', '~~');
+                        ContextMenuController.removeAny();
+                      },
+                    ),
+                  );
 
-          return AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: editableTextState.contextMenuAnchors,
-            buttonItems: buttonItems,
-          );
-        },
+                  return AdaptiveTextSelectionToolbar.buttonItems(
+                    anchors: editableTextState.contextMenuAnchors,
+                    buttonItems: buttonItems,
+                  );
+                },
+          ),
+          const SizedBox(height: 16),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _captionController,
+            builder: (context, value, child) {
+              if (value.text.isEmpty) return const SizedBox.shrink();
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Live Preview',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    MarkdownBody(
+                      data: value.text,
+                      extensionSet: md.ExtensionSet.gitHubFlavored,
+                      inlineSyntaxes: [HighlightSyntax()],
+                      builders: {'highlight': HighlightBuilder(context)},
+                      styleSheet: MarkdownStyleSheet(
+                        p: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(height: 1.5),
+                        h1: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        h2: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        h3: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

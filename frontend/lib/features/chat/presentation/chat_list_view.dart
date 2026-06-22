@@ -1,34 +1,200 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'chat_detail_view.dart';
+import '../../profile/presentation/follow_providers.dart';
 
-class ChatListView extends StatelessWidget {
+class ChatListView extends ConsumerStatefulWidget {
   const ChatListView({super.key});
 
   @override
+  ConsumerState<ChatListView> createState() => _ChatListViewState();
+}
+
+class _ChatListViewState extends ConsumerState<ChatListView>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null)
+      return const Scaffold(body: Center(child: Text('Not logged in')));
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(icon: const Icon(Icons.edit_square), onPressed: () {}),
+        title: const Text(
+          'Messages',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Friends'),
+            Tab(text: 'Requests'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildChatList(uid, isFriends: true),
+          _buildChatList(uid, isFriends: false),
         ],
       ),
-      body: ListView.builder(
-        itemCount: 15,
-        itemBuilder: (context, index) {
-          return ListTile(
-            leading: CircleAvatar(
-              radius: 24,
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=$index'),
-            ),
-            title: Text('Friend $index', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Active 2h ago'),
-            trailing: const Icon(Icons.camera_alt_outlined),
-            onTap: () {
-              // Navigate to actual chat
-            },
-          );
-        },
-      ),
+    );
+  }
+
+  Widget _buildChatList(String uid, {required bool isFriends}) {
+    final friendsAsync = ref.watch(friendsProvider(uid));
+
+    return friendsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text('Error: $e')),
+      data: (friendsList) {
+        // Find chats where the current user is a participant
+        final query = FirebaseFirestore.instance
+            .collection('chats')
+            .where('participants', arrayContains: uid)
+            .orderBy('updated_at', descending: true);
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: query.snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Error loading chats: ${snapshot.error}'),
+              );
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final allChats = snapshot.data?.docs ?? [];
+
+            // Filter chats based on whether the other participant is a mutual friend or not
+            final filteredChats = allChats.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final participants = List<String>.from(
+                data['participants'] ?? [],
+              );
+              participants.remove(uid);
+              final otherUid = participants.isNotEmpty
+                  ? participants.first
+                  : null;
+
+              if (otherUid == null) return false;
+
+              final isMutual = friendsList.contains(otherUid);
+              return isFriends ? isMutual : !isMutual;
+            }).toList();
+
+            if (filteredChats.isEmpty) {
+              return Center(
+                child: Text(
+                  isFriends
+                      ? 'No friend conversations yet.'
+                      : 'No message requests.',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              itemCount: filteredChats.length,
+              itemBuilder: (context, index) {
+                final doc = filteredChats[index];
+                final data = doc.data() as Map<String, dynamic>;
+
+                final participants = List<String>.from(
+                  data['participants'] ?? [],
+                );
+                participants.remove(uid);
+                final otherUid = participants.isNotEmpty
+                    ? participants.first
+                    : '';
+                final lastMessage = data['last_message'] as String? ?? '';
+                final unreadCount = data['unread_count']?[uid] ?? 0;
+
+                return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(otherUid)
+                      .get(),
+                  builder: (context, userSnap) {
+                    if (!userSnap.hasData)
+                      return const ListTile(title: Text('Loading...'));
+                    final userData =
+                        userSnap.data!.data() as Map<String, dynamic>?;
+                    if (userData == null) return const SizedBox();
+
+                    final displayName = userData['display_name'] ?? 'User';
+                    final photoUrl = userData['author_photo_url'];
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: photoUrl != null
+                            ? NetworkImage(photoUrl)
+                            : null,
+                        child: photoUrl == null
+                            ? const Icon(Icons.person)
+                            : null,
+                      ),
+                      title: Text(
+                        displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        lastMessage,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: unreadCount > 0
+                          ? CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.blueAccent,
+                              child: Text(
+                                unreadCount.toString(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : null,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatDetailView(
+                              chatId: doc.id,
+                              otherUid: otherUid,
+                              otherUserName: displayName,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

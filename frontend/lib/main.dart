@@ -12,43 +12,42 @@ import 'app.dart';
 import 'firebase_options.dart';
 
 void main() async {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    
-    // Initialize Hive for local settings
-    await Hive.initFlutter();
-    await Hive.openBox('settings');
-    
-    // Attempt to load .env, but don't crash if it's missing.
-    try {
-      await dotenv.load(fileName: ".env");
-    } catch (e) {
-      debugPrint('No .env file found. Using default values or dart-defines.');
-    }
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } catch (e) {
-      debugPrint('Firebase init error (likely hot restart): $e');
-    }
+      // Initialize Hive for local settings
+      await Hive.initFlutter();
+      await Hive.openBox('settings');
 
-    // Enable 120Hz / High refresh rate on Android
-    if (Platform.isAndroid) {
+      // Attempt to load .env, but don't crash if it's missing.
       try {
-        await FlutterDisplayMode.setHighRefreshRate();
+        await dotenv.load(fileName: ".env");
       } catch (e) {
-        debugPrint('Failed to set high refresh rate: $e');
+        debugPrint('No .env file found. Using default values or dart-defines.');
       }
-    }
-    
-    runApp(
-      const ProviderScope(
-        child: SafeChatApp(),
-      ),
-    );
-  }, (error, stack) {
-    debugPrint('Uncaught error: $error\n$stack');
-  });
+
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } catch (e) {
+        debugPrint('Firebase init error (likely hot restart): $e');
+      }
+
+      // Enable 120Hz / High refresh rate on Android
+      if (Platform.isAndroid) {
+        try {
+          await FlutterDisplayMode.setHighRefreshRate();
+        } catch (e) {
+          debugPrint('Failed to set high refresh rate: $e');
+        }
+      }
+
+      runApp(const ProviderScope(child: SafeChatApp()));
+    },
+    (error, stack) {
+      debugPrint('Uncaught error: $error\n$stack');
+    },
+  );
 }

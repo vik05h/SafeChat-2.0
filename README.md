@@ -12,7 +12,7 @@
 
 SafeChat is a global social media platform built on a fundamental premise: **bullying, harassment, and toxic content should never reach the victim in the first place.**
 
-Where Instagram, Twitter, and similar platforms rely on user reports and post-hoc moderation, SafeChat moderates content **before it's stored** — using a multi-tier AI cascade that filters text, emojis, images, and image-overlaid text in real time.
+Where Instagram, Twitter, and similar platforms rely on user reports and post-hoc moderation, SafeChat moderates content **before it's stored** — using a backend AI cascade that filters toxic content in real time.
 
 ### The problem we solve
 
@@ -20,20 +20,16 @@ Existing platforms moderate reactively. A bully sends a message, the victim sees
 
 SafeChat moderates proactively. Toxic content is blocked at the API layer before it reaches the recipient's screen. No exposure, no report queue, no waiting.
 
-### Who it's for
-
-Global audience. Multilingual moderation (English, Hindi, Hinglish at launch, expandable). Available on Android (Play Store) and Web (browser).
-
 ---
 
 ## Key Features
 
-- **Real-time AI moderation** across messages, posts, comments, stories, and profile content
-- **Multi-layer cascade** combining dynamic keyword filtering, OpenAI Moderation, and Google Gemini for nuanced cases
-- **Image-aware moderation** including OCR on memes to catch overlaid slurs
-- **Cross-platform** — single codebase running on Android and web browsers
-- **Production-grade infrastructure** on Google Cloud Platform with global CDN
-- **Live keyword management** — moderators update rules without redeployment
+- **Real-time Moderation** across messages, posts, comments, stories, and profile content.
+- **Cross-platform** — single Flutter codebase running on Android and web browsers.
+- **Production-grade infrastructure** on Google Cloud Platform with global CDN.
+- **Live keyword management** — moderators update rules without redeployment.
+- *(Upcoming)* **Multi-layer AI cascade** combining OpenAI Moderation and Google Gemini for nuanced cases.
+- *(Upcoming)* **Image-aware moderation** including OCR on memes to catch overlaid slurs.
 
 ---
 
@@ -41,17 +37,13 @@ Global audience. Multilingual moderation (English, Hindi, Hinglish at launch, ex
 
 | Layer | Technology |
 |---|---|
-| Mobile + Web Frontend | Expo (React Native + React Native Web) |
+| Mobile + Web Frontend | Flutter 3.x (Riverpod + GoRouter) |
 | Backend API | FastAPI on Google Cloud Run |
 | Database | Cloud Firestore (multi-region) |
 | Authentication | Firebase Auth (Google + Email/Password) |
 | Media Storage | Firebase Storage |
-| Web Hosting | Firebase Hosting |
-| Text Moderation | OpenAI Moderation API + Google Gemini |
-| Image Moderation | Google Cloud Vision (Safe Search + OCR) |
+| Text Moderation | TF-IDF Keyword Detection |
 | Push Notifications | Firebase Cloud Messaging |
-| Voice/Video Calls | Agora SDK |
-| CI/CD | GitHub Actions |
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for system design details.
 
@@ -61,51 +53,34 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for system design details.
 
 ```
 SafeChat-2.0/
-├── app/                      # Expo app (Android + Web)
-│   ├── src/
-│   │   ├── screens/
-│   │   ├── components/
-│   │   ├── services/         # Firebase, API client
-│   │   └── utils/
-│   ├── app.json
-│   └── package.json
+├── frontend/                 # Flutter app (Android + Web)
+│   ├── lib/
+│   │   ├── features/
+│   │   ├── core/
+│   │   ├── router/
+│   │   └── main.dart
+│   ├── pubspec.yaml
+│   └── ...
 │
 ├── backend/                  # FastAPI server
-│   ├── moderation/           # AI moderation cascade
-│   │   ├── keyword_filter.py
-│   │   ├── normalizer.py
-│   │   ├── openai_moderation.py
-│   │   ├── gemini_moderation.py
-│   │   ├── vision_moderation.py
-│   │   └── engine.py
+│   ├── moderation/           # Moderation cascade
 │   ├── routes/               # API endpoints
 │   ├── models/               # Pydantic schemas
 │   ├── services/             # Firebase Admin SDK
-│   ├── tests/
-│   ├── credentials/          # .gitignored
-│   ├── .env                  # .gitignored
 │   ├── main.py
 │   └── requirements.txt
 │
-├── admin/                    # Admin moderation panel
-│   └── src/
-│
 ├── docs/                     # All project documentation
+│   ├── v0/                   # Legacy documentation (React Native / Expo)
 │   ├── ARCHITECTURE.md
 │   ├── MODERATION.md
 │   ├── API_CONTRACTS.md
 │   ├── DATABASE_SCHEMA.md
 │   ├── ROADMAP.md
-│   ├── CONTRIBUTING.md
-│   └── legal/
-│       ├── PRIVACY_POLICY.md
-│       ├── TERMS_OF_SERVICE.md
-│       └── COMMUNITY_GUIDELINES.md
+│   ├── UI_DESIGN_SYSTEM.md
+│   └── CONTRIBUTING.md
 │
-├── .github/
-│   └── workflows/            # CI/CD pipelines
-│
-├── .gitignore
+├── AGENT.md                  # Unified AI agent instructions
 └── README.md
 ```
 
@@ -115,24 +90,22 @@ SafeChat-2.0/
 
 ### Prerequisites
 
-- Node.js 20+
+- Flutter SDK (3.x)
 - Python 3.11+
 - Firebase project with Auth, Firestore, Storage enabled
-- OpenAI API key (Moderation API)
-- Google Cloud project with Vision API + Gemini enabled
-- Agora SDK account (for calls, optional in v1)
+- Google Cloud project
 
 ### Backend Setup
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate            # macOS/Linux
-# venv\Scripts\activate              # Windows
+# macOS/Linux: source venv/bin/activate
+# Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
+# Copy and edit .env with your credentials
 cp .env.example .env
-# Edit .env with your credentials
 
 uvicorn main:app --reload --port 8000
 ```
@@ -142,39 +115,17 @@ API runs at `http://127.0.0.1:8000`. Interactive docs at `/docs`.
 ### Frontend Setup
 
 ```bash
-cd app
-npm install
+cd frontend
+flutter pub get
 
+# Setup .env file
 cp .env.example .env
-# Edit .env with Firebase web config
 
 # Run on web
-npx expo start --web
+flutter run -d chrome
 
-# Run on Android (requires Android Studio or physical device)
-npx expo start --android
-```
-
-### Environment Variables
-
-**`backend/.env`:**
-```
-FIREBASE_ADMIN_KEY_PATH=./credentials/firebase-admin-key.json
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=...
-GCP_PROJECT_ID=safechat-prod-66143
-ENVIRONMENT=development
-```
-
-**`app/.env`:**
-```
-EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-EXPO_PUBLIC_FIREBASE_API_KEY=...
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=safechat-prod-66143.firebaseapp.com
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=safechat-prod-66143
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=safechat-prod-66143.firebasestorage.app
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-EXPO_PUBLIC_FIREBASE_APP_ID=...
+# Run on Android
+flutter run -d android
 ```
 
 ---
@@ -185,13 +136,11 @@ EXPO_PUBLIC_FIREBASE_APP_ID=...
 |---|---|
 | [Architecture](docs/ARCHITECTURE.md) | System design, hosting, scaling decisions |
 | [Moderation Engine](docs/MODERATION.md) | Full AI moderation cascade specification |
+| [Design System](docs/UI_DESIGN_SYSTEM.md) | Material 3 single-theme guide |
 | [API Contracts](docs/API_CONTRACTS.md) | REST endpoint specifications |
 | [Database Schema](docs/DATABASE_SCHEMA.md) | Firestore collections, indexes, security rules |
 | [Roadmap](docs/ROADMAP.md) | Phased build plan and feature timeline |
 | [Contributing](docs/CONTRIBUTING.md) | Code style, branch strategy, PR process |
-| [Privacy Policy](docs/legal/PRIVACY_POLICY.md) | User data handling |
-| [Terms of Service](docs/legal/TERMS_OF_SERVICE.md) | Platform terms |
-| [Community Guidelines](docs/legal/COMMUNITY_GUIDELINES.md) | User behavior standards |
 
 ---
 
@@ -199,7 +148,7 @@ EXPO_PUBLIC_FIREBASE_APP_ID=...
 
 SafeChat is currently in active development. See [Roadmap](docs/ROADMAP.md) for the phased build plan.
 
-**Current phase:** Phase 0 — Project foundation and infrastructure setup.
+**Current phase:** Phase 0/1 — Project foundation and infrastructure setup.
 
 ---
 
@@ -207,25 +156,8 @@ SafeChat is currently in active development. See [Roadmap](docs/ROADMAP.md) for 
 
 Contributions are welcome. Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) before opening a pull request.
 
-For significant changes, open an issue first to discuss the proposed direction.
-
----
-
-## Maintainer
-
-**Adnan Zeya**
-B.Tech CSE, SRM Institute of Science and Technology
-GitHub: [@ADNAN-ZEYA](https://github.com/ADNAN-ZEYA)
-
 ---
 
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
-## Acknowledgements
-
-- Predecessor project: [SafeChat v1](https://github.com/ADNAN-ZEYA/SafeChat) — Best Project Award, SRM DevOps Expo 2026
-- Inspired by the absence of proactive moderation in mainstream social platforms

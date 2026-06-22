@@ -26,7 +26,7 @@ def _meta() -> dict[str, str]:
 
 class _SignRequest(BaseModel):
     content_type: str
-    purpose: Literal["post", "story", "avatar"]
+    purpose: Literal["post", "story", "avatar", "background"]
 
 
 @router.post("/sign")
