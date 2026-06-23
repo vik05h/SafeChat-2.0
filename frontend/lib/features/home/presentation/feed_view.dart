@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -367,10 +366,7 @@ class _ListPostCard extends ConsumerWidget {
               child: FirebaseCachedNetworkImage(
                 imageUrl: thumb,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
+                memCacheWidth: 1080,
                 errorWidget: (_, __, ___) => Container(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: const Center(child: Icon(Icons.broken_image_outlined)),
@@ -541,10 +537,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                   FirebaseCachedNetworkImage(
                                     imageUrl: _mediaUrls[i],
                                     fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                      child: const Center(child: CircularProgressIndicator()),
-                                    ),
+                                    memCacheWidth: 1080,
                                     errorWidget: (context, url, error) => Container(
                                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       child: const Center(

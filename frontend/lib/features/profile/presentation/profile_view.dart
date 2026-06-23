@@ -368,7 +368,7 @@ class ProfileView extends ConsumerWidget {
                   ? FirebaseCachedNetworkImage(
                       imageUrl: thumb,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                      memCacheWidth: 400,
                       errorWidget: (_, __, ___) =>
                           const Center(child: Icon(Icons.broken_image_outlined)),
                     )
@@ -412,6 +412,7 @@ class ProfileView extends ConsumerWidget {
       return FirebaseCachedNetworkImage(
         imageUrl: photoUrl,
         fit: BoxFit.cover,
+        memCacheWidth: 240,
         placeholder: (_, __) => const ColoredBox(color: Colors.black12),
         errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
       );
