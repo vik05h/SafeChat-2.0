@@ -1,183 +1,153 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_client.dart';
 
-class ContentStatusView extends ConsumerStatefulWidget {
+import '../../../core/network/dio_client.dart';
+import '../../moderation/data/moderation_models.dart';
+import '../../moderation/presentation/moderation_highlight.dart';
+
+/// The current user's content that went through (or is awaiting) human
+/// verification — backed by GET /api/v1/moderation/appeals.
+final myAppealsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final dio = ref.read(dioProvider);
+  final response = await dio.get('/api/v1/moderation/appeals');
+  final data = response.data;
+  final items = data is Map ? (data['data']?['items'] as List?) : null;
+  return (items ?? const []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+});
+
+class ContentStatusView extends ConsumerWidget {
   const ContentStatusView({super.key});
 
   @override
-  ConsumerState<ContentStatusView> createState() => _ContentStatusViewState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appealsAsync = ref.watch(myAppealsProvider);
 
-class _ContentStatusViewState extends ConsumerState<ContentStatusView> {
-  final _reasonController = TextEditingController();
-
-  Future<void> _submitAppeal(String contentId, String contentType) async {
-    final dio = ref.read(dioProvider);
-    try {
-      await dio.post(
-        '/moderation/appeals/$contentId',
-        data: {
-          'reason': _reasonController.text.trim(),
-          'content_type': contentType,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Content Status / Appeals')),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(myAppealsProvider);
+          await ref.read(myAppealsProvider.future);
         },
-      );
-      if (mounted) {
-        Navigator.pop(context); // close dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appeal submitted successfully!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // close dialog
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to submit appeal: $e')));
-      }
-    }
-  }
-
-  void _showAppealDialog(String contentId, String contentType) {
-    _reasonController.clear();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Request Human Review'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+        child: appealsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ListView(
             children: [
-              const Text(
-                'If you believe your content was incorrectly flagged by our automated moderation system, you can request a human review. It may take up to 12-24 hours.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _reasonController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Reason for appeal',
-                  hintText: 'Please explain why this content is safe...',
-                  border: OutlineInputBorder(),
-                ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text("Couldn't load your content status.\n$e", textAlign: TextAlign.center),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => _submitAppeal(contentId, contentType),
-              child: const Text('Submit Appeal'),
-            ),
-          ],
-        );
-      },
+          data: (items) {
+            if (items.isEmpty) {
+              return ListView(
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.all(48),
+                    child: Center(
+                      child: Text(
+                        'All your content looks great! 🎉\nNothing is awaiting review.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: items.length,
+              itemBuilder: (context, i) => _AppealCard(item: items[i]),
+            );
+          },
+        ),
+      ),
     );
   }
+}
+
+class _AppealCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const _AppealCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      return const Scaffold(body: Center(child: Text('Not logged in')));
+    final status = item['status'] as String? ?? 'pending_review';
+    final text = item['text'] as String? ?? '';
+    final reason = item['reason'] as String?;
+    final contentType = item['content_type'] as String? ?? 'content';
+    final matches = ((item['matches'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((m) => ModerationMatch.fromJson(m.cast<String, dynamic>()))
+        .toList();
+
+    final scheme = Theme.of(context).colorScheme;
+    final IconData icon;
+    final Color color;
+    final String label;
+    switch (status) {
+      case 'approved':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        label = 'APPROVED';
+      case 'rejected':
+        icon = Icons.block;
+        color = scheme.error;
+        label = 'REJECTED';
+      default:
+        icon = Icons.pending_actions;
+        color = Colors.orange;
+        label = 'UNDER REVIEW';
     }
 
-    // We'll stream posts created by the user that are NOT approved.
-    final query = FirebaseFirestore.instance
-        .collection('posts')
-        .where('author_uid', isEqualTo: uid)
-        .where('status', whereIn: ['blocked', 'pending_review'])
-        .orderBy('created_at', descending: true);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Content Status')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: query.snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            // Firestore composite index might be needed if orderBy is used with whereIn.
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          if (docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'All your content looks great! 🎉\nNo flagged content.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: docs.length,
-            padding: const EdgeInsets.all(16),
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final status = data['status'] as String? ?? 'unknown';
-              final text = data['text'] ?? data['caption'] ?? 'No text';
-
-              final isBlocked = status == 'blocked';
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            isBlocked ? Icons.block : Icons.pending_actions,
-                            color: isBlocked ? Colors.red : Colors.orange,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isBlocked ? 'BLOCKED' : 'UNDER REVIEW',
-                            style: TextStyle(
-                              color: isBlocked ? Colors.red : Colors.orange,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        text,
-                        style: const TextStyle(fontSize: 16),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 16),
-                      if (isBlocked)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showAppealDialog(doc.id, 'post'),
-                            icon: const Icon(Icons.gavel),
-                            label: const Text('Request Review'),
-                          ),
-                        ),
-                    ],
-                  ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
                 ),
-              );
-            },
-          );
-        },
+                const Spacer(),
+                Chip(
+                  label: Text(contentType),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ModerationHighlightedText(text: text, matches: matches),
+            if (status == 'rejected' && reason != null && reason.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('Reason: $reason', style: TextStyle(color: scheme.onErrorContainer)),
+              ),
+            ],
+            if (status == 'pending_review') ...[
+              const SizedBox(height: 8),
+              Text(
+                "A moderator is reviewing this. You'll be notified once it's decided.",
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

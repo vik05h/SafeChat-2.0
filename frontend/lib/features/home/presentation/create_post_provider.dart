@@ -1,10 +1,20 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../moderation/data/moderation_models.dart';
 import '../data/post_repository.dart';
 import 'feed_provider.dart';
 
 /// The result of submitting a post — passed back to the UI.
-enum SubmitOutcome { approved, pendingReview }
+enum SubmitOutcome {
+  /// Clean content — live in the feed.
+  approved,
+
+  /// Submitted for human verification — waiting in the review queue.
+  pendingReview,
+
+  /// Flagged by the safety filter — the UI should show the highlighted popup.
+  flagged,
+}
 
 class CreatePostState {
   final List<File> selectedMedia;
@@ -12,11 +22,15 @@ class CreatePostState {
   final bool isSimpleMode;
   final AsyncValue<void> submissionState;
 
+  /// Flagged spans from the last submit attempt (drives the popup highlight).
+  final List<ModerationMatch> flaggedMatches;
+
   CreatePostState({
     this.selectedMedia = const [],
     this.caption = '',
     this.isSimpleMode = false,
     this.submissionState = const AsyncData(null),
+    this.flaggedMatches = const [],
   });
 
   CreatePostState copyWith({
@@ -24,12 +38,14 @@ class CreatePostState {
     String? caption,
     bool? isSimpleMode,
     AsyncValue<void>? submissionState,
+    List<ModerationMatch>? flaggedMatches,
   }) {
     return CreatePostState(
       selectedMedia: selectedMedia ?? this.selectedMedia,
       caption: caption ?? this.caption,
       isSimpleMode: isSimpleMode ?? this.isSimpleMode,
       submissionState: submissionState ?? this.submissionState,
+      flaggedMatches: flaggedMatches ?? this.flaggedMatches,
     );
   }
 }
@@ -52,17 +68,30 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
     state = state.copyWith(selectedMedia: newList);
   }
 
-  /// Returns null on failure, or a [SubmitOutcome] on success.
+  /// Attempt to post. Returns:
+  ///   * [SubmitOutcome.approved] / [SubmitOutcome.pendingReview] on success,
+  ///   * [SubmitOutcome.flagged] when flagged (see [state.flaggedMatches]),
+  ///   * null on unexpected failure (see submissionState.error).
   Future<SubmitOutcome?> submitPost() async {
+    return _send(submitForReview: false);
+  }
+
+  /// Re-submit the same content, knowingly opting into human verification.
+  Future<SubmitOutcome?> confirmHumanVerification() async {
+    return _send(submitForReview: true);
+  }
+
+  Future<SubmitOutcome?> _send({required bool submitForReview}) async {
     state = state.copyWith(submissionState: const AsyncLoading());
     try {
       final repo = ref.read(postRepositoryProvider);
       final result = await repo.createPostWithMedia(
         caption: state.caption,
         mediaFiles: state.selectedMedia,
+        submitForReview: submitForReview,
       );
 
-      state = state.copyWith(submissionState: const AsyncData(null));
+      state = state.copyWith(submissionState: const AsyncData(null), flaggedMatches: const []);
 
       // Refresh the feed so the new post appears immediately.
       ref.invalidate(feedPostsProvider('global'));
@@ -71,18 +100,19 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
       return result == PostSubmitResult.pendingReview
           ? SubmitOutcome.pendingReview
           : SubmitOutcome.approved;
+    } on FlaggedContentException catch (e) {
+      // Not an error — the user gets the highlighted popup + a review option.
+      state = state.copyWith(submissionState: const AsyncData(null), flaggedMatches: e.matches);
+      return SubmitOutcome.flagged;
     } catch (e, st) {
-      print('SUBMIT POST ERROR: $e');
-      print('STACKTRACE: $st');
       state = state.copyWith(submissionState: AsyncError(e, st));
-      return null; // failure
+      return null;
     }
   }
 
   void reset() => state = CreatePostState();
 }
 
-final createPostProvider =
-    NotifierProvider<CreatePostNotifier, CreatePostState>(() {
-      return CreatePostNotifier();
-    });
+final createPostProvider = NotifierProvider<CreatePostNotifier, CreatePostState>(() {
+  return CreatePostNotifier();
+});

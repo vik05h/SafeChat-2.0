@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../moderation/data/moderation_models.dart';
 import 'comment_model.dart';
 import 'feed_post_model.dart';
 import 'post_api_service.dart';
@@ -31,9 +32,13 @@ class PostRepository {
 
   /// Upload media files + create a post in the backend.
   /// Returns [PostSubmitResult] so the UI can show the right message.
+  ///
+  /// Throws [FlaggedContentException] when the text is flagged and
+  /// [submitForReview] is false, so the UI can show the highlighted popup.
   Future<PostSubmitResult> createPostWithMedia({
     required String caption,
     required List<File> mediaFiles,
+    bool submitForReview = false,
   }) async {
     final mediaUrls = <String>[];
 
@@ -59,8 +64,7 @@ class PostRepository {
       // Derive the public GCS URL from the signed URL's host + bucket segment.
       final uri = Uri.parse(uploadUrl);
       final bucketName = uri.pathSegments.first;
-      final publicUrl =
-          'https://storage.googleapis.com/$bucketName/$objectPath';
+      final publicUrl = 'https://storage.googleapis.com/$bucketName/$objectPath';
       mediaUrls.add(publicUrl);
     }
 
@@ -69,19 +73,20 @@ class PostRepository {
       caption: caption,
       mediaUrls: mediaUrls,
       mediaType: mediaUrls.isNotEmpty ? 'image' : 'text',
+      submitForReview: submitForReview,
     );
 
+    // 422 = flagged: surface the spans so the UI can highlight + offer review.
+    if (result.statusCode == 422) {
+      throw flaggedFromEnvelope(result.data) ?? const FlaggedContentException(matches: []);
+    }
+
     // 201 = approved (live in feed), 202 = pending human review.
-    return result.statusCode == 202
-        ? PostSubmitResult.pendingReview
-        : PostSubmitResult.approved;
+    return result.statusCode == 202 ? PostSubmitResult.pendingReview : PostSubmitResult.approved;
   }
 
   /// Fetch the public feed (approved posts). Type can be 'global' or 'following'.
-  Future<List<FeedPost>> getFeed({
-    int limit = 20,
-    String type = 'following',
-  }) async {
+  Future<List<FeedPost>> getFeed({int limit = 20, String type = 'following'}) async {
     final maps = await _apiService.getFeed(limit: limit, type: type);
     return maps.map(FeedPost.fromJson).toList();
   }
@@ -110,16 +115,24 @@ class PostRepository {
     return maps.map(Comment.fromJson).toList();
   }
 
+  /// Create a comment. Throws [FlaggedContentException] when flagged and
+  /// [submitForReview] is false, so the UI can show the highlighted popup.
   Future<Comment> createComment(
     String postId,
     String text, {
     String? parentCommentId,
+    bool submitForReview = false,
   }) async {
-    final map = await _apiService.createComment(
+    final result = await _apiService.createComment(
       postId,
       text,
       parentCommentId: parentCommentId,
+      submitForReview: submitForReview,
     );
+    if (result.statusCode == 422) {
+      throw flaggedFromEnvelope(result.data) ?? const FlaggedContentException(matches: []);
+    }
+    final map = result.data['data']?['comment'] as Map<String, dynamic>? ?? {};
     return Comment.fromJson(map);
   }
 

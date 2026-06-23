@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from middleware.auth import get_current_user_claims
 from models.message import SendMessageRequest
+from models.moderation import Match
 from services import messages as messages_service
 
 router = APIRouter(prefix="/chats", tags=["messages"])
@@ -23,7 +24,7 @@ _MESSAGES_LIMIT_MAX = 50
 def _meta() -> dict[str, str]:
     return {
         "request_id": str(uuid.uuid4()),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -51,8 +52,29 @@ def _forbidden() -> HTTPException:
     )
 
 
+def _moderation_flagged_response(matches: list[Match], reason: str | None) -> JSONResponse:
+    """422 envelope for a flagged message the sender may submit for review."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "MODERATION_FLAGGED",
+                "message": (
+                    "This message can't be sent as-is. Edit it, or submit it for "
+                    "human verification."
+                ),
+                "field": "text",
+                "matches": [m.model_dump(mode="json") for m in matches],
+                "reason": reason,
+            },
+            "meta": _meta(),
+        },
+    )
+
+
 # NOTE: paths are declared longest-first within each HTTP method so FastAPI
 # matches more-specific routes before the single-segment catch-all /{uid}.
+
 
 @router.patch("/{chat_id}/messages/{message_id}/read", status_code=204)
 async def mark_message_read(
@@ -90,23 +112,18 @@ async def send_message(
             sender_uid=claims["uid"],
             text=payload.text,
             image_url=payload.image_url,
+            submit_for_review=payload.submit_for_review,
         )
     except messages_service.ChatNotFound as exc:
         raise _chat_not_found(chat_id) from exc
     except messages_service.NotAuthorized as exc:
         raise _forbidden() from exc
     except messages_service.MessageBlocked as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "MODERATION_BLOCKED",
-                "message": "Message was blocked by content moderation.",
-                "field": "text",
-            },
-        ) from exc
+        return _moderation_flagged_response(exc.matches, exc.reason)
 
+    status_code = 202 if message.status == "pending_review" else 201
     return JSONResponse(
-        status_code=201,
+        status_code=status_code,
         content={
             "data": {"message": message.model_dump(mode="json")},
             "meta": _meta(),

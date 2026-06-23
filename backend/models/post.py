@@ -24,6 +24,8 @@ class Post(BaseModel):
     status: Literal["approved", "rejected", "pending_review"] = "approved"
     moderation_layer: str | None = None
     moderation_reason: str | None = None
+    rejection_reason: str | None = None  # human-readable reason shown to author
+    flagged_terms: list[str] = Field(default_factory=list)
     like_count: int = 0
     comment_count: int = 0
     view_count: int = 0
@@ -36,3 +38,6 @@ class CreatePostRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
     media_urls: list[str] = Field(default_factory=list, max_length=10)
     media_type: str = "text"
+    # When True, knowingly submit flagged content for human verification
+    # (stored as pending_review) instead of being rejected with a 422.
+    submit_for_review: bool = False

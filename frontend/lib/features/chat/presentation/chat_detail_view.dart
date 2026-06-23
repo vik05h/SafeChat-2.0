@@ -1,8 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../moderation/data/moderation_models.dart';
+import '../../moderation/presentation/flagged_content_dialog.dart';
 
 class ChatDetailView extends ConsumerStatefulWidget {
   final String chatId;
@@ -33,22 +36,42 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    _messageController.clear();
-
-    // According to ARCHITECTURE.md, all writes go through backend.
+    final messenger = ScaffoldMessenger.of(context);
     final dio = ref.read(dioProvider);
 
+    Future<Response<dynamic>> post({required bool submitForReview}) {
+      // All writes go through the backend so moderation runs.
+      return dio.post(
+        '/api/v1/chats/${widget.chatId}/messages',
+        data: {'text': text, 'submit_for_review': submitForReview},
+        options: Options(validateStatus: (s) => s != null && ((s >= 200 && s < 300) || s == 422)),
+      );
+    }
+
     try {
-      await dio.post(
-        '/messages',
-        data: {'chat_id': widget.chatId, 'text': text},
+      final response = await post(submitForReview: false);
+      if (response.statusCode != 422) {
+        _messageController.clear(); // delivered — the stream will show it
+        return;
+      }
+
+      final flagged = flaggedFromEnvelope(response.data);
+      if (!mounted || flagged == null) return;
+      final result = await showFlaggedContentDialog(
+        context,
+        text: text,
+        matches: flagged.matches,
+        contentNoun: 'message',
+      );
+      if (result == null || !result.submitForReview) return;
+
+      await post(submitForReview: true);
+      _messageController.clear();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('📋 Message sent for review. Track it in Profile → Appeals.')),
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
-      }
+      messenger.showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
     }
   }
 
@@ -56,8 +79,9 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    if (uid == null)
+    if (uid == null) {
       return const Scaffold(body: Center(child: Text('Not logged in')));
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.otherUserName)),
@@ -82,79 +106,26 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
                 final messages = snapshot.data?.docs ?? [];
 
                 return ListView.builder(
-                  reverse: true, // Show bottom-up
+                  reverse: true,
                   itemCount: messages.length,
                   padding: const EdgeInsets.all(16),
                   itemBuilder: (context, index) {
                     final data = messages[index].data() as Map<String, dynamic>;
-                    final isMe = data['author_uid'] == uid;
-                    final text = data['text'] ?? '';
-                    final status = data['status'] ?? 'sent';
+                    final isMe = data['sender_uid'] == uid;
+                    final text = data['text'] as String? ?? '';
+                    final status = data['status'] as String? ?? 'approved';
 
-                    if (status == 'blocked' && !isMe) {
-                      // Do not show blocked messages to the recipient
+                    // The recipient only ever sees delivered (approved) messages.
+                    // The sender additionally sees their own pending/rejected ones.
+                    if (!isMe && status != 'approved') {
                       return const SizedBox.shrink();
                     }
 
-                    return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(
-                          bottom: 8,
-                          top: 8,
-                          left: 16,
-                          right: 16,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: status == 'blocked'
-                              ? Colors.red.shade100
-                              : (isMe
-                                    ? Theme.of(
-                                        context,
-                                      ).colorScheme.primaryContainer
-                                    : Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerHighest),
-                          borderRadius: BorderRadius.circular(16).copyWith(
-                            bottomRight: isMe
-                                ? const Radius.circular(0)
-                                : const Radius.circular(16),
-                            bottomLeft: !isMe
-                                ? const Radius.circular(0)
-                                : const Radius.circular(16),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              text,
-                              style: TextStyle(
-                                color: status == 'blocked'
-                                    ? Colors.red.shade900
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            if (status == 'blocked')
-                              const Padding(
-                                padding: EdgeInsets.only(top: 4.0),
-                                child: Text(
-                                  'Message Blocked',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
+                    return _MessageBubble(
+                      text: text,
+                      isMe: isMe,
+                      status: status,
+                      rejectionReason: data['rejection_reason'] as String?,
                     );
                   },
                 );
@@ -170,25 +141,91 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
                     controller: _messageController,
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(
-                  icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
-                ),
+                IconButton.filled(icon: const Icon(Icons.send), onPressed: _sendMessage),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  final String text;
+  final bool isMe;
+  final String status;
+  final String? rejectionReason;
+
+  const _MessageBubble({
+    required this.text,
+    required this.isMe,
+    required this.status,
+    this.rejectionReason,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isPending = status == 'pending_review';
+    final isRejected = status == 'rejected';
+
+    final Color bubbleColor;
+    if (isRejected) {
+      bubbleColor = scheme.errorContainer;
+    } else if (isPending) {
+      bubbleColor = scheme.surfaceContainerHighest;
+    } else if (isMe) {
+      bubbleColor = scheme.primaryContainer;
+    } else {
+      bubbleColor = scheme.surfaceContainerHighest;
+    }
+
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: BorderRadius.circular(16).copyWith(
+            bottomRight: isMe ? Radius.zero : const Radius.circular(16),
+            bottomLeft: !isMe ? Radius.zero : const Radius.circular(16),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(text),
+            if (isPending)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.pending_actions, size: 12, color: scheme.outline),
+                    const SizedBox(width: 4),
+                    Text('Under review', style: TextStyle(fontSize: 10, color: scheme.outline)),
+                  ],
+                ),
+              ),
+            if (isRejected) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Blocked${rejectionReason != null && rejectionReason!.isNotEmpty ? ': $rejectionReason' : ''}',
+                style: TextStyle(fontSize: 10, color: scheme.error),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

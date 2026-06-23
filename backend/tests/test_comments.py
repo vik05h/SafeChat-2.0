@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -14,19 +14,19 @@ from google.cloud.firestore import SERVER_TIMESTAMP as _SERVER_TIMESTAMP
 from main import app
 from middleware.auth import get_current_user_claims
 from models.comment import Comment
-from models.moderation import ModerationResult
+from models.moderation import Match, ModerationResult
 from services import comments as comments_service
 from services import likes as likes_service
-
 
 # --------------------------------------------------------------------------
 # In-memory Firestore fake with subcollection, query, and batch support
 # --------------------------------------------------------------------------
 
+
 def _apply_transform(current: Any, value: Any) -> Any:
     """Resolve a Firestore SERVER_TIMESTAMP or Increment sentinel to a plain value."""
     if value is _SERVER_TIMESTAMP:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if type(value).__name__ == "Increment" and hasattr(value, "value"):
         return max(0, int(current or 0) + int(value.value))
     return value
@@ -54,17 +54,17 @@ class _FakeQuery:
         self._order_desc: bool = False
         self._limit_n: int | None = None
 
-    def order_by(self, field: str, direction: Any = None) -> "_FakeQuery":
+    def order_by(self, field: str, direction: Any = None) -> _FakeQuery:
         self._order_field = field
         if direction is not None:
             self._order_desc = str(direction) == "DESCENDING"
         return self
 
-    def where(self, filter: Any = None, **kwargs: Any) -> "_FakeQuery":  # noqa: A002
+    def where(self, filter: Any = None, **kwargs: Any) -> _FakeQuery:  # noqa: A002
         # Filtering not needed for these tests — all seeded data is in range.
         return self
 
-    def limit(self, n: int) -> "_FakeQuery":
+    def limit(self, n: int) -> _FakeQuery:
         self._limit_n = n
         return self
 
@@ -87,14 +87,14 @@ class _FakeDocRef:
         store: dict[str, Any],
         doc_id: str,
         path: str,
-        db: "_FakeDB",
+        db: _FakeDB,
     ) -> None:
         self._store = store
         self.id = doc_id
         self._path = path
         self._db = db
 
-    def collection(self, name: str) -> "_FakeCollection":
+    def collection(self, name: str) -> _FakeCollection:
         """Return a subcollection rooted at this document."""
         subcoll_path = f"{self._path}/{self.id}/{name}"
         return self._db.collection(subcoll_path)
@@ -103,9 +103,7 @@ class _FakeDocRef:
         return _FakeSnapshot(self.id, self._store.get(self.id))
 
     def set(self, data: dict[str, Any]) -> None:
-        self._store[self.id] = {
-            k: _apply_transform(None, v) for k, v in data.items()
-        }
+        self._store[self.id] = {k: _apply_transform(None, v) for k, v in data.items()}
 
     def update(self, data: dict[str, Any]) -> None:
         row = dict(self._store.get(self.id, {}))
@@ -118,9 +116,7 @@ class _FakeDocRef:
 
 
 class _FakeCollection:
-    def __init__(
-        self, store: dict[str, Any], path: str, db: "_FakeDB"
-    ) -> None:
+    def __init__(self, store: dict[str, Any], path: str, db: _FakeDB) -> None:
         self._store = store
         self._path = path
         self._db = db
@@ -159,9 +155,7 @@ class _FakeBatch:
     def commit(self) -> None:
         for op, ref, data in self._pending:
             if op == "set":
-                ref._store[ref.id] = {
-                    k: _apply_transform(None, v) for k, v in data.items()
-                }
+                ref._store[ref.id] = {k: _apply_transform(None, v) for k, v in data.items()}
             elif op == "update":
                 row = dict(ref._store.get(ref.id, {}))
                 for k, v in data.items():
@@ -203,13 +197,12 @@ def fake_db(monkeypatch: pytest.MonkeyPatch) -> _FakeDB:
 # Service-layer tests
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_create_comment_returns_comment(
     fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake_db.collection("posts").document("post-1").set(
-        {"id": "post-1", "comment_count": 0}
-    )
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "comment_count": 0})
 
     async def fake_moderate(text: str) -> ModerationResult:
         return ModerationResult(blocked=False, content_hash="h")
@@ -229,9 +222,7 @@ async def test_create_comment_returns_comment(
 async def test_create_comment_increments_post_comment_count(
     fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake_db.collection("posts").document("post-1").set(
-        {"id": "post-1", "comment_count": 0}
-    )
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "comment_count": 0})
 
     async def fake_moderate(text: str) -> ModerationResult:
         return ModerationResult(blocked=False, content_hash="h")
@@ -248,9 +239,7 @@ async def test_create_comment_increments_post_comment_count(
 async def test_create_comment_blocked_raises(
     fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake_db.collection("posts").document("post-1").set(
-        {"id": "post-1", "comment_count": 0}
-    )
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "comment_count": 0})
 
     async def fake_moderate(text: str) -> ModerationResult:
         return ModerationResult(
@@ -272,6 +261,43 @@ async def test_create_comment_blocked_raises(
 
 
 @pytest.mark.asyncio
+async def test_create_comment_submit_for_review_pending_and_queue(
+    fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "comment_count": 0})
+
+    async def fake_moderate(text: str) -> ModerationResult:
+        return ModerationResult(
+            blocked=True,
+            layer="keyword",
+            category="english_slurs",
+            reason="keyword match: idiot",
+            matches=[Match(term="idiot", category="english_slurs", weight=0.5, start=0, end=5)],
+            content_hash="h",
+        )
+
+    async def fake_profile(uid: str) -> None:
+        return None
+
+    monkeypatch.setattr(comments_service, "moderate_text", fake_moderate)
+    monkeypatch.setattr(comments_service.users_service, "get_user_profile", fake_profile)
+
+    comment = await comments_service.create_comment(
+        "post-1", "uid-1", "idiot", submit_for_review=True
+    )
+
+    assert comment.status == "pending_review"
+    # pending comments are not counted until approved
+    assert fake_db.posts["post-1"]["comment_count"] == 0
+    queue = fake_db._stores.get("moderation_queue", {})
+    assert len(queue) == 1
+    item = next(iter(queue.values()))
+    assert item["content_type"] == "comment"
+    assert item["post_id"] == "post-1"
+    assert item["status"] == "pending_review"
+
+
+@pytest.mark.asyncio
 async def test_create_comment_on_missing_post_raises(
     fake_db: _FakeDB,
 ) -> None:
@@ -284,9 +310,9 @@ async def test_create_comment_on_missing_post_raises(
 async def test_get_comments_returns_list_ordered_by_created_at(
     fake_db: _FakeDB,
 ) -> None:
-    t1 = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
-    t2 = datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
-    t3 = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    t1 = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
+    t2 = datetime(2026, 1, 1, 11, 0, tzinfo=UTC)
+    t3 = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 
     # Seed in intentionally scrambled order to confirm sort is applied.
     for cid, t in [("c3", t3), ("c1", t1), ("c2", t2)]:
@@ -312,17 +338,15 @@ async def test_get_comments_returns_list_ordered_by_created_at(
 
 @pytest.mark.asyncio
 async def test_delete_comment_raises_not_authorized(fake_db: _FakeDB) -> None:
-    fake_db.collection("posts").document("post-1").set(
-        {"id": "post-1", "comment_count": 1}
-    )
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "comment_count": 1})
     fake_db.collection("posts/post-1/comments").document("c-1").set(
         {
             "id": "c-1",
             "post_id": "post-1",
             "author_uid": "alice",
             "text": "Hello",
-            "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
-            "updated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
             "schema_version": 1,
         }
     )
@@ -339,17 +363,15 @@ async def test_delete_comment_raises_not_authorized(fake_db: _FakeDB) -> None:
 async def test_delete_comment_decrements_post_comment_count(
     fake_db: _FakeDB,
 ) -> None:
-    fake_db.collection("posts").document("post-1").set(
-        {"id": "post-1", "comment_count": 1}
-    )
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "comment_count": 1})
     fake_db.collection("posts/post-1/comments").document("c-1").set(
         {
             "id": "c-1",
             "post_id": "post-1",
             "author_uid": "alice",
             "text": "Hello",
-            "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
-            "updated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
             "schema_version": 1,
         }
     )
@@ -363,6 +385,7 @@ async def test_delete_comment_decrements_post_comment_count(
 # --------------------------------------------------------------------------
 # API tests
 # --------------------------------------------------------------------------
+
 
 @pytest.fixture
 def client() -> TestClient:
@@ -393,7 +416,7 @@ def _override_claims(claims: dict[str, Any]) -> None:
 
 
 def _sample_comment(**overrides: Any) -> Comment:
-    now = datetime(2026, 5, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 17, tzinfo=UTC)
     base: dict[str, Any] = {
         "id": "comment-abc",
         "post_id": "post-abc",
@@ -407,19 +430,21 @@ def _sample_comment(**overrides: Any) -> Comment:
     return Comment(**base)
 
 
-def test_post_comment_returns_201(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_post_comment_returns_201(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
-    async def fake_create(post_id: str, author_uid: str, text: str) -> Comment:
+    async def fake_create(
+        post_id: str,
+        author_uid: str,
+        text: str,
+        parent_comment_id: str | None = None,
+        submit_for_review: bool = False,
+    ) -> Comment:
         return _sample_comment(post_id=post_id, author_uid=author_uid, text=text)
 
     monkeypatch.setattr(comments_service, "create_comment", fake_create)
 
-    response = client.post(
-        "/api/v1/posts/post-abc/comments", json={"text": "Nice post!"}
-    )
+    response = client.post("/api/v1/posts/post-abc/comments", json={"text": "Nice post!"})
 
     assert response.status_code == 201
     data = response.json()["data"]["comment"]
@@ -433,19 +458,28 @@ def test_post_comment_toxic_text_returns_422(
 ) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
-    async def fake_create(post_id: str, author_uid: str, text: str) -> Comment:
-        raise comments_service.CommentBlocked(layer="keyword", reason="blocked")
+    async def fake_create(
+        post_id: str,
+        author_uid: str,
+        text: str,
+        parent_comment_id: str | None = None,
+        submit_for_review: bool = False,
+    ) -> Comment:
+        raise comments_service.CommentBlocked(
+            layer="keyword",
+            reason="keyword match: idiot",
+            matches=[Match(term="idiot", category="english_slurs", weight=0.5, start=0, end=5)],
+        )
 
     monkeypatch.setattr(comments_service, "create_comment", fake_create)
 
-    response = client.post(
-        "/api/v1/posts/post-abc/comments", json={"text": "toxic content"}
-    )
+    response = client.post("/api/v1/posts/post-abc/comments", json={"text": "toxic content"})
 
     assert response.status_code == 422
     body = response.json()
-    assert body["error"]["code"] == "MODERATION_BLOCKED"
+    assert body["error"]["code"] == "MODERATION_FLAGGED"
     assert body["error"]["field"] == "text"
+    assert body["error"]["matches"][0]["term"] == "idiot"
 
 
 def test_get_comments_returns_200_with_list(
@@ -473,9 +507,7 @@ def test_get_comments_returns_200_with_list(
     assert comments[0]["id"] == "c1"
 
 
-def test_delete_comment_returns_204(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_delete_comment_returns_204(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
     async def fake_delete(

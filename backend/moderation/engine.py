@@ -1,13 +1,19 @@
 # backend/moderation/engine.py
-"""Unified moderation engine — orchestrates all cascade layers.
+"""Unified moderation engine — orchestrates the cascade layers.
 
-Cascade order (text-only; image moderation joins in a later step):
-  1. Empty / whitespace short-circuit — no work, no API calls
-  2. Keyword filter (in-process, fast)
-  3. OpenAI Moderation API
+Cascade order (text):
+  0. Empty / whitespace short-circuit — no work, no API calls.
+  1. Lexicon (Layer 1): weighted keyword scorer, in-process. Returns exact
+     match spans for client-side highlighting. Reported as ``layer="keyword"``.
+  2. TF-IDF model (Layer 2): trained scikit-learn classifier for contextual
+     toxicity the lexicon misses. Reported as ``layer="tfidf"``. Fail-open —
+     contributes nothing when the artifact is absent.
+  3. OpenAI Moderation API (upcoming): runs only if an API key is configured.
 
 First block wins; downstream layers are skipped to save latency and API spend.
-Latency is recorded per-layer and overall.
+Latency is recorded per-layer and overall. The triggering layer's ``matches``
+(lexicon spans) and scores ride along on the result so callers can both block
+and highlight.
 """
 
 from __future__ import annotations
@@ -17,11 +23,18 @@ import logging
 import time
 
 from models.moderation import ModerationResult
-from moderation.keyword_filter import check as keyword_check
+from moderation import lexicon, tfidf_model
 from moderation.openai_moderation import check_with_openai
 from moderation.vision import check_image_with_vision
 
 logger = logging.getLogger(__name__)
+
+# Flag text whose Layer-2 toxicity probability meets this threshold even when no
+# lexicon term fired. Clean text scores ~0.35 and clearly toxic phrasing ~0.6+
+# on the current seed model, so 0.5 separates them; the human-verification flow
+# is the safety valve for anything wrongly caught. Lower it to catch more (at the
+# cost of false positives) and grow moderation/data/seed_corpus.csv to sharpen it.
+TFIDF_FLAG_THRESHOLD = 0.55
 
 
 def hash_content(text: str) -> str:
@@ -36,9 +49,10 @@ def _now_ms() -> float:
 async def moderate_text(text: str) -> ModerationResult:
     """Run text through the moderation cascade.
 
-    Returns a `ModerationResult` with `blocked`, the triggering `layer`, and
-    timing metadata. Empty / whitespace-only text passes without invoking any
-    cascade layer.
+    Returns a :class:`ModerationResult` with ``blocked``, the triggering
+    ``layer``, lexicon ``matches`` (character spans for highlighting), layer
+    scores, and timing metadata. Empty / whitespace-only text passes without
+    invoking any cascade layer.
     """
     start = _now_ms()
     content_hash = hash_content(text)
@@ -52,23 +66,44 @@ async def moderate_text(text: str) -> ModerationResult:
             content_hash=content_hash,
         )
 
-    # ---- Layer 1: keyword filter (in-process, no I/O) ---------------------
+    # ---- Layer 1: weighted lexicon (in-process, no I/O) -------------------
     layer_start = _now_ms()
-    keyword_verdict = keyword_check(text)
+    lex = lexicon.evaluate(text)
     layer_latencies["keyword"] = _now_ms() - layer_start
 
-    if keyword_verdict.blocked:
+    if lex.blocked:
         return ModerationResult(
             blocked=True,
             layer="keyword",
-            category=keyword_verdict.category,
-            reason=f"keyword match: {keyword_verdict.matched_word}",
+            category=lex.category,
+            reason=f"keyword match: {lex.matched_word}",
+            matches=lex.matches,
+            lexicon_score=lex.score,
             latency_ms=_now_ms() - start,
             layer_latencies=layer_latencies,
             content_hash=content_hash,
         )
 
-    # ---- Layer 2: OpenAI Moderation API -----------------------------------
+    # ---- Layer 2: TF-IDF classifier (server-side, fail-open) --------------
+    layer_start = _now_ms()
+    tfidf = tfidf_model.score(text)
+    layer_latencies["tfidf"] = _now_ms() - layer_start
+
+    if tfidf is not None and tfidf >= TFIDF_FLAG_THRESHOLD:
+        return ModerationResult(
+            blocked=True,
+            layer="tfidf",
+            category="toxicity",
+            reason=f"tfidf score {tfidf:.2f}",
+            matches=lex.matches,
+            lexicon_score=lex.score,
+            tfidf_score=tfidf,
+            latency_ms=_now_ms() - start,
+            layer_latencies=layer_latencies,
+            content_hash=content_hash,
+        )
+
+    # ---- Layer 3: OpenAI Moderation API -----------------------------------
     layer_start = _now_ms()
     openai_verdict = await check_with_openai(text)
     layer_latencies["openai"] = _now_ms() - layer_start
@@ -80,6 +115,9 @@ async def moderate_text(text: str) -> ModerationResult:
             layer="openai",
             category=openai_verdict.category,
             reason=f"openai score {score:.2f}",
+            matches=lex.matches,
+            lexicon_score=lex.score,
+            tfidf_score=tfidf,
             latency_ms=_now_ms() - start,
             layer_latencies=layer_latencies,
             content_hash=content_hash,
@@ -87,6 +125,9 @@ async def moderate_text(text: str) -> ModerationResult:
 
     return ModerationResult(
         blocked=False,
+        matches=lex.matches,
+        lexicon_score=lex.score,
+        tfidf_score=tfidf,
         latency_ms=_now_ms() - start,
         layer_latencies=layer_latencies,
         content_hash=content_hash,

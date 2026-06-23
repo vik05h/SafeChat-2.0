@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,20 +13,20 @@ from google.cloud.firestore import SERVER_TIMESTAMP as _SERVER_TIMESTAMP
 
 from main import app
 from middleware.auth import get_current_user_claims
-from models.moderation import ModerationResult
+from models.moderation import Match, ModerationResult
 from models.post import Post
 from services import likes as likes_service
 from services import posts as posts_service
-
 
 # --------------------------------------------------------------------------
 # In-memory Firestore fake with batch support
 # --------------------------------------------------------------------------
 
+
 def _apply_transform(current: Any, value: Any) -> Any:
     """Resolve a Firestore SERVER_TIMESTAMP or Increment sentinel to a plain value."""
     if value is _SERVER_TIMESTAMP:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if type(value).__name__ == "Increment" and hasattr(value, "value"):
         return max(0, int(current or 0) + int(value.value))
     return value
@@ -54,9 +54,7 @@ class _FakeDocRef:
         return _FakeSnapshot(self.id, self._store.get(self.id))
 
     def set(self, data: dict[str, Any]) -> None:
-        self._store[self.id] = {
-            k: _apply_transform(None, v) for k, v in data.items()
-        }
+        self._store[self.id] = {k: _apply_transform(None, v) for k, v in data.items()}
 
     def update(self, data: dict[str, Any]) -> None:
         row = dict(self._store.get(self.id, {}))
@@ -94,9 +92,7 @@ class _FakeBatch:
     def commit(self) -> None:
         for op, ref, data in self._pending:
             if op == "set":
-                ref._store[ref.id] = {
-                    k: _apply_transform(None, v) for k, v in data.items()
-                }
+                ref._store[ref.id] = {k: _apply_transform(None, v) for k, v in data.items()}
             elif op == "update":
                 row = dict(ref._store.get(ref.id, {}))
                 for k, v in data.items():
@@ -139,10 +135,9 @@ def fake_db(monkeypatch: pytest.MonkeyPatch) -> _FakeDB:
 # Service-layer tests
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
-async def test_create_post_returns_post(
-    fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_create_post_returns_post(fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_moderate(text: str) -> ModerationResult:
         return ModerationResult(blocked=False, content_hash="h")
 
@@ -180,6 +175,43 @@ async def test_create_post_blocked_raises(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 @pytest.mark.asyncio
+async def test_create_post_submit_for_review_creates_pending_and_queue(
+    fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_moderate(text: str) -> ModerationResult:
+        return ModerationResult(
+            blocked=True,
+            layer="keyword",
+            category="english_slurs",
+            reason="keyword match: idiot",
+            matches=[Match(term="idiot", category="english_slurs", weight=0.5, start=0, end=5)],
+            lexicon_score=0.5,
+            content_hash="h",
+        )
+
+    async def fake_profile(uid: str) -> None:
+        return None
+
+    monkeypatch.setattr(posts_service, "moderate_text", fake_moderate)
+    monkeypatch.setattr(posts_service.users_service, "get_user_profile", fake_profile)
+
+    post = await posts_service.create_post("uid-1", "idiot", submit_for_review=True)
+
+    assert post.status == "pending_review"
+    assert post.flagged_terms == ["idiot"]
+    # pending posts are not counted until approved
+    assert fake_db.users.get("uid-1", {}).get("post_count", 0) == 0
+    # a moderation_queue record was written in the same batch
+    queue = fake_db._stores.get("moderation_queue", {})
+    assert len(queue) == 1
+    item = next(iter(queue.values()))
+    assert item["content_type"] == "post"
+    assert item["content_id"] == post.id
+    assert item["status"] == "pending_review"
+    assert item["flagged_terms"] == ["idiot"]
+
+
+@pytest.mark.asyncio
 async def test_get_post_returns_none_when_missing(fake_db: _FakeDB) -> None:
     result = await posts_service.get_post("nonexistent-id")
     assert result is None
@@ -188,9 +220,7 @@ async def test_get_post_returns_none_when_missing(fake_db: _FakeDB) -> None:
 @pytest.mark.asyncio
 async def test_delete_post_raises_not_authorized(fake_db: _FakeDB) -> None:
     # Seed a post owned by alice.
-    fake_db.collection("posts").document("post-1").set(
-        {"id": "post-1", "author_uid": "alice"}
-    )
+    fake_db.collection("posts").document("post-1").set({"id": "post-1", "author_uid": "alice"})
 
     with pytest.raises(posts_service.NotAuthorized):
         await posts_service.delete_post("post-1", requesting_uid="bob")
@@ -202,6 +232,7 @@ async def test_delete_post_raises_not_authorized(fake_db: _FakeDB) -> None:
 # --------------------------------------------------------------------------
 # API tests
 # --------------------------------------------------------------------------
+
 
 @pytest.fixture
 def client() -> TestClient:
@@ -232,7 +263,7 @@ def _override_claims(claims: dict[str, Any]) -> None:
 
 
 def _sample_post(**overrides: Any) -> Post:
-    now = datetime(2026, 5, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 17, tzinfo=UTC)
     base: dict[str, Any] = {
         "id": "post-abc",
         "author_uid": "uid-1",
@@ -249,13 +280,15 @@ def _sample_post(**overrides: Any) -> Post:
     return Post(**base)
 
 
-def test_post_endpoint_returns_201(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_post_endpoint_returns_201(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
     async def fake_create(
-        author_uid: str, text: str, image_url: str | None = None
+        author_uid: str,
+        text: str,
+        media_urls: list[str] | None = None,
+        media_type: str = "text",
+        submit_for_review: bool = False,
     ) -> Post:
         return _sample_post(author_uid=author_uid, text=text)
 
@@ -276,9 +309,17 @@ def test_post_endpoint_toxic_text_returns_422(
     _override_claims({"uid": "uid-1", "admin": False})
 
     async def fake_create(
-        author_uid: str, text: str, image_url: str | None = None
+        author_uid: str,
+        text: str,
+        media_urls: list[str] | None = None,
+        media_type: str = "text",
+        submit_for_review: bool = False,
     ) -> Post:
-        raise posts_service.PostBlocked(layer="keyword", reason="blocked")
+        raise posts_service.PostBlocked(
+            layer="keyword",
+            reason="keyword match: idiot",
+            matches=[Match(term="idiot", category="english_slurs", weight=0.5, start=0, end=5)],
+        )
 
     monkeypatch.setattr(posts_service, "create_post", fake_create)
 
@@ -286,17 +327,18 @@ def test_post_endpoint_toxic_text_returns_422(
 
     assert response.status_code == 422
     body = response.json()
-    assert body["error"]["code"] == "MODERATION_BLOCKED"
+    assert body["error"]["code"] == "MODERATION_FLAGGED"
     assert body["error"]["field"] == "text"
+    assert body["error"]["matches"][0]["term"] == "idiot"
+    assert body["error"]["matches"][0]["start"] == 0
 
 
-def test_get_feed_returns_list(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_get_feed_returns_list(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
     async def fake_get_feed(
         viewer_uid: str,
+        feed_type: str = "following",
         limit: int = 20,
         before_created_at: str | None = None,
     ) -> list[Post]:
@@ -328,14 +370,10 @@ def test_get_post_returns_404_when_missing(
     assert response.json()["error"]["code"] == "NOT_FOUND"
 
 
-def test_delete_post_returns_204(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_delete_post_returns_204(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
-    async def fake_delete(
-        post_id: str, requesting_uid: str, is_admin: bool = False
-    ) -> None:
+    async def fake_delete(post_id: str, requesting_uid: str, is_admin: bool = False) -> None:
         return None
 
     monkeypatch.setattr(posts_service, "delete_post", fake_delete)
@@ -351,9 +389,7 @@ def test_delete_post_returns_403_for_non_author(
 ) -> None:
     _override_claims({"uid": "uid-other", "admin": False})
 
-    async def fake_delete(
-        post_id: str, requesting_uid: str, is_admin: bool = False
-    ) -> None:
+    async def fake_delete(post_id: str, requesting_uid: str, is_admin: bool = False) -> None:
         raise posts_service.NotAuthorized(requesting_uid)
 
     monkeypatch.setattr(posts_service, "delete_post", fake_delete)

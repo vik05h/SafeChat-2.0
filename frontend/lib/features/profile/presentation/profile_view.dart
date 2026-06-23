@@ -8,6 +8,8 @@ import 'follow_providers.dart';
 import 'network_graph_view.dart';
 import 'content_status_view.dart';
 import '../../../shared/widgets/firebase_image.dart';
+import '../../admin/presentation/admin_providers.dart';
+import '../../admin/presentation/admin_moderation_view.dart';
 import 'user_posts_provider.dart';
 
 class ProfileView extends ConsumerWidget {
@@ -40,10 +42,7 @@ class ProfileView extends ConsumerWidget {
       children: [
         // 1. Dynamic Animated Ambient Background
         if (profile?.backgroundUrl != null)
-          AnimatedAmbientBackground(
-            imageUrl: profile!.backgroundUrl!,
-            height: 800,
-          ),
+          AnimatedAmbientBackground(imageUrl: profile!.backgroundUrl!, height: 800),
 
         // 2. Scrolling Content
         CustomScrollView(
@@ -65,10 +64,8 @@ class ProfileView extends ConsumerWidget {
                             ? FirebaseCachedNetworkImage(
                                 imageUrl: profile!.backgroundUrl!,
                                 fit: BoxFit.cover,
-                                placeholder: (_, __) =>
-                                    _buildGradientCover(user),
-                                errorWidget: (_, __, ___) =>
-                                    _buildGradientCover(user),
+                                placeholder: (_, __) => _buildGradientCover(user),
+                                errorWidget: (_, __, ___) => _buildGradientCover(user),
                               )
                             : _buildGradientCover(user),
                       ),
@@ -84,20 +81,16 @@ class ProfileView extends ConsumerWidget {
                             children: [
                               IconButton.filledTonal(
                                 icon: const Icon(Icons.edit),
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const EditProfileView(),
-                                  ),
-                                ),
+                                onPressed: () => Navigator.of(
+                                  context,
+                                ).push(MaterialPageRoute(builder: (_) => const EditProfileView())),
                               ),
                               const SizedBox(width: 8),
                               IconButton.filledTonal(
                                 icon: const Icon(Icons.settings),
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const SettingsView(),
-                                  ),
-                                ),
+                                onPressed: () => Navigator.of(
+                                  context,
+                                ).push(MaterialPageRoute(builder: (_) => const SettingsView())),
                               ),
                             ],
                           ),
@@ -129,29 +122,22 @@ class ProfileView extends ConsumerWidget {
                       child: Row(
                         children: [
                           IconButton.filledTonal(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const NetworkGraphView(),
-                              ),
-                            ),
+                            onPressed: () => Navigator.of(
+                              context,
+                            ).push(MaterialPageRoute(builder: (_) => const NetworkGraphView())),
                             icon: const Icon(Icons.hub),
                             tooltip: 'Network Graph',
                           ),
                           const SizedBox(width: 8),
                           IconButton.filledTonal(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ContentStatusView(),
-                              ),
-                            ),
+                            onPressed: () => Navigator.of(
+                              context,
+                            ).push(MaterialPageRoute(builder: (_) => const ContentStatusView())),
                             icon: const Icon(Icons.gavel),
                             tooltip: 'Content Status / Appeals',
                           ),
                           const SizedBox(width: 8),
-                          IconButton.filledTonal(
-                            onPressed: () {},
-                            icon: const Icon(Icons.share),
-                          ),
+                          IconButton.filledTonal(onPressed: () {}, icon: const Icon(Icons.share)),
                         ],
                       ),
                     ),
@@ -169,11 +155,10 @@ class ProfileView extends ConsumerWidget {
                     const SizedBox(height: 12),
                     // Profile Info
                     Text(
-                      profile?.displayName ??
-                          user?.displayName ??
-                          'SafeChat User',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      profile?.displayName ?? user?.displayName ?? 'SafeChat User',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -203,12 +188,8 @@ class ProfileView extends ConsumerWidget {
                       child: Consumer(
                         builder: (context, ref, _) {
                           final uid = user?.uid ?? '';
-                          final followersAsync = ref.watch(
-                            followersCountProvider(uid),
-                          );
-                          final followingAsync = ref.watch(
-                            followingCountProvider(uid),
-                          );
+                          final followersAsync = ref.watch(followersCountProvider(uid));
+                          final followingAsync = ref.watch(followingCountProvider(uid));
                           final friendsAsync = ref.watch(friendsProvider(uid));
 
                           return Row(
@@ -224,9 +205,7 @@ class ProfileView extends ConsumerWidget {
                               ),
                               _StatColumn(
                                 label: 'Friends',
-                                count:
-                                    friendsAsync.value?.length.toString() ??
-                                    '-',
+                                count: friendsAsync.value?.length.toString() ?? '-',
                               ),
                             ],
                           );
@@ -245,11 +224,7 @@ class ProfileView extends ConsumerWidget {
     );
   }
 
-  Widget _buildCenteredMinimalist(
-    BuildContext context,
-    dynamic user,
-    WidgetRef ref,
-  ) {
+  Widget _buildCenteredMinimalist(BuildContext context, dynamic user, WidgetRef ref) {
     final profile = ref.watch(authStateProvider).profile;
     return CustomScrollView(
       slivers: [
@@ -259,9 +234,9 @@ class ProfileView extends ConsumerWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const EditProfileView()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const EditProfileView())),
             ),
             IconButton(
               icon: const Icon(Icons.settings_outlined),
@@ -278,18 +253,14 @@ class ProfileView extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ClipOval(
-                  child: SizedBox(
-                    width: 100,
-                    height: 100,
-                    child: _buildAvatarImage(profile, user),
-                  ),
+                  child: SizedBox(width: 100, height: 100, child: _buildAvatarImage(profile, user)),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   profile?.displayName ?? user?.displayName ?? 'SafeChat User',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -302,12 +273,8 @@ class ProfileView extends ConsumerWidget {
                 Consumer(
                   builder: (context, ref, _) {
                     final uid = user?.uid ?? '';
-                    final followersAsync = ref.watch(
-                      followersCountProvider(uid),
-                    );
-                    final followingAsync = ref.watch(
-                      followingCountProvider(uid),
-                    );
+                    final followersAsync = ref.watch(followersCountProvider(uid));
+                    final followingAsync = ref.watch(followingCountProvider(uid));
                     final friendsAsync = ref.watch(friendsProvider(uid));
 
                     return Row(
@@ -336,29 +303,22 @@ class ProfileView extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton.filledTonal(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const NetworkGraphView(),
-                        ),
-                      ),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => const NetworkGraphView())),
                       icon: const Icon(Icons.hub),
                       tooltip: 'Network Graph',
                     ),
                     const SizedBox(width: 16),
                     IconButton.filledTonal(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ContentStatusView(),
-                        ),
-                      ),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => const ContentStatusView())),
                       icon: const Icon(Icons.gavel),
                       tooltip: 'Content Status / Appeals',
                     ),
                     const SizedBox(width: 16),
-                    FilledButton.tonal(
-                      onPressed: () {},
-                      child: const Text('Share Profile'),
-                    ),
+                    FilledButton.tonal(onPressed: () {}, child: const Text('Share Profile')),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -378,14 +338,10 @@ class ProfileView extends ConsumerWidget {
     return userPostsAsync.when(
       loading: () => const SliverToBoxAdapter(
         child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: CircularProgressIndicator(),
-          ),
+          child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()),
         ),
       ),
-      error: (e, _) =>
-          SliverToBoxAdapter(child: Center(child: Text('Error: $e'))),
+      error: (e, _) => SliverToBoxAdapter(child: Center(child: Text('Error: $e'))),
       data: (posts) {
         if (posts.isEmpty) {
           return const SliverToBoxAdapter(
@@ -403,9 +359,7 @@ class ProfileView extends ConsumerWidget {
           ),
           delegate: SliverChildBuilderDelegate((context, index) {
             final post = posts[index];
-            final thumb = post.displayUrls.isNotEmpty
-                ? post.displayUrls.first
-                : '';
+            final thumb = post.displayUrls.isNotEmpty ? post.displayUrls.first : '';
             return Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -414,11 +368,9 @@ class ProfileView extends ConsumerWidget {
                   ? FirebaseCachedNetworkImage(
                       imageUrl: thumb,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          const Center(child: CircularProgressIndicator()),
-                      errorWidget: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image_outlined),
-                      ),
+                      placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                      errorWidget: (_, __, ___) =>
+                          const Center(child: Icon(Icons.broken_image_outlined)),
                     )
                   : const Center(child: Icon(Icons.article_outlined)),
             );
@@ -454,8 +406,7 @@ class ProfileView extends ConsumerWidget {
   }
 
   Widget _buildAvatarImage(dynamic profile, dynamic user) {
-    final photoUrl =
-        (profile?.photoUrl as String?) ?? (user?.photoURL as String?);
+    final photoUrl = (profile?.photoUrl as String?) ?? (user?.photoURL as String?);
     if (photoUrl != null && photoUrl.isNotEmpty) {
       // Image is already framed at upload (baked crop), so just cover-fit it.
       return FirebaseCachedNetworkImage(
@@ -482,8 +433,7 @@ class _Shimmer extends StatefulWidget {
   State<_Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<_Shimmer>
-    with SingleTickerProviderStateMixin {
+class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1300),
@@ -498,11 +448,7 @@ class _ShimmerState extends State<_Shimmer>
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainerHighest;
-    final highlight = Color.lerp(
-      base,
-      Theme.of(context).colorScheme.onSurface,
-      0.10,
-    )!;
+    final highlight = Color.lerp(base, Theme.of(context).colorScheme.onSurface, 0.10)!;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -540,12 +486,7 @@ class _SkeletonBox extends StatelessWidget {
   final double radius;
   final bool circle;
 
-  const _SkeletonBox({
-    this.width,
-    required this.height,
-    this.radius = 8,
-    this.circle = false,
-  });
+  const _SkeletonBox({this.width, required this.height, this.radius = 8, this.circle = false});
 
   @override
   Widget build(BuildContext context) {
@@ -579,11 +520,7 @@ class _ProfileSkeleton extends StatelessWidget {
               height: 260,
               child: Stack(
                 children: [
-                  const _SkeletonBox(
-                    height: 200,
-                    width: double.infinity,
-                    radius: 0,
-                  ),
+                  const _SkeletonBox(height: 200, width: double.infinity, radius: 0),
                   Positioned(
                     top: 155,
                     left: 16,
@@ -643,10 +580,7 @@ class _StatColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          count,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+        Text(count, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         Text(label, style: const TextStyle(fontSize: 14)),
       ],
     );
@@ -667,10 +601,7 @@ class SettingsView extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Feed Layout',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Feed Layout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -679,9 +610,7 @@ class SettingsView extends ConsumerWidget {
                 icon: Icons.grid_view_rounded,
                 color: Theme.of(context).colorScheme.primary,
                 isSelected: currentLayout == FeedLayoutMode.grid,
-                onTap: () => ref
-                    .read(feedLayoutProvider.notifier)
-                    .setLayout(FeedLayoutMode.grid),
+                onTap: () => ref.read(feedLayoutProvider.notifier).setLayout(FeedLayoutMode.grid),
               ),
               const SizedBox(width: 16),
               _LayoutCard(
@@ -689,9 +618,7 @@ class SettingsView extends ConsumerWidget {
                 icon: Icons.view_agenda_rounded,
                 color: Theme.of(context).colorScheme.secondary,
                 isSelected: currentLayout == FeedLayoutMode.card,
-                onTap: () => ref
-                    .read(feedLayoutProvider.notifier)
-                    .setLayout(FeedLayoutMode.card),
+                onTap: () => ref.read(feedLayoutProvider.notifier).setLayout(FeedLayoutMode.card),
               ),
             ],
           ),
@@ -719,18 +646,13 @@ class SettingsView extends ConsumerWidget {
                 ],
                 selected: {postLayout},
                 onSelectionChanged: (Set<PostImageLayoutStyle> newSelection) {
-                  ref
-                      .read(postImageLayoutProvider.notifier)
-                      .setStyle(newSelection.first);
+                  ref.read(postImageLayoutProvider.notifier).setStyle(newSelection.first);
                 },
               );
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Profile Layout',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Profile Layout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           SegmentedButton<ProfileLayoutStyle>(
             segments: const [
@@ -747,9 +669,7 @@ class SettingsView extends ConsumerWidget {
             ],
             selected: {profileLayout},
             onSelectionChanged: (Set<ProfileLayoutStyle> newSelection) {
-              ref
-                  .read(profileLayoutProvider.notifier)
-                  .setStyle(newSelection.first);
+              ref.read(profileLayoutProvider.notifier).setStyle(newSelection.first);
             },
           ),
           const SizedBox(height: 24),
@@ -778,16 +698,11 @@ class SettingsView extends ConsumerWidget {
             ],
             selected: {navbarStyle},
             onSelectionChanged: (Set<NavbarStyle> newSelection) {
-              ref
-                  .read(navbarStyleProvider.notifier)
-                  .setStyle(newSelection.first);
+              ref.read(navbarStyleProvider.notifier).setStyle(newSelection.first);
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Color Theme',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Color Theme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           Consumer(
             builder: (context, ref, _) {
@@ -812,18 +727,13 @@ class SettingsView extends ConsumerWidget {
                 ],
                 selected: {colorTheme},
                 onSelectionChanged: (Set<ColorThemeStyle> newSelection) {
-                  ref
-                      .read(colorThemeProvider.notifier)
-                      .setStyle(newSelection.first);
+                  ref.read(colorThemeProvider.notifier).setStyle(newSelection.first);
                 },
               );
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Dark Mode',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           Consumer(
             builder: (context, ref, _) {
@@ -848,28 +758,20 @@ class SettingsView extends ConsumerWidget {
                 ],
                 selected: {brightness},
                 onSelectionChanged: (Set<ThemeMode> newSelection) {
-                  ref
-                      .read(brightnessProvider.notifier)
-                      .setBrightness(newSelection.first);
+                  ref.read(brightnessProvider.notifier).setBrightness(newSelection.first);
                 },
               );
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Ambient Mode',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Ambient Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           Consumer(
             builder: (context, ref, _) {
               final isAmbientEnabled = ref.watch(ambientModeProvider);
               return SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Dynamic Ambient Glow',
-                  style: TextStyle(fontSize: 14),
-                ),
+                title: const Text('Dynamic Ambient Glow', style: TextStyle(fontSize: 14)),
                 subtitle: const Text(
                   'Creates a breathing light effect behind content',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -905,9 +807,7 @@ class SettingsView extends ConsumerWidget {
                 ],
                 selected: {physicsMode},
                 onSelectionChanged: (Set<AmbientPhysicsMode> newSelection) {
-                  ref
-                      .read(ambientPhysicsProvider.notifier)
-                      .setMode(newSelection.first);
+                  ref.read(ambientPhysicsProvider.notifier).setMode(newSelection.first);
                 },
               );
             },
@@ -917,9 +817,7 @@ class SettingsView extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.phone_android),
             title: const Text('Verify Phone Number'),
-            subtitle: const Text(
-              'Link your phone number to secure your account',
-            ),
+            subtitle: const Text('Link your phone number to secure your account'),
             onTap: () {
               // Note: Implementation for phone verification in settings.
               // We just show a snackbar for now to signify the entry point.
@@ -932,6 +830,21 @@ class SettingsView extends ConsumerWidget {
               );
             },
           ),
+          ref
+              .watch(isAdminProvider)
+              .maybeWhen(
+                data: (isAdmin) => isAdmin
+                    ? ListTile(
+                        leading: const Icon(Icons.shield_outlined),
+                        title: const Text('Moderation Queue'),
+                        subtitle: const Text('Review flagged content (admin)'),
+                        onTap: () => Navigator.of(
+                          context,
+                        ).push(MaterialPageRoute(builder: (_) => const AdminModerationView())),
+                      )
+                    : const SizedBox.shrink(),
+                orElse: () => const SizedBox.shrink(),
+              ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Log Out', style: TextStyle(color: Colors.red)),
@@ -969,9 +882,7 @@ class _LayoutCard extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: isSelected
-                ? color.withValues(alpha: 0.15)
-                : Theme.of(context).cardColor,
+            color: isSelected ? color.withValues(alpha: 0.15) : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
@@ -996,10 +907,7 @@ class _LayoutCard extends StatelessWidget {
                 Container(
                   width: 6,
                   height: 6,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color,
-                  ),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: color),
                 ),
               ],
             ],

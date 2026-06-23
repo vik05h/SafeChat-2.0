@@ -22,7 +22,9 @@ from google.cloud.firestore import DocumentReference, FieldFilter
 
 from core.firebase import db
 from models.message import Chat, Message
+from models.moderation import Match
 from moderation.engine import moderate_text
+from services import moderation_queue
 from services.notifications import send_message_notification
 
 logger = logging.getLogger(__name__)
@@ -37,13 +39,21 @@ class CannotMessageSelf(Exception):
 
 
 class MessageBlocked(Exception):
-    """Raised when message text is rejected by the moderation cascade."""
+    """Raised when message text is flagged and the sender has not opted into
+    human verification. Carries match spans for client-side highlighting.
+    """
 
     def __init__(
-        self, layer: str | None = None, reason: str | None = None
+        self,
+        layer: str | None = None,
+        reason: str | None = None,
+        matches: list[Match] | None = None,
+        categories: list[str] | None = None,
     ) -> None:
         self.layer = layer
         self.reason = reason
+        self.matches = matches or []
+        self.categories = categories or []
         super().__init__(reason or "Message blocked by content moderation.")
 
 
@@ -113,23 +123,21 @@ async def send_message(
     sender_uid: str,
     text: str,
     image_url: str | None = None,
+    submit_for_review: bool = False,
 ) -> Message:
-    """Moderate then persist a message; atomically updates chat metadata.
+    """Moderate then persist a message.
 
-    After the message is stored a fire-and-forget push notification is sent
-    to the other participant via FCM. Notification failures are silently
-    swallowed and never affect the returned Message.
-
-    Args:
-        chat_id: The chat document ID.
-        sender_uid: UID of the sender — must be a participant.
-        text: Message body (1–1000 chars, validated at route level).
-        image_url: Optional image attachment URL.
+    - Clean -> status "approved"; chat preview updated; FCM sent to recipient.
+    - Flagged + submit_for_review=False -> raises ``MessageBlocked`` (route 422
+      with the flagged spans).
+    - Flagged + submit_for_review=True -> status "pending_review"; queued for
+      review; NOT delivered (chat preview untouched, no FCM) until an admin
+      approves.
 
     Raises:
         ChatNotFound: if the chat document does not exist.
         NotAuthorized: if sender_uid is not a participant in the chat.
-        MessageBlocked: if the moderation cascade rejects the text.
+        MessageBlocked: flagged text when the sender has not opted into review.
     """
     chat_snap = await asyncio.to_thread(_chat_ref(chat_id).get)
     if not chat_snap.exists:
@@ -140,13 +148,31 @@ async def send_message(
         raise NotAuthorized(sender_uid)
 
     result = await moderate_text(text)
-    is_flagged = result.blocked
-    if is_flagged:
-        logger.info(
-            "Message flagged by %s (%s) — saved as pending_review, not delivered.",
-            result.layer,
-            result.reason,
+
+    if result.blocked and not submit_for_review:
+        raise MessageBlocked(
+            layer=result.layer,
+            reason=result.reason,
+            matches=result.matches,
+            categories=[m.category for m in result.matches],
         )
+
+    is_pending = result.blocked
+    initial_status = "pending_review" if is_pending else "approved"
+
+    moderation_meta: dict[str, Any] = {}
+    author_username = "unknown"
+    if is_pending:
+        moderation_meta = {
+            "moderation_layer": result.layer,
+            "moderation_reason": result.reason,
+            "flagged_terms": list(dict.fromkeys(m.term for m in result.matches)),
+        }
+        sender_snap = await asyncio.to_thread(
+            db.collection(USERS_COLLECTION).document(sender_uid).get
+        )
+        author_username = (sender_snap.to_dict() or {}).get("username") or "unknown"
+        logger.info("Message saved as pending_review (layer=%s); not delivered.", result.layer)
 
     message_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
@@ -156,25 +182,42 @@ async def send_message(
         "sender_uid": sender_uid,
         "text": text,
         "image_url": image_url,
+        "status": initial_status,
+        **moderation_meta,
         "read_at": None,
         "created_at": now,
         "updated_at": now,
         "schema_version": 1,
-        "is_flagged": is_flagged,
-        "moderation_layer": result.layer if is_flagged else None,
     }
+
+    queue_item: tuple[str, dict[str, Any]] | None = None
+    if is_pending:
+        queue_item = moderation_queue.build_item(
+            content_type="message",
+            content_id=message_id,
+            author_uid=sender_uid,
+            author_username=author_username,
+            text=text,
+            result=result,
+            chat_id=chat_id,
+        )
 
     def _write() -> None:
         batch = db.batch()
         batch.set(_message_ref(chat_id, message_id), message_data)
-        batch.update(
-            _chat_ref(chat_id),
-            {
-                "last_message_text": text,
-                "last_message_at": firestore.SERVER_TIMESTAMP,
-                "updated_at": firestore.SERVER_TIMESTAMP,
-            },
-        )
+        # Only delivered (approved) messages update the chat preview.
+        if initial_status == "approved":
+            batch.update(
+                _chat_ref(chat_id),
+                {
+                    "last_message_text": text,
+                    "last_message_at": firestore.SERVER_TIMESTAMP,
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                },
+            )
+        if queue_item is not None:
+            qid, qpayload = queue_item
+            batch.set(db.collection(moderation_queue.QUEUE_COLLECTION).document(qid), qpayload)
         batch.commit()
 
     await asyncio.to_thread(_write)
@@ -183,17 +226,15 @@ async def send_message(
     snap = await asyncio.to_thread(_message_ref(chat_id, message_id).get)
     message = Message.model_validate(snap.to_dict())
 
-    # Only fire push notification to recipient if the message passed moderation.
-    if not is_flagged:
+    # Push to the recipient only when the message was actually delivered.
+    if initial_status == "approved":
         participants = chat_data.get("participants", [])
         recipient_uid = next((uid for uid in participants if uid != sender_uid), None)
         if recipient_uid:
             sender_snap = await asyncio.to_thread(
                 db.collection(USERS_COLLECTION).document(sender_uid).get
             )
-            display_name: str = (
-                (sender_snap.to_dict() or {}).get("display_name") or "Someone"
-            )
+            display_name: str = (sender_snap.to_dict() or {}).get("display_name") or "Someone"
             asyncio.create_task(
                 send_message_notification(recipient_uid, display_name, text, chat_id)
             )
@@ -243,11 +284,17 @@ async def get_messages(
         if before_dt is not None:
             q = q.where(filter=FieldFilter("created_at", "<", before_dt))
         q = q.limit(cap)
-        return [
-            Message.model_validate(snap.to_dict())
-            for snap in q.stream()
-            if snap.to_dict()
-        ]
+        # The recipient only sees approved messages; the sender additionally
+        # sees their own pending_review / rejected messages (with status shown).
+        results: list[Message] = []
+        for snap in q.stream():
+            data = snap.to_dict()
+            if not data:
+                continue
+            message = Message.model_validate(data)
+            if message.status == "approved" or message.sender_uid == requesting_uid:
+                results.append(message)
+        return results
 
     return await asyncio.to_thread(_query)
 
@@ -298,3 +345,60 @@ async def mark_read(
         _message_ref(chat_id, message_id).update,
         {"read_at": firestore.SERVER_TIMESTAMP},
     )
+
+
+async def set_message_status(
+    chat_id: str, message_id: str, status: str, reason: str | None = None
+) -> Message:
+    """Apply an admin moderation decision to a pending message.
+
+    - "approved": message is delivered — the chat preview is updated and a push
+      notification is sent to the recipient.
+    - "rejected": message stays hidden and ``rejection_reason`` is recorded.
+
+    Raises:
+        MessageNotFound: if the message does not exist.
+    """
+    snap = await asyncio.to_thread(_message_ref(chat_id, message_id).get)
+    if not snap.exists:
+        raise MessageNotFound(message_id)
+
+    data = snap.to_dict() or {}
+    text = str(data.get("text", ""))
+    sender_uid = str(data.get("sender_uid", ""))
+
+    updates: dict[str, Any] = {"status": status, "updated_at": firestore.SERVER_TIMESTAMP}
+    if status == "rejected":
+        updates["rejection_reason"] = reason
+
+    def _write() -> None:
+        batch = db.batch()
+        batch.update(_message_ref(chat_id, message_id), updates)
+        if status == "approved":
+            batch.update(
+                _chat_ref(chat_id),
+                {
+                    "last_message_text": text,
+                    "last_message_at": firestore.SERVER_TIMESTAMP,
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                },
+            )
+        batch.commit()
+
+    await asyncio.to_thread(_write)
+
+    if status == "approved":
+        chat_snap = await asyncio.to_thread(_chat_ref(chat_id).get)
+        participants = (chat_snap.to_dict() or {}).get("participants", [])
+        recipient_uid = next((uid for uid in participants if uid != sender_uid), None)
+        if recipient_uid:
+            sender_snap = await asyncio.to_thread(
+                db.collection(USERS_COLLECTION).document(sender_uid).get
+            )
+            display_name = (sender_snap.to_dict() or {}).get("display_name") or "Someone"
+            asyncio.create_task(
+                send_message_notification(recipient_uid, display_name, text, chat_id)
+            )
+
+    snap2 = await asyncio.to_thread(_message_ref(chat_id, message_id).get)
+    return Message.model_validate(snap2.to_dict())

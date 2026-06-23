@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -11,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from middleware.auth import get_current_user_claims
-from models.moderation import ModerationResult
+from models.moderation import ModerationQueueItem, ModerationResult
 from routes import admin as admin_routes
 
 
@@ -115,9 +116,7 @@ def test_unauthenticated_request_gets_401(client: TestClient) -> None:
     assert body["error"]["code"] == "UNAUTHENTICATED"
 
 
-def test_keyword_block_returned(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_keyword_block_returned(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "admin-uid", "admin": True})
 
     async def fake_moderate(text: str) -> ModerationResult:
@@ -203,3 +202,97 @@ def test_logging_called_with_correct_args(
     assert captured["author_uid"] == "admin-uid"
     assert captured["result"].content_hash == "hash-xyz"
     assert captured["result"].blocked is False
+
+
+# ---------------------------------------------------------------------------
+# Moderation review queue endpoints
+# ---------------------------------------------------------------------------
+
+
+def _queue_item(status: str = "pending_review", reason: str | None = None) -> ModerationQueueItem:
+    return ModerationQueueItem(
+        id="q1",
+        content_type="post",
+        content_id="c1",
+        author_uid="u1",
+        author_username="alice",
+        text="bad words",
+        status=status,
+        reason=reason,
+        created_at=datetime(2026, 6, 1, tzinfo=UTC),
+    )
+
+
+def test_admin_queue_lists_pending(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _override_claims({"uid": "admin-uid", "admin": True})
+
+    async def fake_list(limit: int = 50) -> list[ModerationQueueItem]:
+        return [_queue_item()]
+
+    monkeypatch.setattr(admin_routes.moderation_queue, "list_pending", fake_list)
+
+    response = client.get("/api/v1/admin/moderation/queue")
+
+    assert response.status_code == 200
+    items = response.json()["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == "q1"
+    assert items[0]["status"] == "pending_review"
+
+
+def test_admin_queue_requires_admin(client: TestClient) -> None:
+    _override_claims({"uid": "u1", "admin": False})
+    response = client.get("/api/v1/admin/moderation/queue")
+    assert response.status_code == 403
+
+
+def test_admin_approve_returns_approved_item(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _override_claims({"uid": "admin-uid", "admin": True})
+
+    async def fake_approve(queue_id: str, admin_uid: str) -> ModerationQueueItem:
+        return _queue_item(status="approved")
+
+    monkeypatch.setattr(admin_routes.moderation_review, "approve", fake_approve)
+
+    response = client.post("/api/v1/admin/moderation/queue/q1/approve")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["item"]["status"] == "approved"
+
+
+def test_admin_reject_returns_rejected_item_with_reason(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _override_claims({"uid": "admin-uid", "admin": True})
+
+    async def fake_reject(queue_id: str, admin_uid: str, reason: str | None) -> ModerationQueueItem:
+        return _queue_item(status="rejected", reason=reason)
+
+    monkeypatch.setattr(admin_routes.moderation_review, "reject", fake_reject)
+
+    response = client.post(
+        "/api/v1/admin/moderation/queue/q1/reject",
+        json={"reason": "Contains a slur"},
+    )
+
+    assert response.status_code == 200
+    item = response.json()["data"]["item"]
+    assert item["status"] == "rejected"
+    assert item["reason"] == "Contains a slur"
+
+
+def test_admin_approve_missing_item_returns_404(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _override_claims({"uid": "admin-uid", "admin": True})
+
+    async def fake_approve(queue_id: str, admin_uid: str) -> ModerationQueueItem:
+        raise admin_routes.moderation_review.QueueItemNotFound(queue_id)
+
+    monkeypatch.setattr(admin_routes.moderation_review, "approve", fake_approve)
+
+    response = client.post("/api/v1/admin/moderation/queue/nope/approve")
+
+    assert response.status_code == 404
