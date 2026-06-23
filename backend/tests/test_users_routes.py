@@ -77,6 +77,7 @@ def _sample_profile(**overrides: Any) -> UserProfile:
         "display_name": "Alice",
         "bio": "hello",
         "photo_url": None,
+        "dob": "1990-01-01",
         "follower_count": 0,
         "following_count": 0,
         "post_count": 0,
