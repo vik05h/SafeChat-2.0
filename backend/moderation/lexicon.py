@@ -61,6 +61,22 @@ _LEXICON: list[tuple[str, str, float]] = [
     ("english_slurs", "stupid", 0.4),
     ("english_slurs", "dumb", 0.4),
     ("english_slurs", "ugly", 0.4),
+    # Profanity (frequently used in harassment) — listed so they're caught AND
+    # highlighted (TF-IDF flags have no spans, so lexicon coverage = highlights).
+    ("profanity", "fuck", 0.8),
+    ("profanity", "fucker", 0.9),
+    ("profanity", "motherfucker", 1.0),
+    ("profanity", "asshole", 0.8),
+    ("profanity", "dumbass", 0.8),
+    ("profanity", "jackass", 0.7),
+    ("profanity", "bitch", 0.8),
+    ("profanity", "bastard", 0.7),
+    ("profanity", "cunt", 1.0),
+    ("profanity", "dickhead", 0.9),
+    ("profanity", "pussy", 0.7),
+    ("profanity", "slut", 0.9),
+    ("profanity", "whore", 0.9),
+    ("profanity", "shit", 0.5),
     # Hindi slurs.
     ("hindi_slurs", "harami", 0.7),
     ("hindi_slurs", "kamina", 0.6),

@@ -110,6 +110,10 @@ class PostRepository {
     await _apiService.unlikePost(postId);
   }
 
+  Future<void> deletePost(String postId) async {
+    await _apiService.deletePost(postId);
+  }
+
   Future<List<Comment>> getComments(String postId, {int limit = 20}) async {
     final maps = await _apiService.getComments(postId, limit: limit);
     return maps.map(Comment.fromJson).toList();

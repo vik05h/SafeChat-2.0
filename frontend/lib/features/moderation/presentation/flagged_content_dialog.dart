@@ -38,7 +38,9 @@ Future<FlaggedDialogResult?> showFlaggedContentDialog(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Our safety filter flagged some words in your $contentNoun:',
+                matches.isEmpty
+                    ? 'Our safety filter flagged your $contentNoun as potentially harmful:'
+                    : 'Our safety filter flagged some words in your $contentNoun:',
                 style: Theme.of(ctx).textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),

@@ -90,6 +90,10 @@ class PostApiService {
     await _dio.delete('/api/v1/posts/$postId/like');
   }
 
+  Future<void> deletePost(String postId) async {
+    await _dio.delete('/api/v1/posts/$postId');
+  }
+
   Future<List<Map<String, dynamic>>> getComments(String postId, {int limit = 20}) async {
     final response = await _dio.get(
       '/api/v1/posts/$postId/comments',

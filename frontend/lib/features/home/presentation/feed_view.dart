@@ -18,6 +18,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../profile/presentation/follow_providers.dart';
 import '../../profile/data/follow_repository.dart';
 import '../../profile/presentation/public_profile_view.dart';
+import '../../profile/presentation/user_posts_provider.dart';
 import '../../../shared/widgets/dp_viewer.dart';
 import '../../../shared/widgets/fullscreen_media_viewer.dart';
 import '../data/feed_post_model.dart';
@@ -491,6 +492,32 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     });
   }
 
+  Future<void> _confirmDeletePost() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This post will be permanently removed.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(postRepositoryProvider).deletePost(widget.post.id);
+      ref.invalidate(feedPostsProvider('global'));
+      ref.invalidate(feedPostsProvider('following'));
+      ref.invalidate(userPostsProvider(widget.post.authorUid));
+      navigator.pop();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
@@ -509,6 +536,31 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           color: imageBehindBar ? Colors.white : Theme.of(context).iconTheme.color,
           shadows: imageBehindBar ? const [Shadow(color: Colors.black45, blurRadius: 10)] : null,
         ),
+        actions: [
+          if (FirebaseAuth.instance.currentUser?.uid == widget.post.authorUid)
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert,
+                color: imageBehindBar ? Colors.white : Theme.of(context).iconTheme.color,
+                shadows: imageBehindBar
+                    ? const [Shadow(color: Colors.black45, blurRadius: 10)]
+                    : null,
+              ),
+              onSelected: (value) {
+                if (value == 'delete') _confirmDeletePost();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Delete post'),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Stack(
         children: [
@@ -909,6 +961,42 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                     // Reply logic
                                   },
                                 ),
+                                if (comment.authorUid == FirebaseAuth.instance.currentUser?.uid)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                    tooltip: 'Delete',
+                                    onPressed: () async {
+                                      final notifier = ref.read(commentsProvider(postId).notifier);
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      final ok = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Delete comment?'),
+                                          content: const Text(
+                                            'This comment will be permanently removed.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (ok != true) return;
+                                      try {
+                                        await notifier.deleteComment(comment.id);
+                                      } catch (e) {
+                                        messenger.showSnackBar(
+                                          SnackBar(content: Text('Failed to delete: $e')),
+                                        );
+                                      }
+                                    },
+                                  ),
                               ],
                             ),
                           );
