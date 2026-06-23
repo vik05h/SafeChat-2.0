@@ -44,7 +44,10 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
       return dio.post(
         '/api/v1/chats/${widget.chatId}/messages',
         data: {'text': text, 'submit_for_review': submitForReview},
-        options: Options(validateStatus: (s) => s != null && ((s >= 200 && s < 300) || s == 422)),
+        options: Options(
+          validateStatus: (s) =>
+              s != null && ((s >= 200 && s < 300) || s == 422),
+        ),
       );
     }
 
@@ -68,10 +71,16 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
       await post(submitForReview: true);
       _messageController.clear();
       messenger.showSnackBar(
-        const SnackBar(content: Text('📋 Message sent for review. Track it in Profile → Appeals.')),
+        const SnackBar(
+          content: Text(
+            '📋 Message sent for review. Track it in Profile → Appeals.',
+          ),
+        ),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e')),
+      );
     }
   }
 
@@ -141,14 +150,21 @@ class _ChatDetailViewState extends ConsumerState<ChatDetailView> {
                     controller: _messageController,
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(icon: const Icon(Icons.send), onPressed: _sendMessage),
+                IconButton.filled(
+                  icon: const Icon(Icons.send),
+                  onPressed: _sendMessage,
+                ),
               ],
             ),
           ),
@@ -193,7 +209,9 @@ class _MessageBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: BorderRadius.circular(16).copyWith(
@@ -211,9 +229,16 @@ class _MessageBubble extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.pending_actions, size: 12, color: scheme.outline),
+                    Icon(
+                      Icons.pending_actions,
+                      size: 12,
+                      color: scheme.outline,
+                    ),
                     const SizedBox(width: 4),
-                    Text('Under review', style: TextStyle(fontSize: 10, color: scheme.outline)),
+                    Text(
+                      'Under review',
+                      style: TextStyle(fontSize: 10, color: scheme.outline),
+                    ),
                   ],
                 ),
               ),

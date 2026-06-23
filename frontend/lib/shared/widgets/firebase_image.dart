@@ -36,7 +36,8 @@ class FirebaseCachedNetworkImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (imageUrl.isEmpty) {
-      return errorWidget?.call(context, imageUrl, 'Empty URL') ?? const SizedBox.shrink();
+      return errorWidget?.call(context, imageUrl, 'Empty URL') ??
+          const SizedBox.shrink();
     }
 
     final asyncUrl = ref.watch(firebaseImageUrlProvider(imageUrl));
@@ -55,7 +56,8 @@ class FirebaseCachedNetworkImage extends ConsumerWidget {
           errorWidget: errorWidget,
         );
       },
-      loading: () => placeholder?.call(context, imageUrl) ?? const ShimmerFill(),
+      loading: () =>
+          placeholder?.call(context, imageUrl) ?? const ShimmerFill(),
       error: (e, _) =>
           errorWidget?.call(context, imageUrl, e) ??
           const Center(child: Icon(Icons.broken_image_outlined)),
@@ -69,7 +71,8 @@ class FirebaseImageProviderWrapper {
     if (rawUrl.isEmpty) return null;
     final asyncUrl = ref.watch(firebaseImageUrlProvider(rawUrl));
     return asyncUrl.when(
-      data: (url) => CachedNetworkImageProvider(url, cacheKey: stableCacheKey(url)),
+      data: (url) =>
+          CachedNetworkImageProvider(url, cacheKey: stableCacheKey(url)),
       loading: () => null, // Will just show background color
       error: (_, _) => null,
     );

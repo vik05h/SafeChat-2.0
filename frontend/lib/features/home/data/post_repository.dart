@@ -64,7 +64,8 @@ class PostRepository {
       // Derive the public GCS URL from the signed URL's host + bucket segment.
       final uri = Uri.parse(uploadUrl);
       final bucketName = uri.pathSegments.first;
-      final publicUrl = 'https://storage.googleapis.com/$bucketName/$objectPath';
+      final publicUrl =
+          'https://storage.googleapis.com/$bucketName/$objectPath';
       mediaUrls.add(publicUrl);
     }
 
@@ -78,15 +79,21 @@ class PostRepository {
 
     // 422 = flagged: surface the spans so the UI can highlight + offer review.
     if (result.statusCode == 422) {
-      throw flaggedFromEnvelope(result.data) ?? const FlaggedContentException(matches: []);
+      throw flaggedFromEnvelope(result.data) ??
+          const FlaggedContentException(matches: []);
     }
 
     // 201 = approved (live in feed), 202 = pending human review.
-    return result.statusCode == 202 ? PostSubmitResult.pendingReview : PostSubmitResult.approved;
+    return result.statusCode == 202
+        ? PostSubmitResult.pendingReview
+        : PostSubmitResult.approved;
   }
 
   /// Fetch the public feed (approved posts). Type can be 'global' or 'following'.
-  Future<List<FeedPost>> getFeed({int limit = 20, String type = 'following'}) async {
+  Future<List<FeedPost>> getFeed({
+    int limit = 20,
+    String type = 'following',
+  }) async {
     final maps = await _apiService.getFeed(limit: limit, type: type);
     return maps.map(FeedPost.fromJson).toList();
   }
@@ -134,7 +141,8 @@ class PostRepository {
       submitForReview: submitForReview,
     );
     if (result.statusCode == 422) {
-      throw flaggedFromEnvelope(result.data) ?? const FlaggedContentException(matches: []);
+      throw flaggedFromEnvelope(result.data) ??
+          const FlaggedContentException(matches: []);
     }
     final map = result.data['data']?['comment'] as Map<String, dynamic>? ?? {};
     return Comment.fromJson(map);

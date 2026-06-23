@@ -681,7 +681,7 @@ class _NodeWidget extends StatelessWidget {
                         width: radius * 2,
                         height: radius * 2,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) =>
+                        errorWidget: (_, _, _) =>
                             Icon(Icons.person, size: radius),
                       )
                     : Icon(Icons.person, size: radius),

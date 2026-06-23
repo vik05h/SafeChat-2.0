@@ -25,7 +25,11 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainerHighest;
-    final highlight = Color.lerp(base, Theme.of(context).colorScheme.onSurface, 0.10)!;
+    final highlight = Color.lerp(
+      base,
+      Theme.of(context).colorScheme.onSurface,
+      0.10,
+    )!;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {

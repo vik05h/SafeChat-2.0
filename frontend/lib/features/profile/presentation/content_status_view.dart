@@ -8,13 +8,17 @@ import '../../../shared/widgets/empty_state.dart';
 
 /// The current user's content that went through (or is awaiting) human
 /// verification — backed by GET /api/v1/moderation/appeals.
-final myAppealsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final dio = ref.read(dioProvider);
-  final response = await dio.get('/api/v1/moderation/appeals');
-  final data = response.data;
-  final items = data is Map ? (data['data']?['items'] as List?) : null;
-  return (items ?? const []).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
-});
+final myAppealsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get('/api/v1/moderation/appeals');
+      final data = response.data;
+      final items = data is Map ? (data['data']?['items'] as List?) : null;
+      return (items ?? const [])
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+    });
 
 class ContentStatusView extends ConsumerWidget {
   const ContentStatusView({super.key});
@@ -36,7 +40,10 @@ class ContentStatusView extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text("Couldn't load your content status.\n$e", textAlign: TextAlign.center),
+                child: Text(
+                  "Couldn't load your content status.\n$e",
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
@@ -124,7 +131,9 @@ class _AppealCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ModerationHighlightedText(text: text, matches: matches),
-            if (status == 'rejected' && reason != null && reason.isNotEmpty) ...[
+            if (status == 'rejected' &&
+                reason != null &&
+                reason.isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -133,7 +142,10 @@ class _AppealCard extends StatelessWidget {
                   color: scheme.errorContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('Reason: $reason', style: TextStyle(color: scheme.onErrorContainer)),
+                child: Text(
+                  'Reason: $reason',
+                  style: TextStyle(color: scheme.onErrorContainer),
+                ),
               ),
             ],
             if (status == 'pending_review') ...[

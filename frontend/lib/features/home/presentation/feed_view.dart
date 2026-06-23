@@ -51,12 +51,17 @@ class FeedView extends StatelessWidget {
               flexibleSpace: ClipRect(
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(color: Theme.of(context).colorScheme.surface.withOpacity(0.6)),
+                  child: Container(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               title: ShaderMask(
-                shaderCallback: (bounds) =>
-                    AppColors.brandGradient(Theme.of(context).colorScheme).createShader(bounds),
+                shaderCallback: (bounds) => AppColors.brandGradient(
+                  Theme.of(context).colorScheme,
+                ).createShader(bounds),
                 child: const Text(
                   'SafeChat',
                   style: TextStyle(
@@ -103,10 +108,13 @@ class _FeedTab extends ConsumerWidget {
       ),
       data: (posts) {
         if (posts.isEmpty) {
-          return _EmptyFeed(onRetry: () => ref.invalidate(feedPostsProvider(feedType)));
+          return _EmptyFeed(
+            onRetry: () => ref.invalidate(feedPostsProvider(feedType)),
+          );
         }
         return RefreshIndicator(
-          onRefresh: () => ref.read(feedPostsProvider(feedType).notifier).refresh(),
+          onRefresh: () =>
+              ref.read(feedPostsProvider(feedType).notifier).refresh(),
           child: CustomScrollView(
             slivers: [
               SliverPadding(
@@ -141,7 +149,7 @@ class _FeedTab extends ConsumerWidget {
   Widget _buildCardView(BuildContext context, List<FeedPost> posts) {
     return SliverList.separated(
       itemCount: posts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 24),
+      separatorBuilder: (_, _) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         final post = posts[index];
         return PostOpenContainer(
@@ -177,9 +185,9 @@ class _EmptyFeed extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Follow people or create your first post!',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.outline),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
@@ -206,9 +214,16 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off_rounded, size: 64, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
-            Text('Couldn\'t load feed', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Couldn\'t load feed',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Text(
               message,
@@ -260,7 +275,7 @@ class PostOpenContainer extends StatelessWidget {
 
 class _GridPostCard extends ConsumerWidget {
   final FeedPost post;
-  const _GridPostCard({super.key, required this.post});
+  const _GridPostCard({required this.post});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -277,9 +292,13 @@ class _GridPostCard extends ConsumerWidget {
             Container(
               height: height,
               decoration: BoxDecoration(
-                image: FirebaseImageProviderWrapper.getProvider(ref, thumb) != null
+                image:
+                    FirebaseImageProviderWrapper.getProvider(ref, thumb) != null
                     ? DecorationImage(
-                        image: FirebaseImageProviderWrapper.getProvider(ref, thumb)!,
+                        image: FirebaseImageProviderWrapper.getProvider(
+                          ref,
+                          thumb,
+                        )!,
                         fit: BoxFit.cover,
                       )
                     : null,
@@ -289,7 +308,9 @@ class _GridPostCard extends ConsumerWidget {
             Container(
               height: height,
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Center(child: Icon(Icons.article_outlined, size: 40)),
+              child: const Center(
+                child: Icon(Icons.article_outlined, size: 40),
+              ),
             ),
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -298,7 +319,10 @@ class _GridPostCard extends ConsumerWidget {
               children: [
                 Text(
                   post.text,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -308,7 +332,10 @@ class _GridPostCard extends ConsumerWidget {
                     CircleAvatar(
                       radius: 12,
                       backgroundImage: post.authorPhotoUrl.isNotEmpty
-                          ? FirebaseImageProviderWrapper.getProvider(ref, post.authorPhotoUrl)
+                          ? FirebaseImageProviderWrapper.getProvider(
+                              ref,
+                              post.authorPhotoUrl,
+                            )
                           : null,
                       child: post.authorPhotoUrl.isEmpty
                           ? const Icon(Icons.person, size: 14)
@@ -318,45 +345,68 @@ class _GridPostCard extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         post.authorDisplayName,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (FirebaseAuth.instance.currentUser?.uid == post.authorUid)
+                    if (FirebaseAuth.instance.currentUser?.uid ==
+                        post.authorUid)
                       SizedBox(
                         width: 24,
                         height: 24,
                         child: PopupMenuButton<String>(
                           padding: EdgeInsets.zero,
                           iconSize: 16,
-                          icon: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
+                          icon: const Icon(
+                            Icons.more_vert,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
                           onSelected: (value) async {
                             if (value == 'delete') {
                               final ok = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   title: const Text('Delete post?'),
-                                  content: const Text('This post will be permanently removed.'),
+                                  content: const Text(
+                                    'This post will be permanently removed.',
+                                  ),
                                   actions: [
                                     TextButton(
-                                        onPressed: () => Navigator.pop(ctx, false),
-                                        child: const Text('Cancel')),
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('Cancel'),
+                                    ),
                                     FilledButton(
-                                        onPressed: () => Navigator.pop(ctx, true),
-                                        child: const Text('Delete')),
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Delete'),
+                                    ),
                                   ],
                                 ),
                               );
                               if (ok == true) {
                                 try {
-                                  await ref.read(postRepositoryProvider).deletePost(post.id);
+                                  await ref
+                                      .read(postRepositoryProvider)
+                                      .deletePost(post.id);
                                   ref.invalidate(feedPostsProvider('global'));
-                                  ref.invalidate(feedPostsProvider('following'));
-                                  ref.invalidate(userPostsProvider(post.authorUid));
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Failed to delete: $e')),
+                                  ref.invalidate(
+                                    feedPostsProvider('following'),
                                   );
+                                  ref.invalidate(
+                                    userPostsProvider(post.authorUid),
+                                  );
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to delete: $e'),
+                                      ),
+                                    );
+                                  }
                                 }
                               }
                             }
@@ -390,7 +440,7 @@ class _GridPostCard extends ConsumerWidget {
 
 class _ListPostCard extends ConsumerWidget {
   final FeedPost post;
-  const _ListPostCard({super.key, required this.post});
+  const _ListPostCard({required this.post});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -405,9 +455,14 @@ class _ListPostCard extends ConsumerWidget {
           ListTile(
             leading: CircleAvatar(
               backgroundImage: post.authorPhotoUrl.isNotEmpty
-                  ? FirebaseImageProviderWrapper.getProvider(ref, post.authorPhotoUrl)
+                  ? FirebaseImageProviderWrapper.getProvider(
+                      ref,
+                      post.authorPhotoUrl,
+                    )
                   : null,
-              child: post.authorPhotoUrl.isEmpty ? const Icon(Icons.person) : null,
+              child: post.authorPhotoUrl.isEmpty
+                  ? const Icon(Icons.person)
+                  : null,
             ),
             title: Text(
               post.authorDisplayName,
@@ -415,7 +470,9 @@ class _ListPostCard extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: Text(post.createdAt != null ? _timeAgo(post.createdAt!) : 'Just now'),
+            subtitle: Text(
+              post.createdAt != null ? _timeAgo(post.createdAt!) : 'Just now',
+            ),
             trailing: FirebaseAuth.instance.currentUser?.uid == post.authorUid
                 ? PopupMenuButton<String>(
                     onSelected: (value) async {
@@ -424,27 +481,35 @@ class _ListPostCard extends ConsumerWidget {
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: const Text('Delete post?'),
-                            content: const Text('This post will be permanently removed.'),
+                            content: const Text(
+                              'This post will be permanently removed.',
+                            ),
                             actions: [
                               TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel')),
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
                               FilledButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Delete')),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Delete'),
+                              ),
                             ],
                           ),
                         );
                         if (ok == true) {
                           try {
-                            await ref.read(postRepositoryProvider).deletePost(post.id);
+                            await ref
+                                .read(postRepositoryProvider)
+                                .deletePost(post.id);
                             ref.invalidate(feedPostsProvider('global'));
                             ref.invalidate(feedPostsProvider('following'));
                             ref.invalidate(userPostsProvider(post.authorUid));
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed to delete: $e')),
-                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to delete: $e')),
+                              );
+                            }
                           }
                         }
                       }
@@ -470,7 +535,7 @@ class _ListPostCard extends ConsumerWidget {
                 imageUrl: thumb,
                 fit: BoxFit.cover,
                 memCacheWidth: 1080,
-                errorWidget: (_, __, ___) => Container(
+                errorWidget: (_, _, _) => Container(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: const Center(child: Icon(Icons.broken_image_outlined)),
                 ),
@@ -492,39 +557,70 @@ class _ListPostCard extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.favorite_border, size: 16, color: Colors.grey),
+                    const Icon(
+                      Icons.favorite_border,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
-                    Text('${post.likeCount}', style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      '${post.likeCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
-                    Text('${post.commentCount}', style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      '${post.commentCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.remove_red_eye_outlined, size: 16, color: Colors.grey),
+                    const Icon(
+                      Icons.remove_red_eye_outlined,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
-                    Text('${post.viewCount}', style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      '${post.viewCount}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
                 Row(
                   children: [
                     Consumer(
                       builder: (context, ref, child) {
-                        final isLikedAsync = ref.watch(isLikedProvider(post.id));
+                        final isLikedAsync = ref.watch(
+                          isLikedProvider(post.id),
+                        );
                         final isLiked = isLikedAsync.value ?? false;
                         return FloatingActionButton.small(
                           heroTag: 'like_${post.id}',
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             if (isLiked) {
-                              ref.read(postRepositoryProvider).unlikePost(post.id);
+                              ref
+                                  .read(postRepositoryProvider)
+                                  .unlikePost(post.id);
                             } else {
-                              ref.read(postRepositoryProvider).likePost(post.id);
+                              ref
+                                  .read(postRepositoryProvider)
+                                  .likePost(post.id);
                             }
                           },
-                          backgroundColor: isLiked ? Colors.red.withValues(alpha: 0.1) : null,
+                          backgroundColor: isLiked
+                              ? Colors.red.withValues(alpha: 0.1)
+                              : null,
                           child:
                               Icon(
-                                    isLiked ? Icons.favorite : Icons.favorite_border,
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
                                     color: isLiked ? Colors.red : null,
                                   )
                                   .animate(key: ValueKey(isLiked))
@@ -540,7 +636,8 @@ class _ListPostCard extends ConsumerWidget {
                     const SizedBox(width: 8),
                     FloatingActionButton.small(
                       heroTag: 'comment_${post.id}',
-                      onPressed: () => showCommentsBottomSheet(context, post.id),
+                      onPressed: () =>
+                          showCommentsBottomSheet(context, post.id),
                       child: const Icon(Icons.chat_bubble_outline),
                     ),
                   ],
@@ -568,7 +665,7 @@ class _ListPostCard extends ConsumerWidget {
 
 class PostDetailScreen extends ConsumerStatefulWidget {
   final FeedPost post;
-  const PostDetailScreen({required this.post});
+  const PostDetailScreen({super.key, required this.post});
 
   @override
   ConsumerState<PostDetailScreen> createState() => PostDetailScreenState();
@@ -584,7 +681,10 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     super.initState();
     // Fire and forget view recording
     Future.microtask(() {
-      ref.read(postRepositoryProvider).viewPost(widget.post.id).catchError((_) {});
+      ref
+          .read(postRepositoryProvider)
+          .viewPost(widget.post.id)
+          .catchError((_) {});
     });
   }
 
@@ -597,8 +697,14 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         title: const Text('Delete post?'),
         content: const Text('This post will be permanently removed.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -616,7 +722,6 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
     final layoutStyle = ref.watch(postImageLayoutProvider);
     final isEdgeToEdge = layoutStyle == PostImageLayoutStyle.edgeToEdge;
     // Only extend behind the app bar when there's actually an image up top;
@@ -629,15 +734,21 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: imageBehindBar ? Colors.white : Theme.of(context).iconTheme.color,
-          shadows: imageBehindBar ? const [Shadow(color: Colors.black45, blurRadius: 10)] : null,
+          color: imageBehindBar
+              ? Colors.white
+              : Theme.of(context).iconTheme.color,
+          shadows: imageBehindBar
+              ? const [Shadow(color: Colors.black45, blurRadius: 10)]
+              : null,
         ),
         actions: [
           if (FirebaseAuth.instance.currentUser?.uid == widget.post.authorUid)
             PopupMenuButton<String>(
               icon: Icon(
                 Icons.more_vert,
-                color: imageBehindBar ? Colors.white : Theme.of(context).iconTheme.color,
+                color: imageBehindBar
+                    ? Colors.white
+                    : Theme.of(context).iconTheme.color,
                 shadows: imageBehindBar
                     ? const [Shadow(color: Colors.black45, blurRadius: 10)]
                     : null,
@@ -680,13 +791,16 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         Positioned.fill(
                           child: PageView.builder(
                             itemCount: _mediaUrls.length,
-                            onPageChanged: (i) => setState(() => _currentPage = i),
+                            onPageChanged: (i) =>
+                                setState(() => _currentPage = i),
                             itemBuilder: (context, i) => GestureDetector(
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   fullscreenDialog: true,
-                                  builder: (_) =>
-                                      FullscreenMediaViewer(urls: _mediaUrls, initialIndex: i),
+                                  builder: (_) => FullscreenMediaViewer(
+                                    urls: _mediaUrls,
+                                    initialIndex: i,
+                                  ),
                                 ),
                               ),
                               child: Stack(
@@ -696,16 +810,19 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                     imageUrl: _mediaUrls[i],
                                     fit: BoxFit.cover,
                                     memCacheWidth: 1080,
-                                    errorWidget: (context, url, error) => Container(
-                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.broken_image_outlined,
-                                          size: 48,
-                                          color: Colors.grey,
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHighest,
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              size: 48,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
                                   ),
                                   // Fullscreen affordance icon
                                   Positioned(
@@ -740,7 +857,9 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               children: List.generate(_mediaUrls.length, (i) {
                                 return AnimatedContainer(
                                   duration: const Duration(milliseconds: 300),
-                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
                                   width: _currentPage == i ? 12 : 8,
                                   height: _currentPage == i ? 12 : 8,
                                   decoration: BoxDecoration(
@@ -749,7 +868,10 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                         : Colors.white.withValues(alpha: 0.5),
                                     shape: BoxShape.circle,
                                     boxShadow: const [
-                                      BoxShadow(color: Colors.black45, blurRadius: 4),
+                                      BoxShadow(
+                                        color: Colors.black45,
+                                        blurRadius: 4,
+                                      ),
                                     ],
                                   ),
                                 );
@@ -767,7 +889,11 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     children: [
                       GestureDetector(
                         onTap: widget.post.authorPhotoUrl.isNotEmpty
-                            ? () => showDpViewer(context, ref, widget.post.authorPhotoUrl)
+                            ? () => showDpViewer(
+                                context,
+                                ref,
+                                widget.post.authorPhotoUrl,
+                              )
                             : null,
                         child: CircleAvatar(
                           radius: 24,
@@ -791,17 +917,19 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             children: [
                               Text(
                                 widget.post.authorDisplayName,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 '@${widget.post.authorUsername}',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -811,7 +939,8 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       ),
                       Builder(
                         builder: (context) {
-                          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                          final currentUid =
+                              FirebaseAuth.instance.currentUser?.uid;
                           if (currentUid == widget.post.authorUid) {
                             return const SizedBox.shrink();
                           }
@@ -823,14 +952,22 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             data: (isFollowing) =>
                                 FilledButton.tonal(
                                       onPressed: () async {
-                                        final repo = ref.read(followRepositoryProvider);
+                                        final repo = ref.read(
+                                          followRepositoryProvider,
+                                        );
                                         if (isFollowing) {
-                                          await repo.unfollowUser(widget.post.authorUid);
+                                          await repo.unfollowUser(
+                                            widget.post.authorUid,
+                                          );
                                         } else {
-                                          await repo.followUser(widget.post.authorUid);
+                                          await repo.followUser(
+                                            widget.post.authorUid,
+                                          );
                                         }
                                       },
-                                      child: Text(isFollowing ? 'Following' : 'Follow'),
+                                      child: Text(
+                                        isFollowing ? 'Following' : 'Follow',
+                                      ),
                                     )
                                     .animate(key: ValueKey(isFollowing))
                                     .scaleXY(
@@ -844,10 +981,12 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               child: SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             ),
-                            error: (_, __) => const SizedBox.shrink(),
+                            error: (_, _) => const SizedBox.shrink(),
                           );
                         },
                       ),
@@ -857,7 +996,10 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
                 // Post Content
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -865,7 +1007,9 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         widget.post.createdAt != null
                             ? _timeAgo(widget.post.createdAt!)
                             : 'Just now',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.grey),
                       ),
                       const SizedBox(height: 24), // Pushes content downward
                       MarkdownBody(
@@ -874,16 +1018,16 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         inlineSyntaxes: [HighlightSyntax()],
                         builders: {'highlight': HighlightBuilder(context)},
                         styleSheet: MarkdownStyleSheet(
-                          p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
-                          h1: Theme.of(
+                          p: Theme.of(
                             context,
-                          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                          h2: Theme.of(
-                            context,
-                          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                          h3: Theme.of(
-                            context,
-                          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          ).textTheme.bodyLarge?.copyWith(height: 1.5),
+                          h1: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          h2: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          h3: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -894,11 +1038,15 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           _buildAction(
                             Icons.chat_bubble_outline,
                             '${widget.post.commentCount}',
-                            () => showCommentsBottomSheet(context, widget.post.id),
+                            () => showCommentsBottomSheet(
+                              context,
+                              widget.post.id,
+                            ),
                           ),
                           _buildAction(Icons.share_outlined, 'Share', () {
                             final shareText =
                                 'Check out this post on SafeChat: https://safechat.com/post/${widget.post.id}';
+                            // ignore: deprecated_member_use
                             Share.share(shareText);
                           }),
                           _buildAction(
@@ -925,13 +1073,20 @@ class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     if (widget.post.authorUid == currentUid) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            PublicProfileView(uid: widget.post.authorUid, username: widget.post.authorUsername),
+        builder: (_) => PublicProfileView(
+          uid: widget.post.authorUid,
+          username: widget.post.authorUsername,
+        ),
       ),
     );
   }
 
-  Widget _buildAction(IconData icon, String label, VoidCallback onTap, {Color? color}) {
+  Widget _buildAction(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    Color? color,
+  }) {
     return Column(
       children: [
         IconButton.filledTonal(
@@ -965,7 +1120,9 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
     useSafeArea: true,
     builder: (context) {
       return Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1024,24 +1181,34 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                                 ? Icons.favorite
                                                 : Icons.favorite_border,
                                             size: 16,
-                                            color: comment.isLiked ? Colors.red : null,
+                                            color: comment.isLiked
+                                                ? Colors.red
+                                                : null,
                                           )
-                                          .animate(key: ValueKey(comment.isLiked))
+                                          .animate(
+                                            key: ValueKey(comment.isLiked),
+                                          )
                                           .scaleXY(
                                             begin: 0.7,
                                             end: 1.0,
-                                            duration: const Duration(milliseconds: 200),
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
                                             curve: Curves.easeOutBack,
                                           ),
                                   onPressed: () {
                                     HapticFeedback.lightImpact();
                                     if (comment.isLiked) {
                                       ref
-                                          .read(commentsProvider(postId).notifier)
+                                          .read(
+                                            commentsProvider(postId).notifier,
+                                          )
                                           .unlikeComment(comment.id);
                                     } else {
                                       ref
-                                          .read(commentsProvider(postId).notifier)
+                                          .read(
+                                            commentsProvider(postId).notifier,
+                                          )
                                           .likeComment(comment.id);
                                     }
                                   },
@@ -1057,13 +1224,21 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                     // Reply logic
                                   },
                                 ),
-                                if (comment.authorUid == FirebaseAuth.instance.currentUser?.uid)
+                                if (comment.authorUid ==
+                                    FirebaseAuth.instance.currentUser?.uid)
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 16,
+                                    ),
                                     tooltip: 'Delete',
                                     onPressed: () async {
-                                      final notifier = ref.read(commentsProvider(postId).notifier);
-                                      final messenger = ScaffoldMessenger.of(context);
+                                      final notifier = ref.read(
+                                        commentsProvider(postId).notifier,
+                                      );
+                                      final messenger = ScaffoldMessenger.of(
+                                        context,
+                                      );
                                       final ok = await showDialog<bool>(
                                         context: context,
                                         builder: (ctx) => AlertDialog(
@@ -1073,11 +1248,13 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                           ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.pop(ctx, false),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
                                               child: const Text('Cancel'),
                                             ),
                                             FilledButton(
-                                              onPressed: () => Navigator.pop(ctx, true),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
                                               child: const Text('Delete'),
                                             ),
                                           ],
@@ -1085,10 +1262,16 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                       );
                                       if (ok != true) return;
                                       try {
-                                        await notifier.deleteComment(comment.id);
+                                        await notifier.deleteComment(
+                                          comment.id,
+                                        );
                                       } catch (e) {
                                         messenger.showSnackBar(
-                                          SnackBar(content: Text('Failed to delete: $e')),
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to delete: $e',
+                                            ),
+                                          ),
                                         );
                                       }
                                     },
@@ -1099,7 +1282,8 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                         },
                       );
                     },
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (err, st) => Center(child: Text('Error: $err')),
                   );
                 },
@@ -1119,9 +1303,14 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                           decoration: const InputDecoration(
                             hintText: 'Add a comment...',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(24)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(24),
+                              ),
                             ),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                       ),
@@ -1131,17 +1320,21 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                         onPressed: () async {
                           final text = controller.text.trim();
                           if (text.isEmpty) return;
-                          final notifier = ref.read(commentsProvider(postId).notifier);
+                          final notifier = ref.read(
+                            commentsProvider(postId).notifier,
+                          );
                           final messenger = ScaffoldMessenger.of(context);
                           try {
                             await notifier.createComment(text);
                             controller.clear();
-                            FocusScope.of(context).unfocus();
+                            if (context.mounted) FocusScope.of(context).unfocus();
                           } catch (e) {
                             final flagged = flaggedFromError(e);
                             if (flagged == null) {
                               messenger.showSnackBar(
-                                SnackBar(content: Text('Failed to comment: $e')),
+                                SnackBar(
+                                  content: Text('Failed to comment: $e'),
+                                ),
                               );
                               return;
                             }
@@ -1152,11 +1345,13 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                               matches: flagged.matches,
                               contentNoun: 'comment',
                             );
-                            if (result == null || !result.submitForReview) return;
+                            if (result == null || !result.submitForReview) {
+                              return;
+                            }
                             try {
                               await notifier.submitCommentForReview(text);
                               controller.clear();
-                              FocusScope.of(context).unfocus();
+                              if (context.mounted) FocusScope.of(context).unfocus();
                               messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text(
@@ -1165,7 +1360,9 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                 ),
                               );
                             } catch (e2) {
-                              messenger.showSnackBar(SnackBar(content: Text('Failed: $e2')));
+                              messenger.showSnackBar(
+                                SnackBar(content: Text('Failed: $e2')),
+                              );
                             }
                           }
                         },
@@ -1228,7 +1425,9 @@ class _LikeActionWidgetState extends ConsumerState<_LikeActionWidget> {
           .scale(duration: 250.ms, curve: Curves.easeOutBack)
           .tint(color: Colors.red);
     } else {
-      icon = icon.animate(key: const ValueKey('unliked')).scale(duration: 200.ms);
+      icon = icon
+          .animate(key: const ValueKey('unliked'))
+          .scale(duration: 200.ms);
     }
 
     return Column(

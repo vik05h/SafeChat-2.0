@@ -65,11 +65,17 @@ Future<FlaggedDialogResult?> showFlaggedContentDialog(
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, const FlaggedDialogResult(submitForReview: false)),
+            onPressed: () => Navigator.pop(
+              ctx,
+              const FlaggedDialogResult(submitForReview: false),
+            ),
             child: const Text('Edit'),
           ),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(ctx, const FlaggedDialogResult(submitForReview: true)),
+            onPressed: () => Navigator.pop(
+              ctx,
+              const FlaggedDialogResult(submitForReview: true),
+            ),
             icon: const Icon(Icons.gavel),
             label: const Text('Submit for review'),
           ),

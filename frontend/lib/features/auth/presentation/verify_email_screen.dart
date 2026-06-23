@@ -113,7 +113,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               TextButton(
                 onPressed: () async {
                   await ref.read(authControllerProvider.notifier).signOut();
-                  if (mounted) context.go('/login');
+                  if (context.mounted) context.go('/login');
                 },
                 child: const Text('Cancel & Sign Out'),
               ),

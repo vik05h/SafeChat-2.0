@@ -29,7 +29,10 @@ class AdminModerationView extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Failed to load the queue.\n$e', textAlign: TextAlign.center),
+                child: Text(
+                  'Failed to load the queue.\n$e',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
@@ -67,11 +70,15 @@ class AdminModerationView extends ConsumerWidget {
       await dio.post('/api/v1/admin/moderation/queue/$id/approve');
       ref.invalidate(moderationQueueProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Approved ✅')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Approved ✅')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     }
   }
@@ -81,14 +88,21 @@ class AdminModerationView extends ConsumerWidget {
     if (reason == null) return; // cancelled
     final dio = ref.read(dioProvider);
     try {
-      await dio.post('/api/v1/admin/moderation/queue/$id/reject', data: {'reason': reason});
+      await dio.post(
+        '/api/v1/admin/moderation/queue/$id/reject',
+        data: {'reason': reason},
+      );
       ref.invalidate(moderationQueueProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rejected')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Rejected')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     }
   }
@@ -108,7 +122,10 @@ class AdminModerationView extends ConsumerWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('Reject'),
@@ -124,7 +141,11 @@ class _QueueCard extends StatelessWidget {
   final void Function(String id) onApprove;
   final void Function(String id) onReject;
 
-  const _QueueCard({required this.item, required this.onApprove, required this.onReject});
+  const _QueueCard({
+    required this.item,
+    required this.onApprove,
+    required this.onReject,
+  });
 
   @override
   Widget build(BuildContext context) {

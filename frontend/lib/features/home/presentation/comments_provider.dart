@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/comment_model.dart';
 import '../data/post_repository.dart';
 
-final commentsProvider = AsyncNotifierProvider.family<CommentsNotifier, List<Comment>, String>(
-  (arg) => CommentsNotifier(arg),
-);
+final commentsProvider =
+    AsyncNotifierProvider.family<CommentsNotifier, List<Comment>, String>(
+      (arg) => CommentsNotifier(arg),
+    );
 
 class CommentsNotifier extends AsyncNotifier<List<Comment>> {
   final String arg;
@@ -21,7 +22,11 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
   /// the UI can show the popup; the state is left intact for a retry.
   Future<void> createComment(String text, {String? parentCommentId}) async {
     final repo = ref.read(postRepositoryProvider);
-    final newComment = await repo.createComment(arg, text, parentCommentId: parentCommentId);
+    final newComment = await repo.createComment(
+      arg,
+      text,
+      parentCommentId: parentCommentId,
+    );
     if (state.hasValue) {
       state = AsyncValue.data([...state.value!, newComment]);
     }
@@ -30,9 +35,17 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
   /// Re-submit a flagged comment for human verification. The resulting
   /// pending_review comment stays hidden from the thread (shown in Appeals),
   /// so it is intentionally not appended here.
-  Future<void> submitCommentForReview(String text, {String? parentCommentId}) async {
+  Future<void> submitCommentForReview(
+    String text, {
+    String? parentCommentId,
+  }) async {
     final repo = ref.read(postRepositoryProvider);
-    await repo.createComment(arg, text, parentCommentId: parentCommentId, submitForReview: true);
+    await repo.createComment(
+      arg,
+      text,
+      parentCommentId: parentCommentId,
+      submitForReview: true,
+    );
   }
 
   Future<void> deleteComment(String commentId) async {
@@ -40,7 +53,9 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
     try {
       await repo.deleteComment(arg, commentId);
       if (state.hasValue) {
-        state = AsyncValue.data(state.value!.where((c) => c.id != commentId).toList());
+        state = AsyncValue.data(
+          state.value!.where((c) => c.id != commentId).toList(),
+        );
       }
     } catch (e) {
       rethrow;
@@ -59,7 +74,10 @@ class CommentsNotifier extends AsyncNotifier<List<Comment>> {
     if (oldComment.isLiked) return;
 
     final newComments = List<Comment>.from(comments);
-    newComments[index] = oldComment.copyWith(isLiked: true, likeCount: oldComment.likeCount + 1);
+    newComments[index] = oldComment.copyWith(
+      isLiked: true,
+      likeCount: oldComment.likeCount + 1,
+    );
     state = AsyncValue.data(newComments);
 
     try {

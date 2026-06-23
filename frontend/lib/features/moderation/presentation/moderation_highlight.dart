@@ -19,11 +19,17 @@ class ModerationHighlightedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = baseStyle ?? Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
+    final base =
+        baseStyle ?? Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
     return Text.rich(
       TextSpan(
         style: base,
-        children: buildHighlightSpans(text: text, matches: matches, base: base, context: context),
+        children: buildHighlightSpans(
+          text: text,
+          matches: matches,
+          base: base,
+          context: context,
+        ),
       ),
     );
   }
@@ -38,7 +44,9 @@ List<InlineSpan> buildHighlightSpans({
   required BuildContext context,
 }) {
   final valid =
-      matches.where((m) => m.start >= 0 && m.end > m.start && m.end <= text.length).toList()
+      matches
+          .where((m) => m.start >= 0 && m.end > m.start && m.end <= text.length)
+          .toList()
         ..sort((a, b) => a.start.compareTo(b.start));
 
   if (valid.isEmpty) {
@@ -60,7 +68,9 @@ List<InlineSpan> buildHighlightSpans({
     if (start > cursor) {
       spans.add(TextSpan(text: text.substring(cursor, start)));
     }
-    spans.add(TextSpan(text: text.substring(start, match.end), style: highlightStyle));
+    spans.add(
+      TextSpan(text: text.substring(start, match.end), style: highlightStyle),
+    );
     cursor = match.end;
   }
   if (cursor < text.length) {

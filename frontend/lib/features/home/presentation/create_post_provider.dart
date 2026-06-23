@@ -91,7 +91,10 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
         submitForReview: submitForReview,
       );
 
-      state = state.copyWith(submissionState: const AsyncData(null), flaggedMatches: const []);
+      state = state.copyWith(
+        submissionState: const AsyncData(null),
+        flaggedMatches: const [],
+      );
 
       // Refresh the feed so the new post appears immediately.
       ref.invalidate(feedPostsProvider('global'));
@@ -102,7 +105,10 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
           : SubmitOutcome.approved;
     } on FlaggedContentException catch (e) {
       // Not an error — the user gets the highlighted popup + a review option.
-      state = state.copyWith(submissionState: const AsyncData(null), flaggedMatches: e.matches);
+      state = state.copyWith(
+        submissionState: const AsyncData(null),
+        flaggedMatches: e.matches,
+      );
       return SubmitOutcome.flagged;
     } catch (e, st) {
       state = state.copyWith(submissionState: AsyncError(e, st));
@@ -113,6 +119,7 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
   void reset() => state = CreatePostState();
 }
 
-final createPostProvider = NotifierProvider<CreatePostNotifier, CreatePostState>(() {
-  return CreatePostNotifier();
-});
+final createPostProvider =
+    NotifierProvider<CreatePostNotifier, CreatePostState>(() {
+      return CreatePostNotifier();
+    });

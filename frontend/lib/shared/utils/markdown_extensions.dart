@@ -21,7 +21,7 @@ class HighlightBuilder extends MarkdownElementBuilder {
   Widget visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.yellow.withOpacity(0.3),
+        color: Colors.yellow.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 2),
