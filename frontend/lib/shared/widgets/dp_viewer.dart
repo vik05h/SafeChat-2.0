@@ -12,7 +12,7 @@ void showDpViewer(BuildContext context, WidgetRef ref, String imageUrl) {
       barrierDismissible: true,
       barrierColor: Colors.black87,
       pageBuilder: (ctx, animation, _) => _DpViewerPage(imageUrl: imageUrl),
-      transitionsBuilder: (_, animation, __, child) =>
+      transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
     ),
   );
@@ -44,13 +44,13 @@ class _DpViewerPage extends ConsumerWidget {
                   child: CachedNetworkImage(
                     imageUrl: url,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
+                    placeholder: (_, _) => Container(
                       color: Colors.grey[900],
                       child: const Center(
                         child: CircularProgressIndicator(color: Colors.white),
                       ),
                     ),
-                    errorWidget: (_, __, ___) => Container(
+                    errorWidget: (_, _, _) => Container(
                       color: Colors.grey[900],
                       child: const Icon(
                         Icons.person,
@@ -63,7 +63,7 @@ class _DpViewerPage extends ConsumerWidget {
               ),
             ),
             loading: () => const CircularProgressIndicator(color: Colors.white),
-            error: (_, __) => Container(
+            error: (_, _) => Container(
               width: diameter,
               height: diameter,
               decoration: BoxDecoration(

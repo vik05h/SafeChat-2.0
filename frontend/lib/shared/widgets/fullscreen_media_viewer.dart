@@ -80,12 +80,12 @@ class _FullscreenMediaViewerState extends ConsumerState<FullscreenMediaViewer> {
                           child: CachedNetworkImage(
                             imageUrl: resolvedUrl,
                             fit: BoxFit.contain,
-                            placeholder: (_, __) => const Center(
+                            placeholder: (_, _) => const Center(
                               child: CircularProgressIndicator(
                                 color: Colors.white,
                               ),
                             ),
-                            errorWidget: (_, __, ___) => const Icon(
+                            errorWidget: (_, _, _) => const Icon(
                               Icons.broken_image_outlined,
                               color: Colors.white38,
                               size: 64,
@@ -96,7 +96,7 @@ class _FullscreenMediaViewerState extends ConsumerState<FullscreenMediaViewer> {
                       loading: () => const Center(
                         child: CircularProgressIndicator(color: Colors.white),
                       ),
-                      error: (_, __) => const Center(
+                      error: (_, _) => const Center(
                         child: Icon(
                           Icons.broken_image_outlined,
                           color: Colors.white38,
@@ -189,7 +189,7 @@ class _FullscreenMediaViewerState extends ConsumerState<FullscreenMediaViewer> {
                 Text(
                   'Swipe down to close',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.35),
+                    color: Colors.white.withValues(alpha: 0.35),
                     fontSize: 12,
                   ),
                 ),

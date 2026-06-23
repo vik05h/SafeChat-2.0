@@ -47,12 +47,21 @@ class PostApiService {
     required String caption,
     required List<String> mediaUrls,
     required String mediaType,
+    bool submitForReview = false,
   }) async {
     final response = await _dio.post(
       '/api/v1/posts',
-      data: {'text': caption, 'media_urls': mediaUrls, 'media_type': mediaType},
-      // Accept 201 and 202 without throwing.
-      options: Options(validateStatus: (s) => s != null && s >= 200 && s < 300),
+      data: {
+        'text': caption,
+        'media_urls': mediaUrls,
+        'media_type': mediaType,
+        'submit_for_review': submitForReview,
+      },
+      // Accept 201 (approved), 202 (pending_review), and 422 (flagged) without
+      // throwing — the repository inspects the status code.
+      options: Options(
+        validateStatus: (s) => s != null && ((s >= 200 && s < 300) || s == 422),
+      ),
     );
     return (
       statusCode: response.statusCode ?? 200,
@@ -99,6 +108,10 @@ class PostApiService {
     await _dio.delete('/api/v1/posts/$postId/like');
   }
 
+  Future<void> deletePost(String postId) async {
+    await _dio.delete('/api/v1/posts/$postId');
+  }
+
   Future<List<Map<String, dynamic>>> getComments(
     String postId, {
     int limit = 20,
@@ -112,20 +125,29 @@ class PostApiService {
     return comments.cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> createComment(
+  /// Returns the full response (status + body) so the repository can tell
+  /// 201/202 (created) from 422 (flagged).
+  Future<({int statusCode, Map<String, dynamic> data})> createComment(
     String postId,
     String text, {
     String? parentCommentId,
+    bool submitForReview = false,
   }) async {
     final response = await _dio.post(
       '/api/v1/posts/$postId/comments',
       data: {
         'text': text,
-        if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+        'parent_comment_id': ?parentCommentId,
+        'submit_for_review': submitForReview,
       },
+      options: Options(
+        validateStatus: (s) => s != null && ((s >= 200 && s < 300) || s == 422),
+      ),
     );
-    final data = response.data as Map<String, dynamic>;
-    return data['data']?['comment'] as Map<String, dynamic>? ?? {};
+    return (
+      statusCode: response.statusCode ?? 200,
+      data: response.data as Map<String, dynamic>,
+    );
   }
 
   Future<void> deleteComment(String postId, String commentId) async {

@@ -14,4 +14,13 @@ class AppColors {
 
   // Legacy fallback if needed
   static const Color m3SeedColor = Color(0xFF6200EE);
+
+  /// Brand accent gradient derived from the active color scheme, so it adapts
+  /// to every theme variant (Pastel Pop / Cyber Neon / Minimalist). Use for the
+  /// wordmark, key CTAs, and highlight surfaces.
+  static LinearGradient brandGradient(ColorScheme scheme) => LinearGradient(
+    colors: [scheme.primary, scheme.tertiary],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

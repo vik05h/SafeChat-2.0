@@ -84,7 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: NavigationBar(
           backgroundColor: Theme.of(
             context,
-          ).colorScheme.surfaceContainer.withOpacity(0.6),
+          ).colorScheme.surfaceContainer.withValues(alpha: 0.6),
           elevation: 0,
           selectedIndex: _currentIndex,
           onDestinationSelected: _onTabSelected,

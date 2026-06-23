@@ -31,8 +31,9 @@ class _ChatListViewState extends ConsumerState<ChatListView>
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null)
+    if (uid == null) {
       return const Scaffold(body: Center(child: Text('Not logged in')));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -135,8 +136,9 @@ class _ChatListViewState extends ConsumerState<ChatListView>
                       .doc(otherUid)
                       .get(),
                   builder: (context, userSnap) {
-                    if (!userSnap.hasData)
+                    if (!userSnap.hasData) {
                       return const ListTile(title: Text('Loading...'));
+                    }
                     final userData =
                         userSnap.data!.data() as Map<String, dynamic>?;
                     if (userData == null) return const SizedBox();

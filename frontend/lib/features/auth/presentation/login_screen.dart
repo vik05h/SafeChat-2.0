@@ -242,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                               authControllerProvider.notifier,
                                             )
                                             .signInWithGoogle();
-                                        if (mounted) {
+                                        if (context.mounted) {
                                           final newAuthState = ref.read(
                                             authControllerProvider,
                                           );

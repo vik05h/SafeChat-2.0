@@ -628,6 +628,49 @@ Limits are enforced via middleware. Exceeded limits return `429 RATE_LIMITED` wi
 
 ---
 
+## 14b. Moderation, human verification & admin review
+
+### Flagged content (posts / comments / DMs)
+`POST /posts`, `POST /posts/{id}/comments`, and `POST /chats/{id}/messages`
+accept an optional `submit_for_review: bool` (default `false`) and respond:
+
+- **201** — clean; published (`status: approved`).
+- **202** — `submit_for_review: true` + flagged → saved as `pending_review`.
+- **422 `MODERATION_FLAGGED`** — flagged and not submitted for review:
+
+```json
+{
+  "error": {
+    "code": "MODERATION_FLAGGED",
+    "message": "This content can't be uploaded as-is. Edit it, or submit it for human verification.",
+    "field": "text",
+    "reason": "keyword match: idiot",
+    "matches": [{ "term": "idiot", "category": "english_slurs", "start": 8, "end": 13 }]
+  },
+  "meta": { "request_id": "...", "timestamp": "..." }
+}
+```
+
+The client highlights `matches` in a popup and offers **Submit for human
+verification**, which re-sends the same request with `submit_for_review: true`.
+
+### Author appeals / status
+- `GET /moderation/appeals` → the caller's own `moderation_queue` items (status
+  + rejection reason). Backs Profile ▸ Appeals.
+- `POST /moderation/analyze` `{text}` → pre-flight `{status: SAFE|BLOCKED,
+  reason, category, matches[]}` (nothing persisted).
+
+### Admin (requires the `admin` custom claim)
+- `GET /admin/moderation/queue?limit=` → `{items: [ModerationQueueItem]}`
+  (pending, oldest first).
+- `POST /admin/moderation/queue/{id}/approve` → publishes the content + notifies
+  the author. `404` if missing, `409` if already resolved.
+- `POST /admin/moderation/queue/{id}/reject` `{reason}` → hides the content +
+  notifies the author with the reason.
+- `POST /admin/moderation/test` `{text}` → run the cascade (diagnostics).
+
+---
+
 ## 15. Versioning
 
 This is `v1` of the API. Breaking changes require a `v2` namespace.

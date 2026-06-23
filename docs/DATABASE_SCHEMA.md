@@ -713,4 +713,46 @@ Every document has `schema_version`. Backend can migrate documents lazily on rea
 
 ---
 
-*Last updated: November 2026*
+## 9. Moderation: content status + review queue
+
+### Status fields on content
+`posts`, `comments` (`posts/{id}/comments`), and `messages`
+(`chats/{id}/messages`) each carry:
+
+- `status`: `approved` | `pending_review` | `rejected` (default `approved`)
+- `moderation_layer`, `moderation_reason` — which cascade layer flagged it + why
+- `flagged_terms` — matched lexicon terms
+- `rejection_reason` — reason shown to the author (rejected only)
+
+Only `approved` content is public; `pending_review`/`rejected` are hidden from
+feeds/threads and surfaced to the author in Profile ▸ Appeals. Counters
+(`post_count`, `comment_count`) reflect approved content only.
+
+### `moderation_queue/{queueId}`
+One record per piece of content submitted for human verification. Written by the
+backend in the same batch as the content document; never written by clients.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | string | == queueId |
+| content_type | string | `post` \| `comment` \| `message` |
+| content_id | string | id of the post/comment/message |
+| post_id / chat_id | string? | parent post (comments) / chat (messages) |
+| author_uid / author_username | string | content author |
+| text | string | the flagged text |
+| matches | array | `{term, category, weight, start, end}` spans |
+| flagged_terms / categories | array<string> | de-duplicated terms / categories |
+| lexicon_score / tfidf_score | number? | per-layer scores |
+| layer | string? | triggering layer |
+| status | string | `pending_review` \| `approved` \| `rejected` |
+| reason / note | string? | rejection reason / optional author note |
+| created_at / resolved_at | timestamp | |
+| resolved_by | string? | admin uid |
+
+**Indexes** (`firestore.indexes.json`): `status ASC, created_at ASC` (admin
+queue, FIFO) and `author_uid ASC, created_at DESC` (author's appeals).
+**Rules:** readable only by admins or the `author_uid`; backend-only writes.
+
+---
+
+*Last updated: June 2026 (moderation_queue + content status fields)*

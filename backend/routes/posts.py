@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from middleware.auth import get_current_user_claims
 from models.comment import CreateCommentRequest
+from models.moderation import Match
 from models.post import CreatePostRequest, Post
 from services import comments as comments_service
 from services import likes as likes_service
@@ -29,8 +30,33 @@ _COMMENTS_LIMIT_MAX = 50
 def _meta() -> dict[str, str]:
     return {
         "request_id": str(uuid.uuid4()),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
+def _moderation_flagged_response(matches: list[Match], reason: str | None) -> JSONResponse:
+    """422 envelope for flagged content the author may submit for human review.
+
+    Carries the flagged spans (``matches``) so the client can highlight the
+    offending words in the "this can't be uploaded" popup and offer the
+    "submit for human verification" action.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "MODERATION_FLAGGED",
+                "message": (
+                    "This content can't be uploaded as-is. Edit it, or submit it "
+                    "for human verification."
+                ),
+                "field": "text",
+                "matches": [m.model_dump(mode="json") for m in matches],
+                "reason": reason,
+            },
+            "meta": _meta(),
+        },
+    )
 
 
 def _serialize_post(post: Post) -> dict[str, Any]:
@@ -41,9 +67,7 @@ def _serialize_post(post: Post) -> dict[str, Any]:
     if data.get("image_url"):
         data["image_url"] = storage_service.sign_media_url(data["image_url"])
     if data.get("media_urls"):
-        data["media_urls"] = [
-            storage_service.sign_media_url(url) for url in data["media_urls"]
-        ]
+        data["media_urls"] = [storage_service.sign_media_url(url) for url in data["media_urls"]]
     if data.get("author_photo_url"):
         data["author_photo_url"] = storage_service.sign_media_url(data["author_photo_url"])
     return data
@@ -101,12 +125,16 @@ async def create_post(
       A human moderator later approves (post becomes public) or rejects
       (post becomes a draft the author can edit).
     """
-    post = await posts_service.create_post(
-        author_uid=claims["uid"],
-        text=payload.text,
-        media_urls=payload.media_urls,
-        media_type=payload.media_type,
-    )
+    try:
+        post = await posts_service.create_post(
+            author_uid=claims["uid"],
+            text=payload.text,
+            media_urls=payload.media_urls,
+            media_type=payload.media_type,
+            submit_for_review=payload.submit_for_review,
+        )
+    except posts_service.PostBlocked as exc:
+        return _moderation_flagged_response(exc.matches, exc.reason)
 
     status_code = 202 if post.status == "pending_review" else 201
     return JSONResponse(
@@ -222,21 +250,16 @@ async def create_comment(
             author_uid=claims["uid"],
             text=payload.text,
             parent_comment_id=payload.parent_comment_id,
+            submit_for_review=payload.submit_for_review,
         )
     except comments_service.PostNotFound as exc:
         raise _post_not_found(post_id) from exc
     except comments_service.CommentBlocked as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "MODERATION_BLOCKED",
-                "message": "Comment was blocked by content moderation.",
-                "field": "text",
-            },
-        ) from exc
+        return _moderation_flagged_response(exc.matches, exc.reason)
 
+    status_code = 202 if comment.status == "pending_review" else 201
     return JSONResponse(
-        status_code=201,
+        status_code=status_code,
         content={"data": {"comment": comment.model_dump(mode="json")}, "meta": _meta()},
     )
 
@@ -257,9 +280,9 @@ async def get_comments(
     )
 
     viewer_uid = claims["uid"]
-    
+
     import asyncio
-    
+
     # We need to map `is_liked` for each comment
     async def _resolve_is_liked(c):
         liked = await comments_service.is_comment_liked(viewer_uid, post_id, c.id)

@@ -11,7 +11,6 @@ import asyncio
 import logging
 
 from firebase_admin import messaging
-
 from google.cloud import firestore
 from google.cloud.firestore import FieldFilter
 
@@ -57,22 +56,16 @@ async def send_message_notification(
             db.collection(FCM_TOKENS_COLLECTION).document(recipient_uid).get
         )
     except Exception as exc:
-        logger.warning(
-            "Failed to fetch FCM token for uid=%s: %s", recipient_uid, exc
-        )
+        logger.warning("Failed to fetch FCM token for uid=%s: %s", recipient_uid, exc)
         return
 
     if not snap.exists:
-        logger.info(
-            "No FCM token for uid=%s — skipping push notification", recipient_uid
-        )
+        logger.info("No FCM token for uid=%s — skipping push notification", recipient_uid)
         return
 
     token: str | None = (snap.to_dict() or {}).get("token")
     if not token:
-        logger.info(
-            "Empty FCM token for uid=%s — skipping push notification", recipient_uid
-        )
+        logger.info("Empty FCM token for uid=%s — skipping push notification", recipient_uid)
         return
 
     # ---- 2. Build and send FCM message --------------------------------------
@@ -89,65 +82,96 @@ async def send_message_notification(
     try:
         await asyncio.to_thread(_send_fcm, fcm_message)
     except Exception as exc:
-        logger.warning(
-            "FCM send failed for uid=%s chat=%s: %s", recipient_uid, chat_id, exc
-        )
+        logger.warning("FCM send failed for uid=%s chat=%s: %s", recipient_uid, chat_id, exc)
 
 
 def _user_notifications_ref(uid: str) -> firestore.CollectionReference:
     return db.collection("users").document(uid).collection("notifications")
 
 
+async def create_notification(
+    uid: str,
+    *,
+    notification_type: str,
+    title: str,
+    body: str,
+    reference_id: str | None = None,
+    target_route: str | None = None,
+) -> None:
+    """Write an in-app notification to users/{uid}/notifications.
+
+    Fail-open: a logging/write failure is swallowed so it never breaks the
+    caller (e.g. an admin approve/reject must still succeed).
+    """
+
+    def _write() -> None:
+        doc_ref = _user_notifications_ref(uid).document()
+        doc_ref.set(
+            {
+                "id": doc_ref.id,
+                "type": notification_type,
+                "title": title,
+                "body": body[:NOTIFICATION_BODY_MAX],
+                "is_read": False,
+                "reference_id": reference_id,
+                "target_route": target_route,
+                "created_at": firestore.SERVER_TIMESTAMP,
+            }
+        )
+
+    try:
+        await asyncio.to_thread(_write)
+    except Exception:
+        logger.warning("Failed to write notification for uid=%s", uid, exc_info=True)
+
+
 async def get_notifications(uid: str, limit: int = 20) -> list[NotificationResponse]:
     """Fetch notifications for a user, newest first."""
     cap = min(max(1, limit), 50)
-    
+
     def _query() -> list[NotificationResponse]:
         q = (
             _user_notifications_ref(uid)
             .order_by("created_at", direction=firestore.Query.DESCENDING)
             .limit(cap)
         )
-        
+
         results: list[NotificationResponse] = []
         for snap in q.stream():
             d = snap.to_dict() or {}
             d["id"] = snap.id
             results.append(NotificationResponse.model_validate(d))
         return results
-        
+
     return await asyncio.to_thread(_query)
 
 
 async def mark_as_read(uid: str, notification_id: str) -> None:
     """Mark a single notification as read."""
+
     def _update() -> None:
-        _user_notifications_ref(uid).document(notification_id).update({
-            "is_read": True
-        })
-        
+        _user_notifications_ref(uid).document(notification_id).update({"is_read": True})
+
     await asyncio.to_thread(_update)
 
 
 async def mark_all_as_read(uid: str) -> None:
     """Mark all unread notifications for a user as read."""
+
     def _update() -> None:
-        q = (
-            _user_notifications_ref(uid)
-            .where(filter=FieldFilter("is_read", "==", False))
-        )
-        
+        q = _user_notifications_ref(uid).where(filter=FieldFilter("is_read", "==", False))
+
         batch = db.batch()
         count = 0
         for snap in q.stream():
             batch.update(snap.reference, {"is_read": True})
             count += 1
-            if count == 400: # Firestore batch limit safety
+            if count == 400:  # Firestore batch limit safety
                 batch.commit()
                 batch = db.batch()
                 count = 0
-                
+
         if count > 0:
             batch.commit()
-            
+
     await asyncio.to_thread(_update)

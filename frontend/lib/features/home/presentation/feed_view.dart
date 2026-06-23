@@ -1,15 +1,16 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:share_plus/share_plus.dart';
 import '../../../shared/utils/markdown_extensions.dart';
 import '../../../theme/theme_provider.dart';
+import '../../../theme/app_colors.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import '../../../shared/widgets/rolling_counter.dart';
 import '../../../shared/widgets/firebase_image.dart';
@@ -17,9 +18,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../profile/presentation/follow_providers.dart';
 import '../../profile/data/follow_repository.dart';
 import '../../profile/presentation/public_profile_view.dart';
+import '../../profile/presentation/user_posts_provider.dart';
 import '../../../shared/widgets/dp_viewer.dart';
 import '../../../shared/widgets/fullscreen_media_viewer.dart';
 import '../data/feed_post_model.dart';
+import '../../moderation/data/moderation_models.dart';
+import '../../moderation/presentation/flagged_content_dialog.dart';
 import '../data/post_repository.dart';
 import 'comments_provider.dart';
 import 'feed_provider.dart';
@@ -50,16 +54,21 @@ class FeedView extends StatelessWidget {
                   child: Container(
                     color: Theme.of(
                       context,
-                    ).colorScheme.surface.withOpacity(0.6),
+                    ).colorScheme.surface.withValues(alpha: 0.6),
                   ),
                 ),
               ),
-              title: Text(
-                'SafeChat',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                  color: Theme.of(context).colorScheme.primary,
+              title: ShaderMask(
+                shaderCallback: (bounds) => AppColors.brandGradient(
+                  Theme.of(context).colorScheme,
+                ).createShader(bounds),
+                child: const Text(
+                  'SafeChat',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: Colors.white, // tinted by the gradient shader
+                  ),
                 ),
               ),
               bottom: const TabBar(
@@ -129,7 +138,7 @@ class _FeedTab extends ConsumerWidget {
       childCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
-        return _PostOpenContainer(
+        return PostOpenContainer(
           post: post,
           child: _GridPostCard(post: post),
         );
@@ -140,10 +149,10 @@ class _FeedTab extends ConsumerWidget {
   Widget _buildCardView(BuildContext context, List<FeedPost> posts) {
     return SliverList.separated(
       itemCount: posts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 24),
+      separatorBuilder: (_, _) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         final post = posts[index];
-        return _PostOpenContainer(
+        return PostOpenContainer(
           post: post,
           child: _ListPostCard(post: post),
         );
@@ -240,15 +249,11 @@ class _ErrorView extends StatelessWidget {
 // Open container wrapper (shared hero + page transition)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostOpenContainer extends StatelessWidget {
+class PostOpenContainer extends StatelessWidget {
   final FeedPost post;
   final Widget child;
 
-  const _PostOpenContainer({
-    super.key,
-    required this.post,
-    required this.child,
-  });
+  const PostOpenContainer({super.key, required this.post, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -259,7 +264,7 @@ class _PostOpenContainer extends StatelessWidget {
       closedColor: Colors.transparent,
       openColor: Theme.of(context).scaffoldBackgroundColor,
       closedBuilder: (context, action) => child,
-      openBuilder: (context, action) => _PostDetailScreen(post: post),
+      openBuilder: (context, action) => PostDetailScreen(post: post),
     );
   }
 }
@@ -270,7 +275,7 @@ class _PostOpenContainer extends StatelessWidget {
 
 class _GridPostCard extends ConsumerWidget {
   final FeedPost post;
-  const _GridPostCard({super.key, required this.post});
+  const _GridPostCard({required this.post});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -347,6 +352,77 @@ class _GridPostCard extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (FirebaseAuth.instance.currentUser?.uid ==
+                        post.authorUid)
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: PopupMenuButton<String>(
+                          padding: EdgeInsets.zero,
+                          iconSize: 16,
+                          icon: const Icon(
+                            Icons.more_vert,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          onSelected: (value) async {
+                            if (value == 'delete') {
+                              final ok = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Delete post?'),
+                                  content: const Text(
+                                    'This post will be permanently removed.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (ok == true) {
+                                try {
+                                  await ref
+                                      .read(postRepositoryProvider)
+                                      .deletePost(post.id);
+                                  ref.invalidate(feedPostsProvider('global'));
+                                  ref.invalidate(
+                                    feedPostsProvider('following'),
+                                  );
+                                  ref.invalidate(
+                                    userPostsProvider(post.authorUid),
+                                  );
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to delete: $e'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.delete_outline),
+                                title: Text('Delete post'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -364,7 +440,7 @@ class _GridPostCard extends ConsumerWidget {
 
 class _ListPostCard extends ConsumerWidget {
   final FeedPost post;
-  const _ListPostCard({super.key, required this.post});
+  const _ListPostCard({required this.post});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -397,6 +473,59 @@ class _ListPostCard extends ConsumerWidget {
             subtitle: Text(
               post.createdAt != null ? _timeAgo(post.createdAt!) : 'Just now',
             ),
+            trailing: FirebaseAuth.instance.currentUser?.uid == post.authorUid
+                ? PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'delete') {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete post?'),
+                            content: const Text(
+                              'This post will be permanently removed.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok == true) {
+                          try {
+                            await ref
+                                .read(postRepositoryProvider)
+                                .deletePost(post.id);
+                            ref.invalidate(feedPostsProvider('global'));
+                            ref.invalidate(feedPostsProvider('following'));
+                            ref.invalidate(userPostsProvider(post.authorUid));
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to delete: $e')),
+                              );
+                            }
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Delete post'),
+                        ),
+                      ),
+                    ],
+                  )
+                : null,
           ),
           if (thumb != null)
             SizedBox(
@@ -405,11 +534,8 @@ class _ListPostCard extends ConsumerWidget {
               child: FirebaseCachedNetworkImage(
                 imageUrl: thumb,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (_, __, ___) => Container(
+                memCacheWidth: 1080,
+                errorWidget: (_, _, _) => Container(
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: const Center(child: Icon(Icons.broken_image_outlined)),
                 ),
@@ -476,6 +602,7 @@ class _ListPostCard extends ConsumerWidget {
                         return FloatingActionButton.small(
                           heroTag: 'like_${post.id}',
                           onPressed: () {
+                            HapticFeedback.lightImpact();
                             if (isLiked) {
                               ref
                                   .read(postRepositoryProvider)
@@ -536,15 +663,15 @@ class _ListPostCard extends ConsumerWidget {
 // Post detail screen (full-screen with ambient + image carousel)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostDetailScreen extends ConsumerStatefulWidget {
+class PostDetailScreen extends ConsumerStatefulWidget {
   final FeedPost post;
-  const _PostDetailScreen({required this.post});
+  const PostDetailScreen({super.key, required this.post});
 
   @override
-  ConsumerState<_PostDetailScreen> createState() => _PostDetailScreenState();
+  ConsumerState<PostDetailScreen> createState() => PostDetailScreenState();
 }
 
-class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
+class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   int _currentPage = 0;
 
   List<String> get _mediaUrls => widget.post.displayUrls;
@@ -561,25 +688,86 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
     });
   }
 
+  Future<void> _confirmDeletePost() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This post will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(postRepositoryProvider).deletePost(widget.post.id);
+      ref.invalidate(feedPostsProvider('global'));
+      ref.invalidate(feedPostsProvider('following'));
+      ref.invalidate(userPostsProvider(widget.post.authorUid));
+      navigator.pop();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
     final layoutStyle = ref.watch(postImageLayoutProvider);
     final isEdgeToEdge = layoutStyle == PostImageLayoutStyle.edgeToEdge;
+    // Only extend behind the app bar when there's actually an image up top;
+    // a text-only post would otherwise leave an empty gap under the status bar.
+    final imageBehindBar = isEdgeToEdge && _mediaUrls.isNotEmpty;
 
     return Scaffold(
-      extendBodyBehindAppBar: isEdgeToEdge,
+      extendBodyBehindAppBar: imageBehindBar,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: isEdgeToEdge
+          color: imageBehindBar
               ? Colors.white
               : Theme.of(context).iconTheme.color,
-          shadows: isEdgeToEdge
+          shadows: imageBehindBar
               ? const [Shadow(color: Colors.black45, blurRadius: 10)]
               : null,
         ),
+        actions: [
+          if (FirebaseAuth.instance.currentUser?.uid == widget.post.authorUid)
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert,
+                color: imageBehindBar
+                    ? Colors.white
+                    : Theme.of(context).iconTheme.color,
+                shadows: imageBehindBar
+                    ? const [Shadow(color: Colors.black45, blurRadius: 10)]
+                    : null,
+              ),
+              onSelected: (value) {
+                if (value == 'delete') _confirmDeletePost();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Delete post'),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Stack(
         children: [
@@ -621,14 +809,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                   FirebaseCachedNetworkImage(
                                     imageUrl: _mediaUrls[i],
                                     fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerHighest,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    ),
+                                    memCacheWidth: 1080,
                                     errorWidget: (context, url, error) =>
                                         Container(
                                           color: Theme.of(
@@ -805,7 +986,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                                 ),
                               ),
                             ),
-                            error: (_, __) => const SizedBox.shrink(),
+                            error: (_, _) => const SizedBox.shrink(),
                           );
                         },
                       ),
@@ -865,6 +1046,7 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
                           _buildAction(Icons.share_outlined, 'Share', () {
                             final shareText =
                                 'Check out this post on SafeChat: https://safechat.com/post/${widget.post.id}';
+                            // ignore: deprecated_member_use
                             Share.share(shareText);
                           }),
                           _buildAction(
@@ -993,14 +1175,29 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: Icon(
-                                    comment.isLiked
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    size: 16,
-                                    color: comment.isLiked ? Colors.red : null,
-                                  ),
+                                  icon:
+                                      Icon(
+                                            comment.isLiked
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
+                                            size: 16,
+                                            color: comment.isLiked
+                                                ? Colors.red
+                                                : null,
+                                          )
+                                          .animate(
+                                            key: ValueKey(comment.isLiked),
+                                          )
+                                          .scaleXY(
+                                            begin: 0.7,
+                                            end: 1.0,
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            curve: Curves.easeOutBack,
+                                          ),
                                   onPressed: () {
+                                    HapticFeedback.lightImpact();
                                     if (comment.isLiked) {
                                       ref
                                           .read(
@@ -1027,6 +1224,58 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                                     // Reply logic
                                   },
                                 ),
+                                if (comment.authorUid ==
+                                    FirebaseAuth.instance.currentUser?.uid)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 16,
+                                    ),
+                                    tooltip: 'Delete',
+                                    onPressed: () async {
+                                      final notifier = ref.read(
+                                        commentsProvider(postId).notifier,
+                                      );
+                                      final messenger = ScaffoldMessenger.of(
+                                        context,
+                                      );
+                                      final ok = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Delete comment?'),
+                                          content: const Text(
+                                            'This comment will be permanently removed.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (ok != true) return;
+                                      try {
+                                        await notifier.deleteComment(
+                                          comment.id,
+                                        );
+                                      } catch (e) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to delete: $e',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
                               ],
                             ),
                           );
@@ -1068,13 +1317,57 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                       const SizedBox(width: 8),
                       IconButton.filledTonal(
                         icon: const Icon(Icons.send),
-                        onPressed: () {
-                          if (controller.text.trim().isNotEmpty) {
-                            ref
-                                .read(commentsProvider(postId).notifier)
-                                .createComment(controller.text.trim());
+                        onPressed: () async {
+                          final text = controller.text.trim();
+                          if (text.isEmpty) return;
+                          final notifier = ref.read(
+                            commentsProvider(postId).notifier,
+                          );
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await notifier.createComment(text);
                             controller.clear();
-                            FocusScope.of(context).unfocus();
+                            if (context.mounted) {
+                              FocusScope.of(context).unfocus();
+                            }
+                          } catch (e) {
+                            final flagged = flaggedFromError(e);
+                            if (flagged == null) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to comment: $e'),
+                                ),
+                              );
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            final result = await showFlaggedContentDialog(
+                              context,
+                              text: text,
+                              matches: flagged.matches,
+                              contentNoun: 'comment',
+                            );
+                            if (result == null || !result.submitForReview) {
+                              return;
+                            }
+                            try {
+                              await notifier.submitCommentForReview(text);
+                              controller.clear();
+                              if (context.mounted) {
+                                FocusScope.of(context).unfocus();
+                              }
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    '📋 Comment sent for review. Track it in Profile → Appeals.',
+                                  ),
+                                ),
+                              );
+                            } catch (e2) {
+                              messenger.showSnackBar(
+                                SnackBar(content: Text('Failed: $e2')),
+                              );
+                            }
                           }
                         },
                       ),
@@ -1145,6 +1438,7 @@ class _LikeActionWidgetState extends ConsumerState<_LikeActionWidget> {
       children: [
         IconButton.filledTonal(
           onPressed: () {
+            HapticFeedback.lightImpact();
             if (isLiked) {
               ref.read(postRepositoryProvider).unlikePost(widget.post.id);
             } else {

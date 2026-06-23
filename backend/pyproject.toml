@@ -23,6 +23,18 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["core", "middleware", "models", "routes", "services"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection markers are evaluated once at import and are
+# the documented exception to B008 (function call in argument default).
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Security",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

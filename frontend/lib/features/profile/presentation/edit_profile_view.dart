@@ -199,10 +199,11 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
         }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) {
         setState(() => _isUploading = false);
@@ -383,8 +384,9 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                     prefixText: '@',
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty)
+                    if (v == null || v.trim().isEmpty) {
                       return 'Username is required';
+                    }
                     if (!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(v.trim())) {
                       return '3-30 chars, lowercase, numbers, underscores only';
                     }

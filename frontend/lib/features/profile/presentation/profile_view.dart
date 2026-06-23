@@ -8,7 +8,12 @@ import 'follow_providers.dart';
 import 'network_graph_view.dart';
 import 'content_status_view.dart';
 import '../../../shared/widgets/firebase_image.dart';
+import '../../../shared/widgets/rolling_counter.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../admin/presentation/admin_providers.dart';
+import '../../admin/presentation/admin_moderation_view.dart';
 import 'user_posts_provider.dart';
+import '../../home/presentation/feed_view.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -65,9 +70,9 @@ class ProfileView extends ConsumerWidget {
                             ? FirebaseCachedNetworkImage(
                                 imageUrl: profile!.backgroundUrl!,
                                 fit: BoxFit.cover,
-                                placeholder: (_, __) =>
+                                placeholder: (_, _) =>
                                     _buildGradientCover(user),
-                                errorWidget: (_, __, ___) =>
+                                errorWidget: (_, _, _) =>
                                     _buildGradientCover(user),
                               )
                             : _buildGradientCover(user),
@@ -216,17 +221,15 @@ class ProfileView extends ConsumerWidget {
                             children: [
                               _StatColumn(
                                 label: 'Followers',
-                                count: followersAsync.value?.toString() ?? '-',
+                                count: followersAsync.value,
                               ),
                               _StatColumn(
                                 label: 'Following',
-                                count: followingAsync.value?.toString() ?? '-',
+                                count: followingAsync.value,
                               ),
                               _StatColumn(
                                 label: 'Friends',
-                                count:
-                                    friendsAsync.value?.length.toString() ??
-                                    '-',
+                                count: friendsAsync.value?.length,
                               ),
                             ],
                           );
@@ -315,17 +318,17 @@ class ProfileView extends ConsumerWidget {
                       children: [
                         _StatColumn(
                           label: 'Followers',
-                          count: followersAsync.value?.toString() ?? '-',
+                          count: followersAsync.value,
                         ),
                         const SizedBox(width: 32),
                         _StatColumn(
                           label: 'Following',
-                          count: followingAsync.value?.toString() ?? '-',
+                          count: followingAsync.value,
                         ),
                         const SizedBox(width: 32),
                         _StatColumn(
                           label: 'Friends',
-                          count: friendsAsync.value?.length.toString() ?? '-',
+                          count: friendsAsync.value?.length,
                         ),
                       ],
                     );
@@ -390,8 +393,12 @@ class ProfileView extends ConsumerWidget {
         if (posts.isEmpty) {
           return const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: Center(child: Text('No posts yet')),
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: EmptyState(
+                icon: Icons.grid_view_rounded,
+                title: 'No posts yet',
+                message: "Share your first post — it'll show up here.",
+              ),
             ),
           );
         }
@@ -406,21 +413,24 @@ class ProfileView extends ConsumerWidget {
             final thumb = post.displayUrls.isNotEmpty
                 ? post.displayUrls.first
                 : '';
-            return Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            // Tap a grid post to open it in the shared post-detail screen.
+            return PostOpenContainer(
+              post: post,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                ),
+                child: thumb.isNotEmpty
+                    ? FirebaseCachedNetworkImage(
+                        imageUrl: thumb,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 400,
+                        errorWidget: (_, _, _) => const Center(
+                          child: Icon(Icons.broken_image_outlined),
+                        ),
+                      )
+                    : const Center(child: Icon(Icons.article_outlined)),
               ),
-              child: thumb.isNotEmpty
-                  ? FirebaseCachedNetworkImage(
-                      imageUrl: thumb,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          const Center(child: CircularProgressIndicator()),
-                      errorWidget: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image_outlined),
-                      ),
-                    )
-                  : const Center(child: Icon(Icons.article_outlined)),
             );
           }, childCount: posts.length),
         );
@@ -461,8 +471,9 @@ class ProfileView extends ConsumerWidget {
       return FirebaseCachedNetworkImage(
         imageUrl: photoUrl,
         fit: BoxFit.cover,
-        placeholder: (_, __) => const ColoredBox(color: Colors.black12),
-        errorWidget: (_, __, ___) => const Icon(Icons.person, size: 45),
+        memCacheWidth: 240,
+        placeholder: (_, _) => const ColoredBox(color: Colors.black12),
+        errorWidget: (_, _, _) => const Icon(Icons.person, size: 45),
       );
     }
     return const Icon(Icons.person, size: 45);
@@ -635,18 +646,18 @@ class _ProfileSkeleton extends StatelessWidget {
 
 class _StatColumn extends StatelessWidget {
   final String label;
-  final String count;
+  final int? count;
 
   const _StatColumn({required this.label, required this.count});
 
   @override
   Widget build(BuildContext context) {
+    const numberStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 18);
     return Column(
       children: [
-        Text(
-          count,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+        count == null
+            ? const Text('—', style: numberStyle)
+            : RollingCounter(value: count!, style: numberStyle),
         Text(label, style: const TextStyle(fontSize: 14)),
       ],
     );
@@ -932,6 +943,23 @@ class SettingsView extends ConsumerWidget {
               );
             },
           ),
+          ref
+              .watch(isAdminProvider)
+              .maybeWhen(
+                data: (isAdmin) => isAdmin
+                    ? ListTile(
+                        leading: const Icon(Icons.shield_outlined),
+                        title: const Text('Moderation Queue'),
+                        subtitle: const Text('Review flagged content (admin)'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AdminModerationView(),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+                orElse: () => const SizedBox.shrink(),
+              ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Log Out', style: TextStyle(color: Colors.red)),

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import '../../../shared/utils/markdown_extensions.dart';
+import '../../moderation/presentation/flagged_content_dialog.dart';
 import 'create_post_provider.dart';
 
 class CreatePostView extends ConsumerStatefulWidget {
@@ -46,55 +47,87 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
   Future<void> _submit() async {
     ref.read(createPostProvider.notifier).setCaption(_captionController.text);
     final outcome = await ref.read(createPostProvider.notifier).submitPost();
-
     if (!mounted) return;
 
-    if (outcome != null) {
-      // Success: reset state and close the sheet first.
-      ref.read(createPostProvider.notifier).reset();
-      Navigator.of(context).pop();
-
-      if (outcome == SubmitOutcome.approved) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Post live! Check your feed.'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
+    switch (outcome) {
+      case SubmitOutcome.approved:
+        _finishWithMessage('🎉 Post live! Check your feed.', Colors.green);
+      case SubmitOutcome.pendingReview:
+        _finishWithMessage(
+          '📋 Post under review. It\'ll go live once approved!',
+          Colors.orange,
+          durationSeconds: 5,
         );
-      } else {
-        // pendingReview
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              '📋 Post under review. It\'ll go live once approved!',
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
-    } else {
-      // Failure
-      final error = ref.read(createPostProvider).submissionState.error;
-      final message = error != null
-          ? 'Error: ${error.toString().split('\n').first}'
-          : 'Failed to create post. Please try again.';
-
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Post Failed'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      case SubmitOutcome.flagged:
+        await _handleFlagged();
+      case null:
+        _showError();
     }
+  }
+
+  void _finishWithMessage(
+    String message,
+    Color color, {
+    int durationSeconds = 3,
+  }) {
+    ref.read(createPostProvider.notifier).reset();
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: Duration(seconds: durationSeconds),
+      ),
+    );
+  }
+
+  /// Flagged: show the highlighted popup. If the user opts into human review,
+  /// re-submit; otherwise keep the composer open so they can edit.
+  Future<void> _handleFlagged() async {
+    final matches = ref.read(createPostProvider).flaggedMatches;
+    final result = await showFlaggedContentDialog(
+      context,
+      text: _captionController.text,
+      matches: matches,
+    );
+    if (!mounted || result == null || !result.submitForReview) return;
+
+    final outcome = await ref
+        .read(createPostProvider.notifier)
+        .confirmHumanVerification();
+    if (!mounted) return;
+    switch (outcome) {
+      case SubmitOutcome.pendingReview:
+      case SubmitOutcome.approved:
+        _finishWithMessage(
+          '📋 Sent for human review. Track it in Profile → Appeals.',
+          Colors.orange,
+          durationSeconds: 5,
+        );
+      case SubmitOutcome.flagged:
+      case null:
+        _showError();
+    }
+  }
+
+  void _showError() {
+    final error = ref.read(createPostProvider).submissionState.error;
+    final message = error != null
+        ? 'Error: ${error.toString().split('\n').first}'
+        : 'Failed to create post. Please try again.';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Post Failed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _nextStep() {
@@ -389,8 +422,9 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
           itemCount: state.selectedMedia.length + 1,
           itemBuilder: (context, index) {
             if (index == state.selectedMedia.length) {
-              if (state.selectedMedia.length >= 5)
+              if (state.selectedMedia.length >= 5) {
                 return const SizedBox.shrink();
+              }
               return Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: InkWell(
@@ -625,7 +659,7 @@ class _CreatePostViewState extends ConsumerState<CreatePostView> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: Theme.of(context).colorScheme.outlineVariant,

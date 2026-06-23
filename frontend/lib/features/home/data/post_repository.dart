@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../moderation/data/moderation_models.dart';
 import 'comment_model.dart';
 import 'feed_post_model.dart';
 import 'post_api_service.dart';
@@ -31,9 +32,13 @@ class PostRepository {
 
   /// Upload media files + create a post in the backend.
   /// Returns [PostSubmitResult] so the UI can show the right message.
+  ///
+  /// Throws [FlaggedContentException] when the text is flagged and
+  /// [submitForReview] is false, so the UI can show the highlighted popup.
   Future<PostSubmitResult> createPostWithMedia({
     required String caption,
     required List<File> mediaFiles,
+    bool submitForReview = false,
   }) async {
     final mediaUrls = <String>[];
 
@@ -69,7 +74,14 @@ class PostRepository {
       caption: caption,
       mediaUrls: mediaUrls,
       mediaType: mediaUrls.isNotEmpty ? 'image' : 'text',
+      submitForReview: submitForReview,
     );
+
+    // 422 = flagged: surface the spans so the UI can highlight + offer review.
+    if (result.statusCode == 422) {
+      throw flaggedFromEnvelope(result.data) ??
+          const FlaggedContentException(matches: []);
+    }
 
     // 201 = approved (live in feed), 202 = pending human review.
     return result.statusCode == 202
@@ -105,21 +117,34 @@ class PostRepository {
     await _apiService.unlikePost(postId);
   }
 
+  Future<void> deletePost(String postId) async {
+    await _apiService.deletePost(postId);
+  }
+
   Future<List<Comment>> getComments(String postId, {int limit = 20}) async {
     final maps = await _apiService.getComments(postId, limit: limit);
     return maps.map(Comment.fromJson).toList();
   }
 
+  /// Create a comment. Throws [FlaggedContentException] when flagged and
+  /// [submitForReview] is false, so the UI can show the highlighted popup.
   Future<Comment> createComment(
     String postId,
     String text, {
     String? parentCommentId,
+    bool submitForReview = false,
   }) async {
-    final map = await _apiService.createComment(
+    final result = await _apiService.createComment(
       postId,
       text,
       parentCommentId: parentCommentId,
+      submitForReview: submitForReview,
     );
+    if (result.statusCode == 422) {
+      throw flaggedFromEnvelope(result.data) ??
+          const FlaggedContentException(matches: []);
+    }
+    final map = result.data['data']?['comment'] as Map<String, dynamic>? ?? {};
     return Comment.fromJson(map);
   }
 

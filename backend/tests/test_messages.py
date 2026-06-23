@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -14,19 +14,19 @@ from google.cloud.firestore import SERVER_TIMESTAMP as _SERVER_TIMESTAMP
 from main import app
 from middleware.auth import get_current_user_claims
 from models.message import Chat, Message
-from models.moderation import ModerationResult
+from models.moderation import Match, ModerationResult
 from services import messages as messages_service
-
 
 # --------------------------------------------------------------------------
 # In-memory Firestore fake with subcollection, query, and batch support
 # (Same design as test_comments.py — extended with chats/messages helpers.)
 # --------------------------------------------------------------------------
 
+
 def _apply_transform(current: Any, value: Any) -> Any:
     """Resolve SERVER_TIMESTAMP to a real datetime; pass everything else through."""
     if value is _SERVER_TIMESTAMP:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if type(value).__name__ == "Increment" and hasattr(value, "value"):
         return max(0, int(current or 0) + int(value.value))
     return value
@@ -54,18 +54,18 @@ class _FakeQuery:
         self._order_desc: bool = False
         self._limit_n: int | None = None
 
-    def order_by(self, field: str, direction: Any = None) -> "_FakeQuery":
+    def order_by(self, field: str, direction: Any = None) -> _FakeQuery:
         self._order_field = field
         if direction is not None:
             self._order_desc = str(direction) == "DESCENDING"
         return self
 
-    def where(self, filter: Any = None, **kwargs: Any) -> "_FakeQuery":  # noqa: A002
+    def where(self, filter: Any = None, **kwargs: Any) -> _FakeQuery:  # noqa: A002
         # Filtering is not exercised in these unit tests — seeded data is
         # already scoped to the right collection path.
         return self
 
-    def limit(self, n: int) -> "_FakeQuery":
+    def limit(self, n: int) -> _FakeQuery:
         self._limit_n = n
         return self
 
@@ -73,8 +73,7 @@ class _FakeQuery:
         items = list(self._store.items())
         if self._order_field:
             items.sort(
-                key=lambda kv: kv[1].get(self._order_field)
-                or datetime.min.replace(tzinfo=timezone.utc),
+                key=lambda kv: kv[1].get(self._order_field) or datetime.min.replace(tzinfo=UTC),
                 reverse=self._order_desc,
             )
         snaps = [_FakeSnapshot(k, v) for k, v in items]
@@ -89,14 +88,14 @@ class _FakeDocRef:
         store: dict[str, Any],
         doc_id: str,
         path: str,
-        db: "_FakeDB",
+        db: _FakeDB,
     ) -> None:
         self._store = store
         self.id = doc_id
         self._path = path
         self._db = db
 
-    def collection(self, name: str) -> "_FakeCollection":
+    def collection(self, name: str) -> _FakeCollection:
         subcoll_path = f"{self._path}/{self.id}/{name}"
         return self._db.collection(subcoll_path)
 
@@ -104,9 +103,7 @@ class _FakeDocRef:
         return _FakeSnapshot(self.id, self._store.get(self.id))
 
     def set(self, data: dict[str, Any]) -> None:
-        self._store[self.id] = {
-            k: _apply_transform(None, v) for k, v in data.items()
-        }
+        self._store[self.id] = {k: _apply_transform(None, v) for k, v in data.items()}
 
     def update(self, data: dict[str, Any]) -> None:
         row = dict(self._store.get(self.id, {}))
@@ -119,9 +116,7 @@ class _FakeDocRef:
 
 
 class _FakeCollection:
-    def __init__(
-        self, store: dict[str, Any], path: str, db: "_FakeDB"
-    ) -> None:
+    def __init__(self, store: dict[str, Any], path: str, db: _FakeDB) -> None:
         self._store = store
         self._path = path
         self._db = db
@@ -160,9 +155,7 @@ class _FakeBatch:
     def commit(self) -> None:
         for op, ref, data in self._pending:
             if op == "set":
-                ref._store[ref.id] = {
-                    k: _apply_transform(None, v) for k, v in data.items()
-                }
+                ref._store[ref.id] = {k: _apply_transform(None, v) for k, v in data.items()}
             elif op == "update":
                 row = dict(ref._store.get(ref.id, {}))
                 for k, v in data.items():
@@ -204,12 +197,13 @@ def fake_db(monkeypatch: pytest.MonkeyPatch) -> _FakeDB:
 # Seed helpers
 # --------------------------------------------------------------------------
 
+
 def _seed_chat(
     fake_db: _FakeDB,
     chat_id: str = "uid-1_uid-2",
     participants: list[str] | None = None,
 ) -> None:
-    now = datetime(2026, 5, 18, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 18, tzinfo=UTC)
     fake_db.collection("chats").document(chat_id).set(
         {
             "id": chat_id,
@@ -249,6 +243,7 @@ def _seed_message(
 # --------------------------------------------------------------------------
 # Service-layer tests
 # --------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_or_create_chat_creates_chat_with_deterministic_id(
@@ -331,6 +326,40 @@ async def test_send_message_blocked_raises_message_blocked(
 
 
 @pytest.mark.asyncio
+async def test_send_message_submit_for_review_pending_and_queue(
+    fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _seed_chat(fake_db)
+
+    async def fake_moderate(text: str) -> ModerationResult:
+        return ModerationResult(
+            blocked=True,
+            layer="keyword",
+            category="english_slurs",
+            reason="keyword match: idiot",
+            matches=[Match(term="idiot", category="english_slurs", weight=0.5, start=0, end=5)],
+            content_hash="h",
+        )
+
+    monkeypatch.setattr(messages_service, "moderate_text", fake_moderate)
+
+    msg = await messages_service.send_message(
+        "uid-1_uid-2", "uid-1", "idiot", submit_for_review=True
+    )
+
+    assert msg.status == "pending_review"
+    # Stored, but not delivered: chat preview stays untouched.
+    assert len(fake_db.messages_for("uid-1_uid-2")) == 1
+    assert fake_db.chats["uid-1_uid-2"]["last_message_text"] is None
+    queue = fake_db._stores.get("moderation_queue", {})
+    assert len(queue) == 1
+    item = next(iter(queue.values()))
+    assert item["content_type"] == "message"
+    assert item["chat_id"] == "uid-1_uid-2"
+    assert item["status"] == "pending_review"
+
+
+@pytest.mark.asyncio
 async def test_send_message_non_participant_raises_not_authorized(
     fake_db: _FakeDB, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -342,9 +371,7 @@ async def test_send_message_non_participant_raises_not_authorized(
     monkeypatch.setattr(messages_service, "moderate_text", fake_moderate)
 
     with pytest.raises(messages_service.NotAuthorized):
-        await messages_service.send_message(
-            "uid-1_uid-2", "uid-outsider", "Hello!"
-        )
+        await messages_service.send_message("uid-1_uid-2", "uid-outsider", "Hello!")
 
 
 @pytest.mark.asyncio
@@ -354,9 +381,9 @@ async def test_get_messages_returns_list_ordered_newest_first(
     chat_id = "uid-1_uid-2"
     _seed_chat(fake_db, chat_id=chat_id)
 
-    t1 = datetime(2026, 5, 18, 10, 0, tzinfo=timezone.utc)
-    t2 = datetime(2026, 5, 18, 11, 0, tzinfo=timezone.utc)
-    t3 = datetime(2026, 5, 18, 12, 0, tzinfo=timezone.utc)
+    t1 = datetime(2026, 5, 18, 10, 0, tzinfo=UTC)
+    t2 = datetime(2026, 5, 18, 11, 0, tzinfo=UTC)
+    t3 = datetime(2026, 5, 18, 12, 0, tzinfo=UTC)
 
     # Seed in scrambled insertion order to confirm sort is applied.
     for mid, t in [("m2", t2), ("m3", t3), ("m1", t1)]:
@@ -374,9 +401,7 @@ async def test_get_messages_returns_list_ordered_newest_first(
 async def test_mark_read_sets_read_at(fake_db: _FakeDB) -> None:
     chat_id = "uid-1_uid-2"
     _seed_chat(fake_db, chat_id=chat_id)
-    _seed_message(
-        fake_db, chat_id, "msg-1", datetime(2026, 5, 18, tzinfo=timezone.utc)
-    )
+    _seed_message(fake_db, chat_id, "msg-1", datetime(2026, 5, 18, tzinfo=UTC))
 
     assert fake_db.messages_for(chat_id)["msg-1"]["read_at"] is None
 
@@ -388,6 +413,7 @@ async def test_mark_read_sets_read_at(fake_db: _FakeDB) -> None:
 # --------------------------------------------------------------------------
 # API tests
 # --------------------------------------------------------------------------
+
 
 @pytest.fixture
 def client() -> TestClient:
@@ -408,7 +434,7 @@ def _override_claims(claims: dict[str, Any]) -> None:
 
 
 def _sample_chat(**overrides: Any) -> Chat:
-    now = datetime(2026, 5, 18, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 18, tzinfo=UTC)
     base: dict[str, Any] = {
         "id": "uid-1_uid-2",
         "participants": ["uid-1", "uid-2"],
@@ -423,7 +449,7 @@ def _sample_chat(**overrides: Any) -> Chat:
 
 
 def _sample_message(**overrides: Any) -> Message:
-    now = datetime(2026, 5, 18, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 18, tzinfo=UTC)
     base: dict[str, Any] = {
         "id": "msg-1",
         "chat_id": "uid-1_uid-2",
@@ -458,9 +484,7 @@ def test_post_chat_uid_returns_201_with_chat(
     assert "uid-1" in data["chat"]["participants"]
 
 
-def test_post_message_returns_201(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_post_message_returns_201(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
     async def fake_send(
@@ -468,6 +492,7 @@ def test_post_message_returns_201(
         sender_uid: str,
         text: str,
         image_url: str | None = None,
+        submit_for_review: bool = False,
     ) -> Message:
         return _sample_message(chat_id=chat_id, sender_uid=sender_uid, text=text)
 
@@ -495,8 +520,13 @@ def test_post_message_toxic_text_returns_422(
         sender_uid: str,
         text: str,
         image_url: str | None = None,
+        submit_for_review: bool = False,
     ) -> Message:
-        raise messages_service.MessageBlocked(layer="keyword", reason="blocked")
+        raise messages_service.MessageBlocked(
+            layer="keyword",
+            reason="keyword match: idiot",
+            matches=[Match(term="idiot", category="english_slurs", weight=0.5, start=0, end=5)],
+        )
 
     monkeypatch.setattr(messages_service, "send_message", fake_send)
 
@@ -507,8 +537,9 @@ def test_post_message_toxic_text_returns_422(
 
     assert response.status_code == 422
     body = response.json()
-    assert body["error"]["code"] == "MODERATION_BLOCKED"
+    assert body["error"]["code"] == "MODERATION_FLAGGED"
     assert body["error"]["field"] == "text"
+    assert body["error"]["matches"][0]["term"] == "idiot"
 
 
 def test_get_chats_returns_200_with_list(
@@ -532,9 +563,7 @@ def test_get_chats_returns_200_with_list(
     assert len(data["chats"]) == 2
 
 
-def test_get_chat_messages_returns_200(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_get_chat_messages_returns_200(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-1", "admin": False})
 
     async def fake_get_messages(
@@ -556,14 +585,10 @@ def test_get_chat_messages_returns_200(
     assert data["messages"][0]["id"] == "m1"
 
 
-def test_patch_read_returns_204(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_patch_read_returns_204(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     _override_claims({"uid": "uid-2", "admin": False})
 
-    async def fake_mark_read(
-        chat_id: str, message_id: str, reader_uid: str
-    ) -> None:
+    async def fake_mark_read(chat_id: str, message_id: str, reader_uid: str) -> None:
         return None
 
     monkeypatch.setattr(messages_service, "mark_read", fake_mark_read)

@@ -142,6 +142,7 @@ async def test_empty_layer_latencies_handled(captured_add: MagicMock) -> None:
     payload = captured_add.call_args.args[0]
     assert payload["api_latencies"] == {
         "keyword_ms": None,
+        "tfidf_ms": None,
         "openai_ms": None,
         "gemini_ms": None,
         "vision_ms": None,

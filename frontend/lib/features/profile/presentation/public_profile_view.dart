@@ -200,7 +200,7 @@ class _ProfileBody extends ConsumerWidget {
                       height: 44,
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 16),
                   const Divider(),
@@ -217,7 +217,7 @@ class _ProfileBody extends ConsumerWidget {
                 child: Center(child: CircularProgressIndicator()),
               ),
             ),
-            error: (_, __) => const SliverToBoxAdapter(
+            error: (_, _) => const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(40),
                 child: Center(child: Text('Could not load posts')),
@@ -259,8 +259,8 @@ class _ProfileBody extends ConsumerWidget {
                         ? FirebaseCachedNetworkImage(
                             imageUrl: thumb,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => const SizedBox.shrink(),
-                            errorWidget: (_, __, ___) => const Center(
+                            placeholder: (_, _) => const SizedBox.shrink(),
+                            errorWidget: (_, _, _) => const Center(
                               child: Icon(Icons.broken_image_outlined),
                             ),
                           )

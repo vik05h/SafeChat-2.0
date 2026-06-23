@@ -27,6 +27,7 @@ LOGS_COLLECTION = "moderation_logs"
 # not an API call, but we track it alongside the others for completeness.
 _LATENCY_KEYS: dict[str, str] = {
     "keyword": "keyword_ms",
+    "tfidf": "tfidf_ms",
     "openai": "openai_ms",
     "gemini": "gemini_ms",
     "vision": "vision_ms",
@@ -40,9 +41,7 @@ def _build_payload(
     content_id: str | None,
     author_uid: str,
 ) -> dict[str, Any]:
-    api_latencies: dict[str, float | None] = {
-        key: None for key in _LATENCY_KEYS.values()
-    }
+    api_latencies: dict[str, float | None] = dict.fromkeys(_LATENCY_KEYS.values())
     for layer, latency in (result.layer_latencies or {}).items():
         mapped = _LATENCY_KEYS.get(layer)
         if mapped is not None:

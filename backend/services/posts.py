@@ -17,9 +17,11 @@ from google.cloud import firestore
 from google.cloud.firestore import DocumentReference, FieldFilter
 
 from core.firebase import db
+from models.moderation import Match
 from models.post import Post
 from moderation.engine import moderate_image, moderate_text
 from services import follows as follows_service
+from services import moderation_queue
 from services import users as users_service
 
 logger = logging.getLogger(__name__)
@@ -28,13 +30,22 @@ POSTS_COLLECTION = "posts"
 
 
 class PostBlocked(Exception):
-    """Raised when post text is rejected by the moderation cascade."""
+    """Raised when post text is flagged and the author has not opted into human
+    verification. Carries the match spans so the route can return them for
+    client-side highlighting in the "this can't be uploaded" popup.
+    """
 
     def __init__(
-        self, layer: str | None = None, reason: str | None = None
+        self,
+        layer: str | None = None,
+        reason: str | None = None,
+        matches: list[Match] | None = None,
+        categories: list[str] | None = None,
     ) -> None:
         self.layer = layer
         self.reason = reason
+        self.matches = matches or []
+        self.categories = categories or []
         super().__init__(reason or "Post blocked by content moderation.")
 
 
@@ -65,9 +76,7 @@ async def _moderate_post_image(post_id: str, image_url: str) -> None:
                 result.category,
             )
     except Exception as exc:
-        logger.warning(
-            "Image moderation background task failed for post %s: %s", post_id, exc
-        )
+        logger.warning("Image moderation background task failed for post %s: %s", post_id, exc)
 
 
 def _post_ref(post_id: str) -> DocumentReference:
@@ -83,37 +92,52 @@ async def create_post(
     text: str,
     media_urls: list[str] | None = None,
     media_type: str = "text",
+    submit_for_review: bool = False,
 ) -> Post:
-    """Moderate then persist a new post. Atomically increments author.post_count.
+    """Moderate then persist a new post.
+
+    - Clean text -> status "approved"; appears in the feed; post_count += 1.
+    - Flagged + submit_for_review=False -> raises ``PostBlocked`` (the route
+      returns a 422 carrying the flagged spans so the client can highlight them
+      and offer "submit for human verification").
+    - Flagged + submit_for_review=True -> status "pending_review"; a
+      moderation_queue record is written in the same batch; hidden from the feed
+      until an admin approves. post_count is NOT incremented until approval.
 
     Raises:
-        PostBlocked: if the moderation cascade rejects the text.
+        PostBlocked: flagged text when the author has not opted into review.
     """
     result = await moderate_text(text)
-    # Determine initial status based on moderation result.
-    # blocked → "pending_review" (stored in Firebase, visible only to author;
-    # a human moderator then approves or rejects it).
-    initial_status = "pending_review" if result.blocked else "approved"
+
+    if result.blocked and not submit_for_review:
+        raise PostBlocked(
+            layer=result.layer,
+            reason=result.reason,
+            matches=result.matches,
+            categories=[m.category for m in result.matches],
+        )
+
+    is_pending = result.blocked  # submit_for_review is necessarily True here
+    initial_status = "pending_review" if is_pending else "approved"
+
+    user = await users_service.get_user_profile(author_uid)
+    author_username = user.username if user else "unknown"
+
     moderation_meta: dict[str, Any] = {}
-    if result.blocked:
+    if is_pending:
         moderation_meta = {
             "moderation_layer": result.layer,
             "moderation_reason": result.reason,
+            "flagged_terms": list(dict.fromkeys(m.term for m in result.matches)),
         }
-        logger.info(
-            "Post flagged by %s (%s) — saved as pending_review for human review.",
-            result.layer,
-            result.reason,
-        )
+        logger.info("Post saved as pending_review (layer=%s) for human verification.", result.layer)
 
     post_id = str(uuid.uuid4())
     now = firestore.SERVER_TIMESTAMP
-    user = await users_service.get_user_profile(author_uid)
-    
     post_data: dict[str, Any] = {
         "id": post_id,
         "author_uid": author_uid,
-        "author_username": user.username if user else "unknown",
+        "author_username": author_username,
         "author_display_name": user.display_name if user else "Anonymous",
         "author_photo_url": user.photo_url if user and user.photo_url else "",
         "text": text,
@@ -130,10 +154,26 @@ async def create_post(
         "schema_version": 1,
     }
 
+    queue_item: tuple[str, dict[str, Any]] | None = None
+    if is_pending:
+        queue_item = moderation_queue.build_item(
+            content_type="post",
+            content_id=post_id,
+            author_uid=author_uid,
+            author_username=author_username,
+            text=text,
+            result=result,
+        )
+
     def _write() -> None:
         batch = db.batch()
         batch.set(_post_ref(post_id), post_data)
-        batch.update(_user_ref(author_uid), {"post_count": firestore.Increment(1)})
+        # Counters reflect approved content only; pending posts count on approve.
+        if initial_status == "approved":
+            batch.update(_user_ref(author_uid), {"post_count": firestore.Increment(1)})
+        if queue_item is not None:
+            qid, qpayload = queue_item
+            batch.set(db.collection(moderation_queue.QUEUE_COLLECTION).document(qid), qpayload)
         batch.commit()
 
     await asyncio.to_thread(_write)
@@ -142,9 +182,8 @@ async def create_post(
     snap = await asyncio.to_thread(_post_ref(post_id).get)
     post = Post.model_validate(snap.to_dict())
 
-    # Fire-and-forget image moderation. Runs after the post is already stored
-    # so the author sees their post immediately; it is quietly rejected if the
-    # Vision check fails.
+    # Fire-and-forget image moderation. Runs after the post is already stored;
+    # quietly rejects the post if the Vision check trips.
     if media_urls and media_type == "image":
         for url in media_urls:
             asyncio.create_task(_moderate_post_image(post.id, url))
@@ -227,7 +266,7 @@ async def get_feed(
             )
             if before_dt is not None:
                 q = q.where(filter=FieldFilter("created_at", "<", before_dt))
-            
+
             for snap in q.limit(cap).stream():
                 d = snap.to_dict() or {}
                 all_posts.append(Post.model_validate(d))
@@ -261,11 +300,11 @@ async def get_posts_by_author(
     limit: int = 20,
 ) -> list[Post]:
     """Fetch posts by a specific user, newest first.
-    
+
     Capped at 50 to prevent unbounded queries.
     """
     cap = min(limit, 50)
-    
+
     def _query() -> list[Post]:
         # Single equality filter avoids requiring a composite index.
         # Status filter and sort happen in Python.
@@ -282,24 +321,30 @@ async def get_posts_by_author(
                 results.append(post)
         results.sort(key=lambda p: p.created_at, reverse=True)
         return results[:cap]
-        
+
     return await asyncio.to_thread(_query)
+
 
 async def record_post_view(post_id: str, viewer_uid: str) -> None:
     """Record a view for a post, incrementing the view_count if the user hasn't viewed it yet."""
+
     def _record_view() -> None:
         view_ref = _post_ref(post_id).collection("views").document(viewer_uid)
-        
+
         @firestore.transactional
-        def update_in_transaction(transaction: firestore.Transaction, post_ref: DocumentReference, view_ref: DocumentReference) -> None:
+        def update_in_transaction(
+            transaction: firestore.Transaction,
+            post_ref: DocumentReference,
+            view_ref: DocumentReference,
+        ) -> None:
             view_snap = view_ref.get(transaction=transaction)
             if view_snap.exists:
                 return  # Already viewed
-            
+
             post_snap = post_ref.get(transaction=transaction)
             if not post_snap.exists:
                 raise PostNotFound(post_id)
-                
+
             transaction.set(view_ref, {"viewed_at": firestore.SERVER_TIMESTAMP})
             transaction.update(post_ref, {"view_count": firestore.Increment(1)})
 
@@ -307,3 +352,36 @@ async def record_post_view(post_id: str, viewer_uid: str) -> None:
         update_in_transaction(transaction, _post_ref(post_id), view_ref)
 
     await asyncio.to_thread(_record_view)
+
+
+async def set_post_status(post_id: str, status: str, reason: str | None = None) -> Post:
+    """Apply an admin moderation decision to a pending post.
+
+    - "approved": post becomes public and author.post_count is incremented.
+    - "rejected": post is hidden from everyone and ``rejection_reason`` is set
+      (the author sees it in Profile -> Appeals).
+
+    Raises:
+        PostNotFound: if the post does not exist (e.g. deleted before review).
+    """
+    snap = await asyncio.to_thread(_post_ref(post_id).get)
+    if not snap.exists:
+        raise PostNotFound(post_id)
+
+    data = snap.to_dict() or {}
+    author_uid = str(data.get("author_uid", ""))
+
+    updates: dict[str, Any] = {"status": status, "updated_at": firestore.SERVER_TIMESTAMP}
+    if status == "rejected":
+        updates["rejection_reason"] = reason
+
+    def _write() -> None:
+        batch = db.batch()
+        batch.update(_post_ref(post_id), updates)
+        if status == "approved" and author_uid:
+            batch.update(_user_ref(author_uid), {"post_count": firestore.Increment(1)})
+        batch.commit()
+
+    await asyncio.to_thread(_write)
+    snap2 = await asyncio.to_thread(_post_ref(post_id).get)
+    return Post.model_validate(snap2.to_dict())
