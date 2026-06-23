@@ -8,6 +8,8 @@ import 'follow_providers.dart';
 import 'network_graph_view.dart';
 import 'content_status_view.dart';
 import '../../../shared/widgets/firebase_image.dart';
+import '../../../shared/widgets/rolling_counter.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../admin/presentation/admin_providers.dart';
 import '../../admin/presentation/admin_moderation_view.dart';
 import 'user_posts_provider.dart';
@@ -195,18 +197,9 @@ class ProfileView extends ConsumerWidget {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _StatColumn(
-                                label: 'Followers',
-                                count: followersAsync.value?.toString() ?? '-',
-                              ),
-                              _StatColumn(
-                                label: 'Following',
-                                count: followingAsync.value?.toString() ?? '-',
-                              ),
-                              _StatColumn(
-                                label: 'Friends',
-                                count: friendsAsync.value?.length.toString() ?? '-',
-                              ),
+                              _StatColumn(label: 'Followers', count: followersAsync.value),
+                              _StatColumn(label: 'Following', count: followingAsync.value),
+                              _StatColumn(label: 'Friends', count: friendsAsync.value?.length),
                             ],
                           );
                         },
@@ -280,20 +273,11 @@ class ProfileView extends ConsumerWidget {
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _StatColumn(
-                          label: 'Followers',
-                          count: followersAsync.value?.toString() ?? '-',
-                        ),
+                        _StatColumn(label: 'Followers', count: followersAsync.value),
                         const SizedBox(width: 32),
-                        _StatColumn(
-                          label: 'Following',
-                          count: followingAsync.value?.toString() ?? '-',
-                        ),
+                        _StatColumn(label: 'Following', count: followingAsync.value),
                         const SizedBox(width: 32),
-                        _StatColumn(
-                          label: 'Friends',
-                          count: friendsAsync.value?.length.toString() ?? '-',
-                        ),
+                        _StatColumn(label: 'Friends', count: friendsAsync.value?.length),
                       ],
                     );
                   },
@@ -346,8 +330,12 @@ class ProfileView extends ConsumerWidget {
         if (posts.isEmpty) {
           return const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: Center(child: Text('No posts yet')),
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: EmptyState(
+                icon: Icons.grid_view_rounded,
+                title: 'No posts yet',
+                message: "Share your first post — it'll show up here.",
+              ),
             ),
           );
         }
@@ -573,15 +561,18 @@ class _ProfileSkeleton extends StatelessWidget {
 
 class _StatColumn extends StatelessWidget {
   final String label;
-  final String count;
+  final int? count;
 
   const _StatColumn({required this.label, required this.count});
 
   @override
   Widget build(BuildContext context) {
+    const numberStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 18);
     return Column(
       children: [
-        Text(count, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        count == null
+            ? const Text('—', style: numberStyle)
+            : RollingCounter(value: count!, style: numberStyle),
         Text(label, style: const TextStyle(fontSize: 14)),
       ],
     );

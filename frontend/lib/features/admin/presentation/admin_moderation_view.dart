@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../moderation/data/moderation_models.dart';
 import '../../moderation/presentation/moderation_highlight.dart';
+import '../../../shared/widgets/empty_state.dart';
 import 'admin_providers.dart';
 
 /// Admin review portal: lists content awaiting human verification and lets a
@@ -36,15 +37,11 @@ class AdminModerationView extends ConsumerWidget {
             if (items.isEmpty) {
               return ListView(
                 children: const [
-                  Padding(
-                    padding: EdgeInsets.all(48),
-                    child: Center(
-                      child: Text(
-                        'Queue is empty 🎉\nNothing is awaiting review.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                      ),
-                    ),
+                  SizedBox(height: 64),
+                  EmptyState(
+                    icon: Icons.inbox_outlined,
+                    title: 'Queue is empty 🎉',
+                    message: 'Nothing is awaiting review right now.',
                   ),
                 ],
               );

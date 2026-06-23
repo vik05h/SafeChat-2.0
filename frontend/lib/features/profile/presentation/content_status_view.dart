@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../moderation/data/moderation_models.dart';
 import '../../moderation/presentation/moderation_highlight.dart';
+import '../../../shared/widgets/empty_state.dart';
 
 /// The current user's content that went through (or is awaiting) human
 /// verification — backed by GET /api/v1/moderation/appeals.
@@ -43,15 +44,11 @@ class ContentStatusView extends ConsumerWidget {
             if (items.isEmpty) {
               return ListView(
                 children: const [
-                  Padding(
-                    padding: EdgeInsets.all(48),
-                    child: Center(
-                      child: Text(
-                        'All your content looks great! 🎉\nNothing is awaiting review.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ),
+                  SizedBox(height: 64),
+                  EmptyState(
+                    icon: Icons.verified_outlined,
+                    title: 'All clear! 🎉',
+                    message: 'Nothing of yours is awaiting review.',
                   ),
                 ],
               );

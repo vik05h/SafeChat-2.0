@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animations/animations.dart';
@@ -411,6 +412,7 @@ class _ListPostCard extends ConsumerWidget {
                         return FloatingActionButton.small(
                           heroTag: 'like_${post.id}',
                           onPressed: () {
+                            HapticFeedback.lightImpact();
                             if (isLiked) {
                               ref.read(postRepositoryProvider).unlikePost(post.id);
                             } else {
@@ -860,12 +862,23 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: Icon(
-                                    comment.isLiked ? Icons.favorite : Icons.favorite_border,
-                                    size: 16,
-                                    color: comment.isLiked ? Colors.red : null,
-                                  ),
+                                  icon:
+                                      Icon(
+                                            comment.isLiked
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
+                                            size: 16,
+                                            color: comment.isLiked ? Colors.red : null,
+                                          )
+                                          .animate(key: ValueKey(comment.isLiked))
+                                          .scaleXY(
+                                            begin: 0.7,
+                                            end: 1.0,
+                                            duration: const Duration(milliseconds: 200),
+                                            curve: Curves.easeOutBack,
+                                          ),
                                   onPressed: () {
+                                    HapticFeedback.lightImpact();
                                     if (comment.isLiked) {
                                       ref
                                           .read(commentsProvider(postId).notifier)
@@ -1030,6 +1043,7 @@ class _LikeActionWidgetState extends ConsumerState<_LikeActionWidget> {
       children: [
         IconButton.filledTonal(
           onPressed: () {
+            HapticFeedback.lightImpact();
             if (isLiked) {
               ref.read(postRepositoryProvider).unlikePost(widget.post.id);
             } else {
