@@ -322,6 +322,57 @@ class _GridPostCard extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (FirebaseAuth.instance.currentUser?.uid == post.authorUid)
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: PopupMenuButton<String>(
+                          padding: EdgeInsets.zero,
+                          iconSize: 16,
+                          icon: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
+                          onSelected: (value) async {
+                            if (value == 'delete') {
+                              final ok = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Delete post?'),
+                                  content: const Text('This post will be permanently removed.'),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: const Text('Cancel')),
+                                    FilledButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Delete')),
+                                  ],
+                                ),
+                              );
+                              if (ok == true) {
+                                try {
+                                  await ref.read(postRepositoryProvider).deletePost(post.id);
+                                  ref.invalidate(feedPostsProvider('global'));
+                                  ref.invalidate(feedPostsProvider('following'));
+                                  ref.invalidate(userPostsProvider(post.authorUid));
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to delete: $e')),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.delete_outline),
+                                title: Text('Delete post'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -365,6 +416,51 @@ class _ListPostCard extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(post.createdAt != null ? _timeAgo(post.createdAt!) : 'Just now'),
+            trailing: FirebaseAuth.instance.currentUser?.uid == post.authorUid
+                ? PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'delete') {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete post?'),
+                            content: const Text('This post will be permanently removed.'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel')),
+                              FilledButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete')),
+                            ],
+                          ),
+                        );
+                        if (ok == true) {
+                          try {
+                            await ref.read(postRepositoryProvider).deletePost(post.id);
+                            ref.invalidate(feedPostsProvider('global'));
+                            ref.invalidate(feedPostsProvider('following'));
+                            ref.invalidate(userPostsProvider(post.authorUid));
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to delete: $e')),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Delete post'),
+                        ),
+                      ),
+                    ],
+                  )
+                : null,
           ),
           if (thumb != null)
             SizedBox(
