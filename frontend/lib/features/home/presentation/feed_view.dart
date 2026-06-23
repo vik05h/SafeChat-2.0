@@ -1327,7 +1327,9 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                           try {
                             await notifier.createComment(text);
                             controller.clear();
-                            if (context.mounted) FocusScope.of(context).unfocus();
+                            if (context.mounted) {
+                              FocusScope.of(context).unfocus();
+                            }
                           } catch (e) {
                             final flagged = flaggedFromError(e);
                             if (flagged == null) {
@@ -1351,7 +1353,9 @@ void showCommentsBottomSheet(BuildContext context, String postId) {
                             try {
                               await notifier.submitCommentForReview(text);
                               controller.clear();
-                              if (context.mounted) FocusScope.of(context).unfocus();
+                              if (context.mounted) {
+                                FocusScope.of(context).unfocus();
+                              }
                               messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text(
