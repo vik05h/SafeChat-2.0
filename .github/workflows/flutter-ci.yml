@@ -34,6 +34,9 @@ jobs:
       - name: 🎨 Format
         run: dart format --output=none --set-exit-if-changed .
 
+      - name: 📝 Create dummy .env
+        run: touch .env
+
       - name: 🔍 Analyze
         run: flutter analyze
 
