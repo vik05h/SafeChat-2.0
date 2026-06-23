@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
+
 /// A friendly, consistent empty/placeholder state: a tinted icon disc, a title,
 /// an optional message, and an optional action. Use everywhere a list can be
 /// empty so the app feels intentional instead of showing bare text.
@@ -24,10 +26,10 @@ class EmptyState extends StatelessWidget {
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: scheme.primaryContainer.withValues(alpha: 0.5),
+                gradient: AppColors.brandGradient(scheme),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 40, color: scheme.primary),
+              child: Icon(icon, size: 40, color: scheme.onPrimary),
             ),
             const SizedBox(height: 20),
             Text(

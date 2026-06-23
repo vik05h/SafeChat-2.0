@@ -10,6 +10,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:share_plus/share_plus.dart';
 import '../../../shared/utils/markdown_extensions.dart';
 import '../../../theme/theme_provider.dart';
+import '../../../theme/app_colors.dart';
 import '../../../shared/widgets/animated_ambient_background.dart';
 import '../../../shared/widgets/rolling_counter.dart';
 import '../../../shared/widgets/firebase_image.dart';
@@ -52,12 +53,16 @@ class FeedView extends StatelessWidget {
                   child: Container(color: Theme.of(context).colorScheme.surface.withOpacity(0.6)),
                 ),
               ),
-              title: Text(
-                'SafeChat',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                  color: Theme.of(context).colorScheme.primary,
+              title: ShaderMask(
+                shaderCallback: (bounds) =>
+                    AppColors.brandGradient(Theme.of(context).colorScheme).createShader(bounds),
+                child: const Text(
+                  'SafeChat',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: Colors.white, // tinted by the gradient shader
+                  ),
                 ),
               ),
               bottom: const TabBar(
