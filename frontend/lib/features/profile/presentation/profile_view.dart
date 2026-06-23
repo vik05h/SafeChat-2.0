@@ -13,9 +13,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../admin/presentation/admin_providers.dart';
 import '../../admin/presentation/admin_moderation_view.dart';
 import 'user_posts_provider.dart';
-import '../../home/data/feed_post_model.dart';
-import '../../../theme/app_colors.dart';
-import '../../../shared/widgets/fullscreen_media_viewer.dart';
+import '../../home/presentation/feed_view.dart';
 
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
@@ -342,37 +340,34 @@ class ProfileView extends ConsumerWidget {
             ),
           );
         }
-        final highlights = posts.where((p) => p.displayUrls.isNotEmpty).take(10).toList();
-        return SliverMainAxisGroup(
-          slivers: [
-            if (highlights.isNotEmpty)
-              SliverToBoxAdapter(child: _ProfileHighlights(posts: highlights)),
-            SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
+        return SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 2,
+            crossAxisSpacing: 2,
+          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final post = posts[index];
+            final thumb = post.displayUrls.isNotEmpty ? post.displayUrls.first : '';
+            // Tap a grid post to open it in the shared post-detail screen.
+            return PostOpenContainer(
+              post: post,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                ),
+                child: thumb.isNotEmpty
+                    ? FirebaseCachedNetworkImage(
+                        imageUrl: thumb,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 400,
+                        errorWidget: (_, __, ___) =>
+                            const Center(child: Icon(Icons.broken_image_outlined)),
+                      )
+                    : const Center(child: Icon(Icons.article_outlined)),
               ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final post = posts[index];
-                final thumb = post.displayUrls.isNotEmpty ? post.displayUrls.first : '';
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                  child: thumb.isNotEmpty
-                      ? FirebaseCachedNetworkImage(
-                          imageUrl: thumb,
-                          fit: BoxFit.cover,
-                          memCacheWidth: 400,
-                          errorWidget: (_, __, ___) =>
-                              const Center(child: Icon(Icons.broken_image_outlined)),
-                        )
-                      : const Center(child: Icon(Icons.article_outlined)),
-                );
-              }, childCount: posts.length),
-            ),
-          ],
+            );
+          }, childCount: posts.length),
         );
       },
     );
@@ -585,60 +580,6 @@ class _StatColumn extends StatelessWidget {
             : RollingCounter(value: count!, style: numberStyle),
         Text(label, style: const TextStyle(fontSize: 14)),
       ],
-    );
-  }
-}
-
-/// Horizontal "highlights" strip of the user's recent posts — each ringed with
-/// the brand gradient and tappable to open fullscreen. Sits above the grid.
-class _ProfileHighlights extends StatelessWidget {
-  final List<FeedPost> posts;
-  const _ProfileHighlights({required this.posts});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: SizedBox(
-        height: 84,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: posts.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 12),
-          itemBuilder: (context, i) {
-            final post = posts[i];
-            return GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => FullscreenMediaViewer(urls: post.displayUrls)),
-              ),
-              child: Container(
-                width: 72,
-                height: 72,
-                padding: const EdgeInsets.all(2.5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppColors.brandGradient(Theme.of(context).colorScheme),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                  ),
-                  child: ClipOval(
-                    child: FirebaseCachedNetworkImage(
-                      imageUrl: post.displayUrls.first,
-                      fit: BoxFit.cover,
-                      memCacheWidth: 200,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
 }

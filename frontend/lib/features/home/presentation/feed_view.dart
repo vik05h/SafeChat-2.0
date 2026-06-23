@@ -129,7 +129,7 @@ class _FeedTab extends ConsumerWidget {
       childCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
-        return _PostOpenContainer(
+        return PostOpenContainer(
           post: post,
           child: _GridPostCard(post: post),
         );
@@ -143,7 +143,7 @@ class _FeedTab extends ConsumerWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 24),
       itemBuilder: (context, index) {
         final post = posts[index];
-        return _PostOpenContainer(
+        return PostOpenContainer(
           post: post,
           child: _ListPostCard(post: post),
         );
@@ -233,11 +233,11 @@ class _ErrorView extends StatelessWidget {
 // Open container wrapper (shared hero + page transition)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostOpenContainer extends StatelessWidget {
+class PostOpenContainer extends StatelessWidget {
   final FeedPost post;
   final Widget child;
 
-  const _PostOpenContainer({super.key, required this.post, required this.child});
+  const PostOpenContainer({super.key, required this.post, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +248,7 @@ class _PostOpenContainer extends StatelessWidget {
       closedColor: Colors.transparent,
       openColor: Theme.of(context).scaffoldBackgroundColor,
       closedBuilder: (context, action) => child,
-      openBuilder: (context, action) => _PostDetailScreen(post: post),
+      openBuilder: (context, action) => PostDetailScreen(post: post),
     );
   }
 }
@@ -469,15 +469,15 @@ class _ListPostCard extends ConsumerWidget {
 // Post detail screen (full-screen with ambient + image carousel)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostDetailScreen extends ConsumerStatefulWidget {
+class PostDetailScreen extends ConsumerStatefulWidget {
   final FeedPost post;
-  const _PostDetailScreen({required this.post});
+  const PostDetailScreen({required this.post});
 
   @override
-  ConsumerState<_PostDetailScreen> createState() => _PostDetailScreenState();
+  ConsumerState<PostDetailScreen> createState() => PostDetailScreenState();
 }
 
-class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
+class PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   int _currentPage = 0;
 
   List<String> get _mediaUrls => widget.post.displayUrls;
@@ -496,15 +496,18 @@ class _PostDetailScreenState extends ConsumerState<_PostDetailScreen> {
     final scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
     final layoutStyle = ref.watch(postImageLayoutProvider);
     final isEdgeToEdge = layoutStyle == PostImageLayoutStyle.edgeToEdge;
+    // Only extend behind the app bar when there's actually an image up top;
+    // a text-only post would otherwise leave an empty gap under the status bar.
+    final imageBehindBar = isEdgeToEdge && _mediaUrls.isNotEmpty;
 
     return Scaffold(
-      extendBodyBehindAppBar: isEdgeToEdge,
+      extendBodyBehindAppBar: imageBehindBar,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: isEdgeToEdge ? Colors.white : Theme.of(context).iconTheme.color,
-          shadows: isEdgeToEdge ? const [Shadow(color: Colors.black45, blurRadius: 10)] : null,
+          color: imageBehindBar ? Colors.white : Theme.of(context).iconTheme.color,
+          shadows: imageBehindBar ? const [Shadow(color: Colors.black45, blurRadius: 10)] : null,
         ),
       ),
       body: Stack(
